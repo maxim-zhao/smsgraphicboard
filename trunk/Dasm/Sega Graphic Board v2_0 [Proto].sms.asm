@@ -22,6 +22,31 @@ BANKS 2
 .define Port_IOPort1       $dc
 .define Port_IOPort2       $dd
 
+; Macros for Port_IOPortControl
+; These can be ORed together, best to specify four each time
+; It's presumably irrelevant what the high nibble is when the bit is set to IN...
+; Bits:
+; D7 : Port 2 TH pin output level (1=high, 0=low)
+; D6 : Port 2 TR pin output level (1=high, 0=low)
+; D5 : Port 1 TH pin output level (1=high, 0=low)
+; D4 : Port 1 TR pin output level (1=high, 0=low)
+; D3 : Port 2 TH pin direction (1=input, 0=output)
+; D2 : Port 2 TR pin direction (1=input, 0=output)
+; D1 : Port 1 TH pin direction (1=input, 0=output)
+; D0 : Port 1 TR pin direction (1=input, 0=output)
+.define IO_TR1_OUT_1 %00010000
+.define IO_TR1_OUT_0 %00000000
+.define IO_TR1_IN    %00010001
+.define IO_TH1_OUT_1 %00100000
+.define IO_TH1_OUT_0 %00000000
+.define IO_TH1_IN    %00100010
+.define IO_TR2_OUT_1 %01000000
+.define IO_TR2_OUT_0 %00000000
+.define IO_TR2_IN    %01000100
+.define IO_TH2_OUT_1 %10000000
+.define IO_TH2_OUT_0 %00000000
+.define IO_TH2_IN    %10001000
+
 ; RAM
 .define RAM_ResetButton1 $C000 ; 1b Currently pressed value
 .define RAM_ResetButton2 $C001 ; 1b Positive edge signal
@@ -31,6 +56,9 @@ BANKS 2
 .define RAM_VBlankFunctionControl $C007 ; 1b
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
 .define RAM_PSGIsActive  $C009 ;  1b ???
+;---
+.define RAM_ButtonsPressed $C02C ; 1b: buttons pressed last time we looked
+.define RAM_ButtonsNewlyPressed $C02D ; 1b: buttons pressed last time we looked which were'nt pressed in the previous frame
 ;---
 .define RAM_Palette      $C042 ; 17b
 ;---
@@ -116,7 +144,7 @@ Start_AfterRAMClear:
     call InitialiseVDPRegisters
     call FillNameTableWithTile9
 
-    ld a, $FF ; all inputs
+    ld a, IO_TR1_IN | IO_TH1_IN | IO_TR2_IN | IO_TH2_IN; $FF ; all inputs
     out (Port_IOPortControl), a
 
     ei
@@ -132,26 +160,32 @@ Start_AfterRAMClear:
     ld h, $00
     call FillVRAMWithH
 
-    ld hl, $4552 ; 
+    ; Set up screen
+
+    ld hl, $4552 ; data: tiles for palette, UI controls
     ld de, $71A0 ; Tile $18d
     call DecompressGraphics
+
     ld de, $7660 ; Tile $1b3 
     ld b, $0D ; 26 tiles?
-    ld hl, $41B2 ; 2bpp tile data
+    ld hl, $41B2 ; 2bpp tile data - all colour 0
     call Write2bppToVRAM
+
     ld de, $7800 ; Tilemap
-    ld hl, $8D09 ; tile $18d
+    ld hl, $8D09 ; tile $18d = background, tile palette index 1
     ld bc, 32*28 ; $0380 
     call FillVRAMWithHL
-    call _LABEL_487_
-    call _LABEL_4AB_
-    ld hl, $051D
+
+    call DrawUIControls
+    call SetDrawingAreaTilemap
+
+    ld hl, DrawingPalette
     ld de, RAM_Palette
-    ld bc, $0011
+    ld bc, 17
     ldir
-    ld hl, $051D
+    ld hl, DrawingPalette
     ld de, $C000 ; palette
-    ld bc, $0020
+    ld bc, 32
     call RawDataToVRAM
     ld hl, $C15D
     ld de, $C15E
@@ -576,12 +610,12 @@ DelayLoop1:
     jp nz, --
     ret
 
-_LABEL_487_:
+DrawUIControls:
     ld hl, $0573 ; tilemap data: MENU | DO | PEN bar
     ld de, $7D48 ; 4, 21
     ld bc, $0330 ; 24x3 tiles
     call WriteAreaToTilemap
-    ld hl, $053D ; data: top bar palette
+    ld hl, TopBarPaletteTiles
     ld de, $784A ; 5, 1
     ld bc, $002C ; count
     call RawDataToVRAM
@@ -590,29 +624,27 @@ _LABEL_487_:
     ld bc, $000A ; count
     jp RawDataToVRAM ; and ret
 
-_LABEL_4AB_:
-    ld hl, $0000
-    ld bc, $1216
-    ld de, $78CA
-_LABEL_4B4_:
-    rst $08 ; VDPAddressToDE
+SetDrawingAreaTilemap:
+    ld hl, $0000 ; Tilemap data to write
+    ld bc, $1216 ; 12 rows, 16 columns
+    ld de, $78CA ; tile $1c6
+--: rst $08 ; VDPAddressToDE
     push bc
-    ld b, c
-    ld c, Port_VDPData
-_LABEL_4B9_:
-    out (c), l
-    push af
-    pop af
-    out (c), h
-    inc hl
-    djnz _LABEL_4B9_
-    push hl
-    ld hl, $0040
-    add hl, de
-    ex de, hl
-    pop hl
+      ld b, c
+      ld c, Port_VDPData
+-:    out (c), l ; Emit hl to the tilemap
+      push af ; delay
+      pop af
+      out (c), h
+      inc hl ; Next tile
+      djnz - ; Loop along row
+      push hl
+        ld hl, 64 ; Move down one row
+        add hl, de
+        ex de, hl
+      pop hl
     pop bc
-    djnz _LABEL_4B4_
+    djnz -- ; Loop down rows
     ret
 
 _LABEL_4CD_:
@@ -647,10 +679,17 @@ SilencePSG:
 ; Data from 4FD to 602 (262 bytes)
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
 .db $30 $00 $3F $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
+
+.org $051d
+DrawingPalette:
 .db $3F $00 $01 $02 $03 $04 $08 $0C $10 $20 $30 $38 $07 $0F $1F $2F
 .db $00 $00 $3F $03 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $03
-.db $8D $01 $8E $01 $8F $01 $90 $01 $91 $01 $92 $01 $93 $01 $94 $01
-.db $95 $01 $96 $01 $97 $01 $98 $01 $99 $01 $9A $01 $9B $01 $9C $01
+
+.org $053d
+TopBarPaletteTiles:
+.dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c
+;.db $8D $01 $8E $01 $8F $01 $90 $01 $91 $01 $92 $01 $93 $01 $94 $01
+;.db $95 $01 $96 $01 $97 $01 $98 $01 $99 $01 $9A $01 $9B $01 $9C $01
 .db $8D $09 $9D $09 $9E $09 $9F $09 $A0 $09 $A1 $09 $A4 $09 $A4 $09
 .db $A4 $09 $A4 $09 $A4 $09 $A2 $09 $A4 $0D $A4 $0D $A4 $0D $A4 $0D
 .db $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D
@@ -834,7 +873,7 @@ CheckForReset:
     ret
 
 ReadBoard:
-    ; Main graphics board read?
+    ; Main graphics board read
 
     in a, (Port_IOPort1)
     bit 4, a    ; Check for data
@@ -844,21 +883,22 @@ ReadBoard:
 
     ; ============================================================= Read 1 (TH = 1)
 
-    ld a, %00100000 ; $20 = all output, all zero except P1 TH = 1
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $20 = all output, all zero except P1 TH = 1
     out (Port_IOPortControl), a
 
     ld b,16
 -:  djnz - ; delay: 238 cycles = 66us from out to in
 
-    ld a, ($C02C)
+    ; Read the buttons and calculate what's new since last time
+    ld a, (RAM_ButtonsPressed)
     ld b, a
     in a, (Port_IOPort1) 
     cpl
     ld c, a
-    ld ($C02C), a
+    ld (RAM_ButtonsPressed), a
     xor b
     and c
-    ld ($C02D), a
+    ld (RAM_ButtonsNewlyPressed), a
 
     ld b, $5C
 -:  djnz - ; delay: 1266 cyles = 354us from in to out
@@ -867,7 +907,7 @@ ReadBoard:
 
     ; ============================================================= Read 2 (TH = 0, 1)
     
-    ld a, $00 ; all output, all zero
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; all output, all zero
     out (Port_IOPortControl), a
 
     ld b, $28
@@ -884,7 +924,7 @@ ReadBoard:
     
     ; no delay: 45 cycles = 13us from in to out
 
-    ld a, $20
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
 
     ld b, $28
@@ -902,7 +942,7 @@ ReadBoard:
 
     ; ============================================================= Read 3 (TH = 0, 1)
 
-    ld a, $00
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
 
     ld b, $28
@@ -918,7 +958,7 @@ ReadBoard:
     
     ; no delay: 45 cycles = 13us from in to out
     
-    ld a, $20
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
 
     ld b, $28
@@ -935,7 +975,7 @@ ReadBoard:
 
     ; ============================================================= Read 4 (TH = 0, 1)
 
-    ld a, $00
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
 
     ld b, $28
@@ -951,7 +991,7 @@ ReadBoard:
     
     ; no delay: 45 cycles = 13us from in to out
      
-    ld a, $20
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
 
     ld b, $28
@@ -966,7 +1006,7 @@ ReadBoard:
 
     ; no delay: 42 cycles = 12us from in to out
      
-    ld a, %00110000 ; $30
+    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $30
     out (Port_IOPortControl), a
 
     ld a, ($C030)
@@ -1007,29 +1047,37 @@ ReadBoard:
     ret
 
 PressureTooLow:
-    ld a, %00110000 ; $30
+    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $30
     out (Port_IOPortControl), a
     ret
 
     ; Board doesn't want to give us data
+    ; Note that this is rather duplicated from above, it looks like it 
+    ; could be optimised a bit
 NoBoardData:
+    ; no delay: 36 cycles = 10us from in to out
+
     ; Set TH
-    ld a, $20
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
 
     ld b, $10
--:  djnz -
+-:  djnz - ; delay: 238 cycles = 66 cycles from out to in
 
-    ld a, ($C02C)
+    ; Read the buttons and calculate what's new since last time
+    ld a, (RAM_ButtonsPressed)
     ld b, a
     in a, (Port_IOPort1)
     cpl
     ld c, a
-    ld ($C02C), a
+    ld (RAM_ButtonsPressed), a
     xor b
     and c
-    ld ($C02D), a
-    ld a, $30
+    ld (RAM_ButtonsNewlyPressed), a
+
+    ; no delay: 60 cycles = 17us from in to out
+
+    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
     ret
 
@@ -1167,7 +1215,7 @@ TitleScreen: ; $865
     ld a, ($C15D)
     call SetVBlankFunctionAndWait
 
-    ld a, ($C02D)
+    ld a, (RAM_ButtonsNewlyPressed)
     and $07
     jp nz, _LABEL_996_
 
@@ -1253,7 +1301,7 @@ GraphicsBoardDetected:
     jp z, TitleScreenTimedOut
     
     ; check button presses from last read
-    ld a, ($C02D)
+    ld a, (RAM_ButtonsNewlyPressed)
     and $07
     jp z, - ; loop until pressed
     
@@ -1608,7 +1656,7 @@ _LABEL_1680_:
     inc a
     ld ($C00A), a
     call _LABEL_3B13_
-    call _LABEL_4AB_
+    call SetDrawingAreaTilemap
     ld bc, $0E0C
     ld de, $1A10
     ld hl, $0405
@@ -1628,7 +1676,7 @@ _LABEL_1680_:
 ; 3rd entry of Jump Table from 165C (indexed by $C03C)
 _LABEL_16C0_:
     di
-    call _LABEL_4AB_
+    call SetDrawingAreaTilemap
     ld hl, ($C02E)
     ld a, $48
     cp l
@@ -1709,11 +1757,11 @@ _LABEL_1740_:
     exx
     bit 7, (hl)
     jp z, _LABEL_1768_
-    ld a, ($C02D)
+    ld a, (RAM_ButtonsNewlyPressed)
     bit 0, a
     ret z
     di
-    call _LABEL_487_
+    call DrawUIControls
     ld hl, ($C08D)
     ld ($C02E), hl
     ld hl, ($C08F)
@@ -1736,7 +1784,7 @@ _LABEL_1768_:
     ld hl, $8D09
     ld bc, $0380
     call FillVRAMWithHL
-    call _LABEL_4AB_
+    call SetDrawingAreaTilemap
     ei
     jp ScreenOn
 
@@ -1932,7 +1980,7 @@ _LABEL_18D9_:
     ret
 
 _LABEL_18E6_:
-    ld a, ($C02D)
+    ld a, (RAM_ButtonsNewlyPressed)
     bit 0, a
     ret z
     ld a, (RAM_PSGIsActive)
@@ -2175,14 +2223,14 @@ _LABEL_19F6_:
 ; 1st entry of Jump Table from 165C (indexed by $C03C)
 _LABEL_1C4A_:
     exx
-    ld a, ($C02D)
+    ld a, (RAM_ButtonsNewlyPressed)
     and $03
     ret nz
     di
     ld a, ($C062)
     or a
     jp nz, _LABEL_1C7F_
-    ld a, ($C02C)
+    ld a, (RAM_ButtonsPressed)
     ld ($C06D), a
     bit 2, a
     ld a, ($C08A)
@@ -2199,7 +2247,7 @@ _LABEL_1C4A_:
 
 _LABEL_1C7F_:
     di
-    ld a, ($C02C)
+    ld a, (RAM_ButtonsPressed)
     ld ($C06D), a
     ld hl, ($C02E)
     exx
@@ -4613,7 +4661,7 @@ _LABEL_2C5A_:
     ret nc
     sub $28
     ld h, a
-    ld a, ($C02C)
+    ld a, (RAM_ButtonsPressed)
     bit 2, a
     ret z
     di
@@ -4849,7 +4897,7 @@ _LABEL_2DFA_:
 .db $0F $2F $0D $09
 
 _LABEL_2F92_:
-    ld hl, $C02D
+    ld hl, RAM_ButtonsNewlyPressed
     ld a, ($C02E)
     ld b, a
     ld a, ($C03C)
@@ -6027,7 +6075,7 @@ _LABEL_37EB_:
 
 _LABEL_37EE_:
     ld hl, $C088
-    ld a, ($C02C)
+    ld a, (RAM_ButtonsPressed)
     ld c, a
     ld b, $03
     ld de, $7540

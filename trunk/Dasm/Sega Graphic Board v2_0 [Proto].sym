@@ -37,12 +37,12 @@
 0000:0457 _LABEL_457_
 0000:0465 _LABEL_465_
 0000:0477 DelayLoop1
-0000:0487 _LABEL_487_
-0000:04ab _LABEL_4AB_
-0000:04b4 _LABEL_4B4_
-0000:04b9 _LABEL_4B9_
+0000:0487 DrawUIControls
+0000:04ab SetDrawingAreaTilemap
 0000:04cd _LABEL_4CD_
 0000:04e8 SilencePSG
+0000:051d DrawingPalette
+0000:053d TopBarPaletteTiles
 0000:0603 InterruptHandlerImpl
 0000:0686 VBlank_CheckResetAndExit
 0000:06ad VBlank_HandleReset
