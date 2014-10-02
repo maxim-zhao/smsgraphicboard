@@ -14,8 +14,8 @@
 0000:013f InitialiseVDPRegisters
 0000:0164 FillNameTableWithTile9
 0000:016d FillVRAMWithHL
-0000:017d _LABEL_17D_
-0000:0197 _LABEL_197_
+0000:017d DisableSprites_RAMAndVRAM
+0000:0197 DisableSprites_VRAM
 0000:019f FillVRAMWithH
 0000:01aa RawDataToVRAM
 0000:01c0 RawDataToVRAM_Interleaved1
@@ -51,7 +51,7 @@
 0000:06e8 SetVBlankFunctionAndWait
 0000:06f3 CheckForReset
 0000:070b ReadBoard
-0000:07e4 _LABEL_7E4_
+0000:07e4 PressureTooLow
 0000:07e9 NoBoardData
 0000:0806 _LABEL_806_
 0000:080c _LABEL_80C_

@@ -29,16 +29,19 @@ BANKS 2
 .define RAM_VRAMFillHighByte $C004 ; 1b
 ;---
 .define RAM_VBlankFunctionControl $C007 ; 1b
-.define RAM_SpriteTableDirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
+.define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
 .define RAM_PSGIsActive  $C009 ;  1b ???
 ;---
 .define RAM_Palette      $C042 ; 17b
 ;---
 .define RAM_SplashScreenTimeout $C163 ; 2b
 ;---
-.define RAM_SpriteTable $C2C0 ; 192b
-.define RAM_SpriteTable_Y RAM_SpriteTable
-.define RAM_SpriteTable_XN RAM_SpriteTable+64
+.define RAM_SpriteTable1 $C200 ; 192b - write here
+.define RAM_SpriteTable1_Y RAM_SpriteTable1
+.define RAM_SpriteTable1_XN RAM_SpriteTable1+64
+.define RAM_SpriteTable2 $C2C0 ; 192b - copy here for staging to VRAM?
+.define RAM_SpriteTable2_Y RAM_SpriteTable2
+.define RAM_SpriteTable2_XN RAM_SpriteTable2+64
 
 .BANK 0 SLOT 0
 .ORG $0000
@@ -205,11 +208,11 @@ InitialiseVDPRegisters:
     ld a, (VDPRegisterValues+1)
     ld (RAM_VDPReg1Value), a
     
-    ld de, $4000
+    ld de, $4000 ; start of VRAM
     ld h, $00
-    ld bc, $4000
+    ld bc, $4000 ; all of VRAM
     call FillVRAMWithH
-    jp _LABEL_17D_
+    jp DisableSprites_RAMAndVRAM
 
 FillNameTableWithTile9:
     ld de, $7800 ; Name table address
@@ -231,21 +234,21 @@ FillVRAMWithHL:
     jp nz, -
     ret
 
-_LABEL_17D_:
-    ld hl, $C200
-    ld de, $C201
-    ld bc, $003F
-    ld (hl), $E0
-    ldir
-    ld hl, RAM_SpriteTable_Y
-    ld de, RAM_SpriteTable_Y+1
+DisableSprites_RAMAndVRAM:
+    ld hl, RAM_SpriteTable1_Y
+    ld de, RAM_SpriteTable1_Y+1
     ld bc, 64-1
-    ld (hl), $E0
+    ld (hl), 224
     ldir
-_LABEL_197_:
-    ld de, $7F00
-    ld h, $E0
-    ld bc, $0040
+    ld hl, RAM_SpriteTable2_Y
+    ld de, RAM_SpriteTable2_Y+1
+    ld bc, 64-1
+    ld (hl), 224
+    ldir
+DisableSprites_VRAM:
+    ld de, $7F00 ; Sprite table Y addresses
+    ld h, 224
+    ld bc, 64
     ; fall through
 
 FillVRAMWithH:
@@ -487,18 +490,18 @@ DecompressBitplane:
     jp --
 
 _LABEL_304_:
-    ld a, (RAM_SpriteTableDirtyFlag)
+    ld a, (RAM_SpriteTable2DirtyFlag)
     or a
     ret z
     xor a
-    ld (RAM_SpriteTableDirtyFlag), a
+    ld (RAM_SpriteTable2DirtyFlag), a
     ld a, ($C006)
     ld de, $7F00 ; Sprite table: Y
     rst $08 ; VDPAddressToDE
-    ld hl, RAM_SpriteTable_Y
+    ld hl, RAM_SpriteTable2_Y
     ld c, Port_VDPData
     call Outi64
-    ld hl, RAM_SpriteTable_XN
+    ld hl, RAM_SpriteTable2_XN
     ld de, $7F80 ; Sprite table: XN
     rst $08 ; VDPAddressToDE
     ; fall though
@@ -529,7 +532,7 @@ _LABEL_424_:
     ld bc, $0080
     ldir
     ld a, $01
-    ld (RAM_SpriteTableDirtyFlag), a
+    ld (RAM_SpriteTable2DirtyFlag), a
     ret
 
 _LABEL_44F_:
@@ -558,7 +561,7 @@ _LABEL_465_:
     dec hl
     djnz _LABEL_465_
     ld a, $01
-    ld (RAM_SpriteTableDirtyFlag), a
+    ld (RAM_SpriteTable2DirtyFlag), a
     ret
 
 DelayLoop1:
@@ -836,6 +839,8 @@ ReadBoard:
     in a, (Port_IOPort1)
     bit 4, a    ; Check for data
     jp nz, NoBoardData ; not pressed -> skip
+    
+    ; no delay: 10us from in to out
 
     ; ============================================================= Read 1 (TH = 1)
 
@@ -843,7 +848,7 @@ ReadBoard:
     out (Port_IOPortControl), a
 
     ld b,16
--:  djnz - ; delay
+-:  djnz - ; delay: 238 cycles = 66us from out to in
 
     ld a, ($C02C)
     ld b, a
@@ -856,7 +861,7 @@ ReadBoard:
     ld ($C02D), a
 
     ld b, $5C
--:  djnz - ; delay
+-:  djnz - ; delay: 1266 cyles = 354us from in to out
     nop
     nop
 
@@ -866,7 +871,7 @@ ReadBoard:
     out (Port_IOPortControl), a
 
     ld b, $28
--:  djnz - ; delay
+-:  djnz - ; delay: 533 cycles = 149us from out to in
 
     ; read low 4 bits
     in a, (Port_IOPort1)
@@ -876,22 +881,24 @@ ReadBoard:
     rlca
     rlca
     ld d, a
+    
+    ; no delay: 45 cycles = 13us from in to out
 
     ld a, $20
     out (Port_IOPortControl), a
 
     ld b, $28
--:  djnz -
+-:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
     and $0F
     or d
     cp $FD
-    jp c, _LABEL_7E4_
+    jp c, PressureTooLow
     ld ($C034), a
 
     ld b, $0B
--:  djnz -
+-:  djnz - ; delay: 204 cycles = 57 cycles from in to out
 
     ; ============================================================= Read 3 (TH = 0, 1)
 
@@ -899,7 +906,7 @@ ReadBoard:
     out (Port_IOPortControl), a
 
     ld b, $28
--:  djnz -
+-:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
     and $0F
@@ -908,11 +915,14 @@ ReadBoard:
     rlca
     rlca
     ld h, a
+    
+    ; no delay: 45 cycles = 13us from in to out
+    
     ld a, $20
     out (Port_IOPortControl), a
 
     ld b, $28
--:  djnz -
+-:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
     and $0F
@@ -921,7 +931,7 @@ ReadBoard:
     nop
 
     ld b, $0E
--:  djnz -
+-:  djnz - ; delay: 230 cycles = 64us from in to out
 
     ; ============================================================= Read 4 (TH = 0, 1)
 
@@ -929,7 +939,7 @@ ReadBoard:
     out (Port_IOPortControl), a
 
     ld b, $28
--:  djnz -
+-:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
     and $0F
@@ -938,11 +948,14 @@ ReadBoard:
     rlca
     rlca
     ld d, a
+    
+    ; no delay: 45 cycles = 13us from in to out
+     
     ld a, $20
     out (Port_IOPortControl), a
 
     ld b, $28
--:  djnz -
+-:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
     and $0F
@@ -951,6 +964,8 @@ ReadBoard:
 
     ; ============================================================= Done: set TR, TH
 
+    ; no delay: 42 cycles = 12us from in to out
+     
     ld a, %00110000 ; $30
     out (Port_IOPortControl), a
 
@@ -991,8 +1006,8 @@ ReadBoard:
     ld ($C02E), a
     ret
 
-_LABEL_7E4_:
-    ld a, $30
+PressureTooLow:
+    ld a, %00110000 ; $30
     out (Port_IOPortControl), a
     ret
 
@@ -1716,7 +1731,7 @@ _LABEL_1768_:
     ld ($C08F), hl
     di
     call ScreenOff
-    call _LABEL_197_
+    call DisableSprites_VRAM
     ld de, $7800
     ld hl, $8D09
     ld bc, $0380
