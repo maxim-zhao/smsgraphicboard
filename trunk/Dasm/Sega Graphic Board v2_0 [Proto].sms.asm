@@ -19,6 +19,7 @@ BANKS 2
 .define Port_PSG           $7f
 .define Port_VDPData       $be
 .define Port_VDPAddress    $bf
+.define Port_VDPStatus     $bf
 .define Port_IOPort1       $dc
 .define Port_IOPort2       $dd
 
@@ -53,12 +54,14 @@ BANKS 2
 .define RAM_VDPReg1Value $C003 ; 1b
 .define RAM_VRAMFillHighByte $C004 ; 1b
 ;---
-.define RAM_VBlankFunctionControl $C007 ; 1b
+.define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set neabs read the graphics board in the VBlank
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
 .define RAM_PSGIsActive  $C009 ;  1b ???
 ;---
 .define RAM_ButtonsPressed $C02C ; 1b: buttons pressed last time we looked
 .define RAM_ButtonsNewlyPressed $C02D ; 1b: buttons pressed last time we looked which were'nt pressed in the previous frame
+;---
+.define RAM_NonVBlankDynamicFunction $C03C ; 2b
 ;---
 .define RAM_Palette      $C042 ; 17b
 ;---
@@ -74,7 +77,6 @@ BANKS 2
 .BANK 0 SLOT 0
 .ORG $0000
 
-_LABEL_0_:
     jp Start
 
 .dsb 5, 0 ; 5 bytes blank
@@ -187,18 +189,22 @@ Start_AfterRAMClear:
     ld de, $C000 ; palette
     ld bc, 32
     call RawDataToVRAM
+    ; Blank ???
     ld hl, $C15D
     ld de, $C15E
-    ld bc, $0008
+    ld bc, 8
     ld (hl), $00
     ldir
+    ; Paging unnecessary, we are 32KB
     ld a, $02
     ld ($FFFF), a
+    ; Write a bunch of zeroes in there..?
     ld hl, $8000
     ld de, $8001
     ld bc, $3FFF
     ld (hl), $00
     ldir
+    ; Then another 16KB
     ld a, $03
     ld ($FFFF), a
     ld hl, $8000
@@ -206,25 +212,26 @@ Start_AfterRAMClear:
     ld bc, $3FFF
     ld (hl), $00
     ldir
+    ; Store a pointer?
     ld hl, $8000
     ld ($C183), hl
     ld ($C187), hl
     ld a, $01
     ld ($C182), a
-    call _LABEL_3748_
+    call InitialiseCursorSprites
     call ScreenOn
     ld hl, $4858
     ld ($C03E), hl
     ld a, $01
     ld ($C00B), a
-_LABEL_12D_:
-    ei
+    ; Main loop
+-:  ei
     ld a, $03
     call SetVBlankFunctionAndWait
     call _LABEL_2F92_
     call _LABEL_164F_
-    call _LABEL_424_
-    jp _LABEL_12D_
+    call SpriteTable1to2
+    jp -
 
 InitialiseVDPRegisters:
     ld hl, VDPRegisterValues ; VDP register data
@@ -339,7 +346,7 @@ RawDataToVRAM_Interleaved2:
 Write2bppToVRAM:
     ; write data from hl to VRAM address de, 2 bytes then 2 zeroes, b*16 times
     rst $08 ; VDPAddressToDE
-_LABEL_1F5_:
+Write2bppToVRAMCurrentAddress:
     ; write data from hl to VDP, 2 bytes then 2 zeroes, b*16 times
 --: push hl
     push bc
@@ -428,14 +435,15 @@ WriteAreaToTilemap:
     ret
 
 _LABEL_263_:
+    ; read b*c (?) bytes from VRAM address de to hl
     rst $08 ; VDPAddressToDE
-    push af
+    push af ; delay
     pop af
 --: push bc
       ld b, c
       ld c, Port_VDPData
--:    ini
-      push af
+-:    ini ; read a byte to hl
+      push af ; delay
       pop af
       jr nz, -
     pop bc
@@ -450,18 +458,18 @@ _LABEL_277_:
       ld b, c
       push de
 -:      rst $08 ; VDPAddressToDE
-        ex (sp), hl
+        ex (sp), hl ; delay
         ex (sp), hl
         in a, (Port_VDPData)
-        ex af, af'
-        ex (sp), hl
+        ex af, af' ; save value
+        ex (sp), hl ; delay
         ex (sp), hl
         ld a, e
         out (Port_VDPAddress), a
         ld a, d
         or $40
         out (Port_VDPAddress), a
-        ex af, af'
+        ex af, af' ; restore value
         and $E1
         or h
         push af
@@ -549,41 +557,40 @@ Outi64:
 .endr
     ret
 
-_LABEL_424_:
-    ld a, ($C03C)
+SpriteTable1to2:
+    ld a, (RAM_NonVBlankDynamicFunction)
     and $3F
-    cp $0C
+    cp $0C ; ???
     ret z
     ld a, ($C006)
-    rrca
-    jp c, _LABEL_44F_
-    ld hl, $C200
-    ld de, $C2C0
-    ld bc, $0040
+    rrca ; Check low bit
+    jp c, +
+    ; Even: straight copy
+    ld hl, RAM_SpriteTable1_Y
+    ld de, RAM_SpriteTable2_Y
+    ld bc, 64
     ldir
-    ld hl, $C240
-    ld de, $C300
-    ld bc, $0080
+    ld hl, RAM_SpriteTable1_XN
+    ld de, RAM_SpriteTable2_XN
+    ld bc, 64*2
     ldir
-    ld a, $01
+    ld a, 1
     ld (RAM_SpriteTable2DirtyFlag), a
     ret
 
-_LABEL_44F_:
-    ld hl, $C23F
-    ld de, $C2C0
-    ld b, $40
-_LABEL_457_:
-    ld a, (hl)
++:  ; Odd: reverse order
+    ld hl, RAM_SpriteTable1_Y + 63
+    ld de, RAM_SpriteTable2_Y
+    ld b, 64
+-:  ld a, (hl)
     ld (de), a
     dec hl
     inc de
-    djnz _LABEL_457_
-    ld hl, $C2BE
-    ld de, $C300
-    ld b, $40
-_LABEL_465_:
-    ld a, (hl)
+    djnz -
+    ld hl, RAM_SpriteTable1_XN + 63 * 2
+    ld de, RAM_SpriteTable2_XN
+    ld b, 64
+-:  ld a, (hl)
     ld (de), a
     inc hl
     inc de
@@ -593,7 +600,7 @@ _LABEL_465_:
     dec hl
     dec hl
     dec hl
-    djnz _LABEL_465_
+    djnz -
     ld a, $01
     ld (RAM_SpriteTable2DirtyFlag), a
     ret
@@ -619,7 +626,7 @@ DrawUIControls:
     ld de, $784A ; 5, 1
     ld bc, $002C ; count
     call RawDataToVRAM
-    ld hl, $0569 ; data: top bar status
+    ld hl, TopBarStatusTiles ; data: top bar status
     ld de, $78AC ; 22, 2
     ld bc, $000A ; count
     jp RawDataToVRAM ; and ret
@@ -688,19 +695,20 @@ DrawingPalette:
 .org $053d
 TopBarPaletteTiles:
 .dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c
-;.db $8D $01 $8E $01 $8F $01 $90 $01 $91 $01 $92 $01 $93 $01 $94 $01
-;.db $95 $01 $96 $01 $97 $01 $98 $01 $99 $01 $9A $01 $9B $01 $9C $01
-.db $8D $09 $9D $09 $9E $09 $9F $09 $A0 $09 $A1 $09 $A4 $09 $A4 $09
-.db $A4 $09 $A4 $09 $A4 $09 $A2 $09 $A4 $0D $A4 $0D $A4 $0D $A4 $0D
-.db $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D
-.db $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D $A4 $0D
-.db $A4 $0D $A4 $0D $A2 $0B $A3 $0B $AA $09 $AB $09 $AC $09 $AD $09
-.db $AE $09 $AF $09 $B0 $09 $B1 $09 $B2 $09 $B3 $09 $B4 $09 $B5 $09
-.db $B6 $09 $B7 $09 $B8 $09 $B9 $09 $BA $09 $BB $09 $BC $09 $BD $09
-.db $BE $09 $BF $09 $A3 $09 $A2 $0D $A4 $09 $A4 $09 $A4 $09 $A4 $09
-.db $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09
-.db $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09 $A4 $09
-.db $A4 $09 $A4 $09 $A2 $0F
+.dw $098D, $099D, $099E, $099F, $09A0, $09A1
+
+TopBarStatusTiles:
+.dw $09A4, $09A4, $09A4, $09A4, $09A4, $09A2, $0DA4, $0DA4, $0DA4, $0DA4
+
+.dw $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4
+.dw $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4
+.dw $0DA4, $0DA4, $0BA2, $0BA3, $09AA, $09AB, $09AC, $09AD
+.dw $09AE, $09AF, $09B0, $09B1, $09B2, $09B3, $09B4, $09B5
+.dw $09B6, $09B7, $09B8, $09B9, $09BA, $09BB, $09BC, $09BD
+.dw $09BE, $09BF, $09A3, $0DA2, $09A4, $09A4, $09A4, $09A4
+.dw $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4
+.dw $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4
+.dw $09A4, $09A4, $0FA2
 
 InterruptHandlerImpl:
     di
@@ -716,7 +724,7 @@ InterruptHandlerImpl:
     push bc
     push de
     push hl
-        in a, ($BF)
+        in a, (Port_VDPStatus) ; Satisy VBlank interrupt
         ld a, (RAM_VBlankFunctionControl)
         or a
         jp z, VBlank_CheckResetAndExit
@@ -727,7 +735,7 @@ InterruptHandlerImpl:
         call _LABEL_304_
         call _LABEL_376B_
         call _LABEL_371E_
-        ld a, ($C03C)
+        ld a, (RAM_NonVBlankDynamicFunction)
         cp $83
         jp nz, +
         ld a, ($C054)
@@ -1086,19 +1094,16 @@ _LABEL_806_:
     xor a
     jp _LABEL_815_
 
-_LABEL_80C_:
-    adc a, a
-    jr c, _LABEL_812_
+-:  adc a, a
+    jr c, +
     cp e
-    jr c, _LABEL_814_
-_LABEL_812_:
-    sub e
+    jr c, ++
++:  sub e
     or a
-_LABEL_814_:
-    ccf
+++: ccf
 _LABEL_815_:
     adc hl, hl
-    djnz _LABEL_80C_
+    djnz -
     ret
 
 _LABEL_81A_:
@@ -1131,12 +1136,10 @@ _LABEL_847_:
     ld b, $08
     ld d, $00
     ld l, d
-_LABEL_84D_:
-    add hl, hl
-    jr nc, _LABEL_851_
+-:  add hl, hl
+    jr nc, +
     add hl, de
-_LABEL_851_:
-    djnz _LABEL_84D_
++:  djnz -
     ret
 
 _LABEL_854_:
@@ -1144,21 +1147,20 @@ _LABEL_854_:
     or a
     ret z
     ld b, $08
-_LABEL_85B_:
+-:
     add hl, hl
     adc a, a
-    jr nc, _LABEL_862_
+    jr nc, +
     add hl, de
     adc a, $00
-_LABEL_862_:
-    djnz _LABEL_85B_
++:  djnz -
     ret
 
 TitleScreen: ; $865
     ; blank RAM for ???
     ld hl, $C15D
     ld de, $C15E
-    ld bc, $0008
+    ld bc, 8
     ld (hl), $00
     ldir
 
@@ -1539,37 +1541,36 @@ _LABEL_ACC_:
     ld de, $0020
     ld b, $1B
     ld c, $BE
-_LABEL_AF5_:
-    push bc
-    ld a, l
-    out (Port_VDPAddress), a
-    ld a, h
-    out (Port_VDPAddress), a
-    xor a
-    push de
-    pop de
-    out ($BE), a
-    push de
-    pop de
-    out ($BE), a
-    add hl, de
+-:  push bc
+      ld a, l
+      out (Port_VDPAddress), a
+      ld a, h
+      out (Port_VDPAddress), a
+      xor a
+      push de
+      pop de
+      out (Port_VDPData), a
+      push de
+      pop de
+      out (Port_VDPData), a
+      add hl, de
     pop bc
-    djnz _LABEL_AF5_
+    djnz -
     ret
 
 _LABEL_B0A_:
     ld a, ($C15E) ; check for high bit = new write
     bit 7, a
     ret z
-    and $7F
+    and %01111111 ; clear high bit
     ld ($C15E), a
     bit 0, a
-    jp z, _LABEL_B20_
+    jp z, +
     bit 1, a
     jp z, _LABEL_B52_
     ret
 
-_LABEL_B20_:
++:
     ld a, $09
     ld (RAM_VRAMFillHighByte), a
     ld hl, $0B8A
@@ -1630,19 +1631,19 @@ _LABEL_B89_:
 .incbin "Sega Graphic Board v2.0 [Proto]_b8a.inc"
 
 _LABEL_164F_:
-    ld hl, $C03C
+    ld hl, RAM_NonVBlankDynamicFunction
     ld a, (hl)
     and $3F
     exx
     ld hl, $165C
     jp JumpToFunction
 
-; Jump Table from 165C to 167F (18 entries, indexed by $C03C)
+; Jump Table from 165C to 167F (18 entries, indexed by RAM_NonVBlankDynamicFunction)
 .dw _LABEL_1C4A_ _LABEL_1680_ _LABEL_16C0_ _LABEL_1EE2_ _LABEL_171E_ _LABEL_1F66_ _LABEL_21A2_ _LABEL_21A2_
 .dw _LABEL_2605_ _LABEL_2862_ _LABEL_290D_ _LABEL_2C5A_ _LABEL_1740_ _LABEL_18C8_ _LABEL_1790_ _LABEL_17DE_
 .dw _LABEL_182C_ _LABEL_187A_
 
-; 2nd entry of Jump Table from 165C (indexed by $C03C)
+; 2nd entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1680_:
     exx
     bit 7, (hl)
@@ -1673,7 +1674,7 @@ _LABEL_1680_:
     ei
     ret
 
-; 3rd entry of Jump Table from 165C (indexed by $C03C)
+; 3rd entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_16C0_:
     di
     call SetDrawingAreaTilemap
@@ -1728,7 +1729,7 @@ _LABEL_1715_:
     ei
     ret
 
-; 5th entry of Jump Table from 165C (indexed by $C03C)
+; 5th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_171E_:
     ld a, ($C0BA)
     or a
@@ -1749,7 +1750,7 @@ _LABEL_1737_:
     ld ($C00A), a
     ret
 
-; 13th entry of Jump Table from 165C (indexed by $C03C)
+; 13th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1740_:
     ld a, (RAM_PSGIsActive)
     or a
@@ -1767,7 +1768,7 @@ _LABEL_1740_:
     ld hl, ($C08F)
     ld ($C031), hl
     ld a, $01
-    ld ($C03C), a
+    ld (RAM_NonVBlankDynamicFunction), a
     ei
     ret
 
@@ -1788,7 +1789,7 @@ _LABEL_1768_:
     ei
     jp ScreenOn
 
-; 15th entry of Jump Table from 165C (indexed by $C03C)
+; 15th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1790_:
     ld a, (RAM_PSGIsActive)
     or a
@@ -1831,7 +1832,7 @@ _LABEL_17B8_:
     ei
     ret
 
-; 16th entry of Jump Table from 165C (indexed by $C03C)
+; 16th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_17DE_:
     ld a, (RAM_PSGIsActive)
     or a
@@ -1874,7 +1875,7 @@ _LABEL_1806_:
     ei
     ret
 
-; 17th entry of Jump Table from 165C (indexed by $C03C)
+; 17th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_182C_:
     ld a, (RAM_PSGIsActive)
     or a
@@ -1917,7 +1918,7 @@ _LABEL_1854_:
     ei
     ret
 
-; 18th entry of Jump Table from 165C (indexed by $C03C)
+; 18th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_187A_:
     ld a, (RAM_PSGIsActive)
     or a
@@ -1960,7 +1961,7 @@ _LABEL_18A2_:
     ei
     ret
 
-; 14th entry of Jump Table from 165C (indexed by $C03C)
+; 14th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_18C8_:
     exx
     bit 7, (hl)
@@ -1976,7 +1977,7 @@ _LABEL_18D9_:
     ld a, $80
     ld (RAM_SplashScreenTimeout), a
     ld a, $E0
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ret
 
 _LABEL_18E6_:
@@ -1986,14 +1987,14 @@ _LABEL_18E6_:
     ld a, (RAM_PSGIsActive)
     or a
     ret nz
-    ld a, ($C03C)
+    ld a, (RAM_NonVBlankDynamicFunction)
     and $3F
     cp $01
     ret z
     cp $02
     ret z
     ld a, $01
-    ld ($C03C), a
+    ld (RAM_NonVBlankDynamicFunction), a
     ret
 
 _LABEL_1902_:
@@ -2053,7 +2054,7 @@ _LABEL_1902_:
     ld b, (hl)
     inc hl
     rst $08 ; VDPAddressToDE
-_LABEL_195A_:
+-:
     ld a, (hl)
     cp $FF
     inc hl
@@ -2068,10 +2069,10 @@ _LABEL_195A_:
     add hl, hl
     add hl, de
     ld b, $01
-    call _LABEL_1F5_
+    call Write2bppToVRAMCurrentAddress
     exx
 _LABEL_1973_:
-    djnz _LABEL_195A_
+    djnz -
     ret
 
 _LABEL_1976_:
@@ -2087,7 +2088,7 @@ _LABEL_1981_:
     push bc
     push de
     push hl
-    call _LABEL_198B_
+      call _LABEL_198B_
     pop hl
     pop de
     pop bc
@@ -2103,36 +2104,35 @@ _LABEL_198B_:
     push bc
     push de
     push hl
-    ld de, ($C016)
-    ld bc, ($C01A)
-    ld l, c
-    ld h, $00
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    ld ($C0BB), hl
-    ld hl, $C400
-_LABEL_19B5_:
-    push bc
-    ld bc, ($C0BB)
-    rst $08 ; VDPAddressToDE
+      ld de, ($C016)
+      ld bc, ($C01A)
+      ld l, c
+      ld h, $00
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      ld ($C0BB), hl
+      ld hl, $C400
+-:    push bc
+        ld bc, ($C0BB)
+        rst $08 ; VDPAddressToDE
 _LABEL_19BB_:
-    ld a, (hl)
-    out ($BE), a
-    inc hl
-    dec bc
-    ld a, b
-    or c
-    jp nz, _LABEL_19BB_
-    push hl
-    ld hl, $02C0
-    add hl, de
-    ex de, hl
-    pop hl
-    pop bc
-    djnz _LABEL_19B5_
+        ld a, (hl)
+        out (Port_VDPData), a
+        inc hl
+        dec bc
+        ld a, b
+        or c
+        jp nz, _LABEL_19BB_
+        push hl
+          ld hl, $02C0
+          add hl, de
+          ex de, hl
+        pop hl
+      pop bc
+      djnz -
     pop hl
     pop de
     pop bc
@@ -2142,41 +2142,40 @@ _LABEL_19D3_:
     push bc
     push de
     push hl
-    ld de, ($C016)
-    res 6, d
-    ld bc, ($C01A)
-    ld l, c
-    ld h, $00
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    ld ($C0BB), hl
-    ld hl, $C400
-_LABEL_19EE_:
-    push bc
-    ld bc, ($C0BB)
-    rst $08 ; VDPAddressToDE
-    push af
-    pop af
+      ld de, ($C016)
+      res 6, d
+      ld bc, ($C01A)
+      ld l, c
+      ld h, $00
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      ld ($C0BB), hl
+      ld hl, $C400
+-:    push bc
+        ld bc, ($C0BB)
+        rst $08 ; VDPAddressToDE
+        push af
+        pop af
 _LABEL_19F6_:
-    push af
-    pop af
-    in a, ($BE)
-    ld (hl), a
-    inc hl
-    dec bc
-    ld a, b
-    or c
-    jp nz, _LABEL_19F6_
-    push hl
-    ld hl, $02C0
-    add hl, de
-    ex de, hl
-    pop hl
-    pop bc
-    djnz _LABEL_19EE_
+        push af
+        pop af
+        in a, (Port_VDPData)
+        ld (hl), a
+        inc hl
+        dec bc
+        ld a, b
+        or c
+        jp nz, _LABEL_19F6_
+        push hl
+          ld hl, $02C0
+          add hl, de
+          ex de, hl
+        pop hl
+      pop bc
+      djnz -
     pop hl
     pop de
     pop bc
@@ -2220,7 +2219,7 @@ _LABEL_19F6_:
 .db $00 $19 $05 $13 $00 $00 $00 $00 $00 $00 $22 $FF $25 $24 $24 $24
 .db $24 $24 $24 $24 $24 $24 $24 $24 $23 $FF
 
-; 1st entry of Jump Table from 165C (indexed by $C03C)
+; 1st entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1C4A_:
     exx
     ld a, (RAM_ButtonsNewlyPressed)
@@ -2520,12 +2519,12 @@ _LABEL_1E57_:
     add hl, hl
     add hl, hl
     push hl
-    add hl, hl
-    push hl
-    add hl, hl
-    add hl, hl
-    pop de
-    add hl, de
+      add hl, hl
+      push hl
+        add hl, hl
+        add hl, hl
+      pop de
+      add hl, de
     pop de
     add hl, de
     ex de, hl
@@ -2545,44 +2544,40 @@ _LABEL_1E57_:
     add hl, de
     ex de, hl
     push bc
-    ld hl, $C073
-    ld bc, $0004
-    call _LABEL_263_
+      ld hl, $C073
+      ld bc, $0004
+      call _LABEL_263_
     pop bc
     ld a, c
     and $07
     push de
-    ld hl, $1EDA
-    ld e, a
-    ld d, $00
-    add hl, de
-    ld a, (hl)
-    ld hl, $C073
-    ld e, a
-    cpl
-    ld d, a
-    ld b, $04
-    ld c, $00
-    ld a, ($C06B)
-    cp $03
-    jp nc, _LABEL_1EBC_
-    ld a, ($C06C)
-    ld c, a
-    and a
-_LABEL_1EBC_:
-    rrc c
-    ld a, (hl)
-    jp nc, _LABEL_1EC7_
-    or e
-    ld (hl), a
-    jp _LABEL_1EC9_
-
-_LABEL_1EC7_:
-    and d
-    ld (hl), a
-_LABEL_1EC9_:
-    inc hl
-    djnz _LABEL_1EBC_
+      ld hl, $1EDA
+      ld e, a
+      ld d, $00
+      add hl, de
+      ld a, (hl)
+      ld hl, $C073
+      ld e, a
+      cpl
+      ld d, a
+      ld b, $04
+      ld c, $00
+      ld a, ($C06B)
+      cp $03
+      jp nc, -
+      ld a, ($C06C)
+      ld c, a
+      and a
+-:    rrc c
+      ld a, (hl)
+      jp nc, +
+      or e
+      ld (hl), a
+      jp ++
++:    and d
+      ld (hl), a
+++:   inc hl
+      djnz -
     pop de
     ld a, d
     or $40
@@ -2594,7 +2589,7 @@ _LABEL_1EC9_:
 ; Data from 1EDA to 1EE1 (8 bytes)
 .db $80 $40 $20 $10 $08 $04 $02 $01
 
-; 4th entry of Jump Table from 165C (indexed by $C03C)
+; 4th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1EE2_:
     exx
     bit 7, (hl)
@@ -2652,7 +2647,7 @@ _LABEL_1F37_:
     ld hl, $44A2
     add hl, bc
     ld b, $01
-    call _LABEL_1F5_
+    call Write2bppToVRAMCurrentAddress
     pop hl
     ret
 
@@ -2660,7 +2655,7 @@ _LABEL_1F37_:
 .db $00 $20 $00 $30 $00 $40 $00 $50 $00 $60 $00 $70 $00 $80 $00 $90
 .db $00 $A0 $20 $10 $20 $20 $20 $30 $20 $40 $20 $50 $20 $60 $20 $70
 
-; 6th entry of Jump Table from 165C (indexed by $C03C)
+; 6th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1F66_:
     ld a, ($C089)
     cp $03
@@ -2756,7 +2751,7 @@ _LABEL_202F_:
     sub $3C
     sub c
     ld b, a
-_LABEL_203A_:
+-:
     push bc
     ld a, (iy+12)
     and $F8
@@ -2797,7 +2792,7 @@ _LABEL_203A_:
     ld a, (iy+12)
     cp $90
     jp nc, _LABEL_2079_
-    djnz _LABEL_203A_
+    djnz -
 _LABEL_2079_:
     ld a, $F0
     ld ($C203), a
@@ -2811,7 +2806,7 @@ _LABEL_2085_:
     ld h, (iy+13)
     ld l, (iy+12)
     ld d, (iy+15)
-_LABEL_208E_:
+-:
     push bc
     push de
     push hl
@@ -2821,7 +2816,7 @@ _LABEL_208E_:
     pop de
     pop bc
     inc l
-    djnz _LABEL_208E_
+    djnz -
     jp _LABEL_2079_
 
 _LABEL_209E_:
@@ -2866,12 +2861,11 @@ _LABEL_20CD_:
     or a
     jp z, _LABEL_20EA_
     ld b, a
-_LABEL_20E0_:
-    call _LABEL_20FE_
+-:  call _LABEL_20FE_
     ld hl, $0020
     add hl, de
     ex de, hl
-    djnz _LABEL_20E0_
+    djnz -
 _LABEL_20EA_:
     ld a, (iy+15)
     and $07
@@ -2923,14 +2917,11 @@ _LABEL_212F_:
 _LABEL_2131_:
     nop
     rrca
-    jp c, _LABEL_213B_
+    jp c, +
     out (c), h
-    jp _LABEL_213D_
-
-_LABEL_213B_:
-    out (c), l
-_LABEL_213D_:
-    ret
+    jp ++
++:  out (c), l
+++: ret
 
 _LABEL_213E_:
     ld hl, $C073
@@ -2972,37 +2963,33 @@ _LABEL_213E_:
     rrc e
     ld a, (hl)
     inc hl
-    jp nc, _LABEL_2179_
+    jp nc, +
     or b
-_LABEL_2179_:
-    out ($BE), a
++:  out (Port_VDPData), a
     ld a, (hl)
     inc hl
     rrc e
-    jp nc, _LABEL_2183_
+    jp nc, +
     or b
-_LABEL_2183_:
-    out ($BE), a
++:  out (Port_VDPData), a
     ld a, (hl)
     inc hl
     rrc e
-    jp nc, _LABEL_218D_
+    jp nc, +
     or b
-_LABEL_218D_:
-    out ($BE), a
++:  out (Port_VDPData), a
     ld a, (hl)
     rrc e
-    jp nc, _LABEL_2196_
+    jp nc, +
     or b
-_LABEL_2196_:
-    out ($BE), a
++:  out (Port_VDPData), a
     pop de
     ret
 
 ; Data from 219A to 21A1 (8 bytes)
 .db $FF $7F $3F $1F $0F $07 $03 $01
 
-; 7th entry of Jump Table from 165C (indexed by $C03C)
+; 7th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_21A2_:
     ld a, (RAM_PSGIsActive)
     or a
@@ -3676,19 +3663,17 @@ _LABEL_25F2_:
     ld hl, $0100
     ld b, $08
     xor a
-_LABEL_25F8_:
-    add a, a
+-:  add a, a
     inc a
     add hl, hl
     sbc hl, de
-    jp nc, _LABEL_2602_
+    jp nc, +
     dec a
     add hl, de
-_LABEL_2602_:
-    djnz _LABEL_25F8_
++:  djnz -
     ret
 
-; 9th entry of Jump Table from 165C (indexed by $C03C)
+; 9th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_2605_:
     ld a, (RAM_PSGIsActive)
     or a
@@ -3703,11 +3688,11 @@ _LABEL_2605_:
     ld a, e
     sub $40
     cp $90
-    jp nc, _LABEL_2641_
+    jp nc, +
     ld h, a
     ld a, d
     cp $B0
-    jp nc, _LABEL_2641_
+    jp nc, +
     ld l, a
     ex de, hl
     di
@@ -3717,14 +3702,13 @@ _LABEL_2605_:
     ld b, a
     ld a, ($C06C)
     cp b
-    jp z, _LABEL_2641_
+    jp z, +
     xor a
     ld ($C06B), a
     di
     call _LABEL_2646_
     ei
-_LABEL_2641_:
-    xor a
++:  xor a
     ld ($C089), a
     ret
 
@@ -3733,143 +3717,143 @@ _LABEL_2646_:
     push bc
     push de
     push hl
-    ld a, d
-    cp $90
-    jp nc, _LABEL_274D_
-    ld a, e
-    ld ($C0AB), a
-    ld a, d
-    ld ($C0AA), a
-    call _LABEL_2752_
-    or a
-    jp nz, _LABEL_274D_
-    ld hl, $0000
-    ld ($C0AC), hl
+      ld a, d
+      cp $90
+      jp nc, _LABEL_274D_
+      ld a, e
+      ld ($C0AB), a
+      ld a, d
+      ld ($C0AA), a
+      call _LABEL_2752_
+      or a
+      jp nz, _LABEL_274D_
+      ld hl, $0000
+      ld ($C0AC), hl
 _LABEL_2665_:
-    ld a, ($C0AB)
-    or a
-    jr z, _LABEL_267D_
-    dec a
-    ld e, a
-    ld a, ($C0AA)
-    ld d, a
-    call _LABEL_2752_
-    or a
-    jr nz, _LABEL_267D_
-    ld a, e
-    ld ($C0AB), a
-    jr _LABEL_2665_
+      ld a, ($C0AB)
+      or a
+      jr z, _LABEL_267D_
+      dec a
+      ld e, a
+      ld a, ($C0AA)
+      ld d, a
+      call _LABEL_2752_
+      or a
+      jr nz, _LABEL_267D_
+      ld a, e
+      ld ($C0AB), a
+      jr _LABEL_2665_
 
 _LABEL_267D_:
-    ld a, $01
-    ld ($C0B0), a
-    ld ($C0B1), a
+      ld a, $01
+      ld ($C0B0), a
+      ld ($C0B1), a
 _LABEL_2685_:
-    ld a, ($C0B0)
-    ld ($C0AE), a
-    ld a, ($C0B1)
-    ld ($C0AF), a
-    ld a, ($C0AA)
-    cp $8F
-    ld a, $01
-    jr z, _LABEL_26A6_
-    ld a, ($C0AB)
-    ld e, a
-    ld a, ($C0AA)
-    inc a
-    ld d, a
-    call _LABEL_2752_
+      ld a, ($C0B0)
+      ld ($C0AE), a
+      ld a, ($C0B1)
+      ld ($C0AF), a
+      ld a, ($C0AA)
+      cp $8F
+      ld a, $01
+      jr z, _LABEL_26A6_
+      ld a, ($C0AB)
+      ld e, a
+      ld a, ($C0AA)
+      inc a
+      ld d, a
+      call _LABEL_2752_
 _LABEL_26A6_:
-    ld ($C0B1), a
-    ld a, ($C0AA)
-    cp $00
-    ld a, $01
-    jr z, _LABEL_26BE_
-    ld a, ($C0AB)
-    ld e, a
-    ld a, ($C0AA)
-    dec a
-    ld d, a
-    call _LABEL_2752_
+      ld ($C0B1), a
+      ld a, ($C0AA)
+      cp $00
+      ld a, $01
+      jr z, _LABEL_26BE_
+      ld a, ($C0AB)
+      ld e, a
+      ld a, ($C0AA)
+      dec a
+      ld d, a
+      call _LABEL_2752_
 _LABEL_26BE_:
-    ld ($C0B0), a
-    ld a, ($C0AE)
-    ld b, a
-    ld a, ($C0B0)
-    xor $01
-    and b
-    jr z, _LABEL_26DE_
-    ld hl, ($C0AC)
-    inc hl
-    ld ($C0AC), hl
-    ld a, ($C0AB)
-    ld l, a
-    ld a, ($C0AA)
-    dec a
-    ld h, a
-    push hl
+      ld ($C0B0), a
+      ld a, ($C0AE)
+      ld b, a
+      ld a, ($C0B0)
+      xor $01
+      and b
+      jr z, _LABEL_26DE_
+      ld hl, ($C0AC)
+      inc hl
+      ld ($C0AC), hl
+      ld a, ($C0AB)
+      ld l, a
+      ld a, ($C0AA)
+      dec a
+      ld h, a
+      push hl
 _LABEL_26DE_:
-    ld a, ($C0AF)
-    ld b, a
-    ld a, ($C0B1)
-    xor $01
-    and b
-    jr z, _LABEL_26FB_
-    ld hl, ($C0AC)
-    inc hl
-    ld ($C0AC), hl
-    ld a, ($C0AB)
-    ld l, a
-    ld a, ($C0AA)
-    inc a
-    ld h, a
-    push hl
+        ld a, ($C0AF)
+        ld b, a
+        ld a, ($C0B1)
+        xor $01
+        and b
+        jr z, _LABEL_26FB_
+        ld hl, ($C0AC)
+        inc hl
+        ld ($C0AC), hl
+        ld a, ($C0AB)
+        ld l, a
+        ld a, ($C0AA)
+        inc a
+        ld h, a
+        push hl
 _LABEL_26FB_:
-    ld a, ($C0AB)
-    ld e, a
-    ld a, ($C0AA)
-    ld d, a
-    ld a, $01
-    call _LABEL_2850_
-    ld a, ($C0AB)
-    cp $AF
-    jr z, _LABEL_2725_
-    inc a
-    ld e, a
-    ld a, ($C0AA)
-    ld d, a
-    call _LABEL_2752_
-    or a
-    jr nz, _LABEL_2725_
-    ld a, ($C0AB)
-    inc a
-    ld ($C0AB), a
-    jp _LABEL_2685_
+        ld a, ($C0AB)
+        ld e, a
+        ld a, ($C0AA)
+        ld d, a
+        ld a, $01
+        call _LABEL_2850_
+        ld a, ($C0AB)
+        cp $AF
+        jr z, _LABEL_2725_
+        inc a
+        ld e, a
+        ld a, ($C0AA)
+        ld d, a
+        call _LABEL_2752_
+        or a
+        jr nz, _LABEL_2725_
+        ld a, ($C0AB)
+        inc a
+        ld ($C0AB), a
+        jp _LABEL_2685_
 
 _LABEL_2725_:
-    ld hl, ($C0AC)
-    ld a, h
-    or l
-    jr z, _LABEL_274D_
-    pop hl
-    ld a, l
-    ld ($C0AB), a
-    ld a, h
-    ld ($C0AA), a
-    ld hl, ($C0AC)
-    dec hl
-    ld ($C0AC), hl
-    ld a, ($C0AB)
-    ld e, a
-    ld a, ($C0AA)
-    ld d, a
-    call _LABEL_2752_
-    or a
-    jr nz, _LABEL_2725_
-    jp _LABEL_2665_
+        ld hl, ($C0AC)
+        ld a, h
+        or l
+        jr z, _LABEL_274D_
+      pop hl
+      ld a, l
+      ld ($C0AB), a
+      ld a, h
+      ld ($C0AA), a
+      ld hl, ($C0AC)
+      dec hl
+      ld ($C0AC), hl
+      ld a, ($C0AB)
+      ld e, a
+      ld a, ($C0AA)
+      ld d, a
+      call _LABEL_2752_
+      or a
+      jr nz, _LABEL_2725_
+      jp _LABEL_2665_
 
 _LABEL_274D_:
-    pop hl
+      pop hl
     pop de
     pop bc
     pop af
@@ -4091,7 +4075,7 @@ _LABEL_2850_:
     pop de
     ret
 
-; 10th entry of Jump Table from 165C (indexed by $C03C)
+; 10th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_2862_:
     exx
     ld a, ($C089)
@@ -4183,7 +4167,7 @@ _LABEL_2903_:
     ld ($C089), a
     ret
 
-; 11th entry of Jump Table from 165C (indexed by $C03C)
+; 11th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_290D_:
     exx
     xor a
@@ -4362,19 +4346,19 @@ _LABEL_2ADC_:
     push af
     pop af
     push de
-    in a, ($BE)
+    in a, (Port_VDPData)
     ld (hl), a
     inc hl
     pop de
-    in a, ($BE)
+    in a, (Port_VDPData)
     ld (hl), a
     inc hl
     push de
-    in a, ($BE)
+    in a, (Port_VDPData)
     ld (hl), a
     inc hl
     pop de
-    in a, ($BE)
+    in a, (Port_VDPData)
     ld (hl), a
     dec hl
     dec hl
@@ -4443,19 +4427,19 @@ _LABEL_2B48_:
     out (Port_VDPAddress), a
     ld a, (hl)
     or (iy+0)
-    out ($BE), a
+    out (Port_VDPData), a
     inc hl
     ld a, (hl)
     or (iy+1)
-    out ($BE), a
+    out (Port_VDPData), a
     inc hl
     ld a, (hl)
     or (iy+2)
-    out ($BE), a
+    out (Port_VDPData), a
     inc hl
     ld a, (hl)
     or (iy+3)
-    out ($BE), a
+    out (Port_VDPData), a
     pop bc
     pop de
     pop hl
@@ -4608,7 +4592,7 @@ _LABEL_2C24_:
     rl b
     push hl
 _LABEL_2C3D_:
-    in a, ($BE)
+    in a, (Port_VDPData)
     ld (hl), a
     inc hl
     push af
@@ -4630,7 +4614,7 @@ _LABEL_2C3D_:
     pop hl
     ret
 
-; 12th entry of Jump Table from 165C (indexed by $C03C)
+; 12th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_2C5A_:
     exx
     bit 7, (hl)
@@ -4645,7 +4629,7 @@ _LABEL_2C5A_:
     jp z, _LABEL_2D0D_
     bit 7, a
     jp nz, _LABEL_2CF6_
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     add a, $04
     cp (iy+1)
     ret c
@@ -4653,7 +4637,7 @@ _LABEL_2C5A_:
     ret nc
     sub $18
     ld l, a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     add a, $03
     cp (iy+3)
     ret c
@@ -4900,7 +4884,7 @@ _LABEL_2F92_:
     ld hl, RAM_ButtonsNewlyPressed
     ld a, ($C02E)
     ld b, a
-    ld a, ($C03C)
+    ld a, (RAM_NonVBlankDynamicFunction)
     and $3F
     cp $0C
     ret z
@@ -4923,37 +4907,37 @@ _LABEL_2FBD_:
     ld b, a
     ld a, $A8
     ld ($C241), a
-    ld a, ($C03C)
+    ld a, (RAM_NonVBlankDynamicFunction)
     and $3F
     exx
     ld hl, $2FD0
     jp JumpToFunction
 
-; 3rd entry of Jump Table from 2FD0 (indexed by $C03C)
+; 3rd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_2FCF_:
     ret
 
-; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by $C03C)
+; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_NonVBlankDynamicFunction)
 .dw _LABEL_2FF4_ _LABEL_3006_ _LABEL_2FCF_ _LABEL_3044_ _LABEL_2FCF_ _LABEL_30F7_ _LABEL_31B6_ _LABEL_31AF_
 .dw _LABEL_3264_ _LABEL_3294_ _LABEL_33D1_ _LABEL_358D_ _LABEL_2FCF_ _LABEL_2FCF_ _LABEL_3666_ _LABEL_3666_
 .dw _LABEL_3666_ _LABEL_3666_
 
-; 1st entry of Jump Table from 2FD0 (indexed by $C03C)
+; 1st entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_2FF4_:
     call _LABEL_18E6_
     exx
     ld a, ($C02F)
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, b
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     xor a
     jp _LABEL_37C7_
 
-; 2nd entry of Jump Table from 2FD0 (indexed by $C03C)
+; 2nd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3006_:
     exx
     ld a, $58
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, b
     and $F8
     cp $40
@@ -4964,7 +4948,7 @@ _LABEL_3016_:
     jp c, _LABEL_301D_
     ld a, $98
 _LABEL_301D_:
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     sub $40
     bit 1, (hl)
     jp z, _LABEL_303F_
@@ -4978,7 +4962,7 @@ _LABEL_301D_:
     ld ($C03D), a
     ld a, $02
 _LABEL_3037_:
-    ld ($C03C), a
+    ld (RAM_NonVBlankDynamicFunction), a
     ld a, b
     dec a
     ld ($C00A), a
@@ -4986,7 +4970,7 @@ _LABEL_303F_:
     ld a, $03
     jp _LABEL_37C7_
 
-; 4th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 4th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3044_:
     call _LABEL_18E6_
     exx
@@ -5001,7 +4985,7 @@ _LABEL_3044_:
 _LABEL_3058_:
     ld b, a
     dec a
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
     and $F0
     cp $70
@@ -5012,7 +4996,7 @@ _LABEL_3069_:
     jp c, _LABEL_3070_
     ld a, $A0
 _LABEL_3070_:
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld c, a
     ld a, $02
     call _LABEL_37C7_
@@ -5067,10 +5051,10 @@ _LABEL_30C0_:
     ld a, $68
 _LABEL_30C7_:
     dec a
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ex af, af'
     ld a, $58
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $03
     call _LABEL_37C7_
     bit 1, (hl)
@@ -5091,7 +5075,7 @@ _LABEL_30E3_:
     ld (RAM_PSGIsActive), a
     ret
 
-; 6th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 6th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_30F7_:
     call _LABEL_18E6_
     exx
@@ -5100,9 +5084,9 @@ _LABEL_30F7_:
     ret nz
     ld d, a
     ld a, b
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     push hl
     bit 0, d
     jp nz, _LABEL_314E_
@@ -5113,9 +5097,9 @@ _LABEL_30F7_:
     ret z
     ld a, $01
     ld (RAM_PSGIsActive), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     ld ($C203), a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     ld ($C246), a
     ld a, $A9
     ld ($C247), a
@@ -5144,7 +5128,7 @@ _LABEL_314E_:
     ld hl, ($C06E)
     ld a, ($C246)
     ld b, a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     sub b
     sub $07
     ld b, a
@@ -5152,7 +5136,7 @@ _LABEL_314E_:
     ld ($C071), a
     ld a, ($C203)
     ld d, a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     sub $07
     sub d
     ld d, a
@@ -5188,14 +5172,14 @@ _LABEL_319F_:
     ld ($C089), a
     ret
 
-; 8th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 8th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_31AF_:
     ld a, $01
     and a
     ex af, af'
     jp _LABEL_31B8_
 
-; 7th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 7th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_31B6_:
     xor a
     ex af, af'
@@ -5217,16 +5201,16 @@ _LABEL_31B8_:
 _LABEL_31D5_:
     ex af, af'
     ld a, b
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     bit 1, (hl)
     ret z
     ld a, $01
     ld (RAM_PSGIsActive), a
     ld a, ($C246)
     ld b, a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     sub b
     jp nc, _LABEL_31F5_
     neg
@@ -5243,16 +5227,16 @@ _LABEL_31F5_:
 _LABEL_3206_:
     exx
     ld a, b
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     bit 1, (hl)
     ret z
     ld a, $01
     ld (RAM_PSGIsActive), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     ld ($C203), a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     ld ($C246), a
     ld a, $A9
     ld ($C247), a
@@ -5267,7 +5251,7 @@ _LABEL_3206_:
 _LABEL_323B_:
     ld a, ($C246)
     ld b, a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     sub b
     jr nc, _LABEL_3246_
     cpl
@@ -5275,7 +5259,7 @@ _LABEL_3246_:
     ld b, a
     ld a, ($C203)
     ld c, a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     sub c
     jr nc, _LABEL_3252_
     cpl
@@ -5292,7 +5276,7 @@ _LABEL_3257_:
     ld ($C0A8), hl
     ret
 
-; 9th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 9th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3264_:
     call _LABEL_18E6_
     ld hl, $C089
@@ -5301,9 +5285,9 @@ _LABEL_3264_:
     ret nz
     exx
     ld a, b
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $04
     call _LABEL_37C7_
     bit 1, (hl)
@@ -5319,7 +5303,7 @@ _LABEL_3264_:
     ld (hl), $FF
     ret
 
-; 10th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 10th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3294_:
     call _LABEL_18E6_
     exx
@@ -5341,7 +5325,7 @@ _LABEL_32B0_:
     jp c, _LABEL_32B7_
     ld a, c
 _LABEL_32B7_:
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
     ld c, $21
     cp c
@@ -5353,7 +5337,7 @@ _LABEL_32C4_:
     jp c, _LABEL_32CB_
     ld a, c
 _LABEL_32CB_:
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $05
     call _LABEL_37C7_
     bit 1, (hl)
@@ -5363,18 +5347,18 @@ _LABEL_32CB_:
     ld a, ($C089)
     set 1, a
     ld ($C089), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     ld ($C203), a
     add a, $07
     ld ($C0C4), a
     add a, $08
-    ld ($C200), a
-    ld a, ($C240)
+    ld (RAM_SpriteTable1_Y), a
+    ld a, (RAM_SpriteTable1_XN)
     ld ($C246), a
     add a, $07
     ld ($C0C5), a
     add a, $08
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $A9
     ld ($C247), a
     xor a
@@ -5406,7 +5390,7 @@ _LABEL_332A_:
     jp c, _LABEL_3332_
     ld a, c
 _LABEL_3332_:
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld ($C0C6), a
     ld a, ($C02F)
     ld b, a
@@ -5433,7 +5417,7 @@ _LABEL_3355_:
     jp c, _LABEL_335D_
     ld a, c
 _LABEL_335D_:
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
     ld a, $04
     call _LABEL_37C7_
@@ -5444,9 +5428,9 @@ _LABEL_335D_:
     ld a, ($C089)
     set 2, a
     ld ($C089), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     ld ($C0C6), a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     ld ($C0C7), a
     ret
 
@@ -5462,7 +5446,7 @@ _LABEL_338D_:
     jp c, _LABEL_3394_
     ld a, c
 _LABEL_3394_:
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
     ld c, $21
     cp c
@@ -5474,17 +5458,17 @@ _LABEL_33A1_:
     jp c, _LABEL_33A8_
     ld a, c
 _LABEL_33A8_:
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $05
     call _LABEL_37C7_
     bit 1, (hl)
     ret z
     ld a, $01
     ld (RAM_PSGIsActive), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     add a, $07
     ld ($C0C8), a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     add a, $07
     ld ($C0C9), a
     ld a, ($C089)
@@ -5492,7 +5476,7 @@ _LABEL_33A8_:
     ld ($C089), a
     ret
 
-; 11th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 11th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_33D1_:
     call _LABEL_18E6_
     exx
@@ -5530,7 +5514,7 @@ _LABEL_3400_:
 _LABEL_3408_:
     bit 0, (iy+0)
     call nz, _LABEL_34E0_
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld ($C0C6), a
     ld a, ($C02F)
     ld b, a
@@ -5559,7 +5543,7 @@ _LABEL_3432_:
 _LABEL_343A_:
     bit 0, (iy+0)
     call z, _LABEL_3501_
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
     ld a, $04
     call _LABEL_37C7_
@@ -5570,9 +5554,9 @@ _LABEL_343A_:
     ld a, ($C089)
     set 2, a
     ld ($C089), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     ld ($C0C6), a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     ld ($C0C7), a
     ret
 
@@ -5590,7 +5574,7 @@ _LABEL_3471_:
 _LABEL_3478_:
     bit 0, (iy+0)
     call nz, _LABEL_34ED_
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
     ld c, $21
     cp c
@@ -5604,7 +5588,7 @@ _LABEL_348C_:
 _LABEL_3493_:
     bit 0, (iy+0)
     call z, _LABEL_3513_
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $05
     call _LABEL_37C7_
     bit 1, (hl)
@@ -5614,18 +5598,18 @@ _LABEL_3493_:
     ld a, ($C089)
     set 1, a
     ld ($C089), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     ld ($C203), a
     add a, $07
     ld ($C0C4), a
     add a, $08
-    ld ($C200), a
-    ld a, ($C240)
+    ld (RAM_SpriteTable1_Y), a
+    ld a, (RAM_SpriteTable1_XN)
     ld ($C246), a
     add a, $07
     ld ($C0C5), a
     add a, $08
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $A9
     ld ($C247), a
     xor a
@@ -5709,7 +5693,7 @@ _LABEL_353B_:
     jp c, _LABEL_3541_
     ld a, (hl)
 _LABEL_3541_:
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     inc hl
     ld a, ($C02F)
     cp (hl)
@@ -5721,7 +5705,7 @@ _LABEL_354D_:
     jp c, _LABEL_3553_
     ld a, (hl)
 _LABEL_3553_:
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     inc hl
     ld a, (hl)
     inc hl
@@ -5733,11 +5717,11 @@ _LABEL_3553_:
     ex de, hl
     ld a, $01
     ld (RAM_PSGIsActive), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     add a, (hl)
     ld ($C16F), a
     inc hl
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     add a, (hl)
     ld ($C170), a
     ld a, ($C089)
@@ -5748,7 +5732,7 @@ _LABEL_3553_:
 ; Data from 357F to 358C (14 bytes)
 .db $10 $40 $2B $CC $06 $07 $04 $1B $9C $20 $70 $07 $03 $08
 
-; 12th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 12th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_358D_:
     call _LABEL_18E6_
     exx
@@ -5766,7 +5750,7 @@ _LABEL_35A1_:
     jp c, _LABEL_35A8_
     ld a, c
 _LABEL_35A8_:
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     add a, $07
     ld ($C0C4), a
     add a, $21
@@ -5782,7 +5766,7 @@ _LABEL_35BF_:
     jp c, _LABEL_35C6_
     ld a, c
 _LABEL_35C6_:
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     add a, $07
     ld ($C0C5), a
     add a, $21
@@ -5796,14 +5780,14 @@ _LABEL_35C6_:
     ld a, ($C089)
     or $04
     ld ($C089), a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     ld ($C203), a
     add a, $08
-    ld ($C200), a
-    ld a, ($C240)
+    ld (RAM_SpriteTable1_Y), a
+    ld a, (RAM_SpriteTable1_XN)
     ld ($C246), a
     add a, $08
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, $A9
     ld ($C247), a
     xor a
@@ -5811,13 +5795,13 @@ _LABEL_35C6_:
     ld a, $25
     call _LABEL_37C7_
     ld c, $00
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     sub $17
     cp $40
     jp nc, _LABEL_361A_
     set 0, c
 _LABEL_361A_:
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     sub $20
     cp $50
     jp nc, _LABEL_3626_
@@ -5842,10 +5826,10 @@ _LABEL_363C_:
     ld a, ($C02F)
     and $FE
     dec a
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, b
     and $FE
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, $08
     jp _LABEL_37C7_
 
@@ -5858,12 +5842,12 @@ _LABEL_3655_:
 ; Data from 365E to 3665 (8 bytes)
 .db $00 $00 $50 $00 $00 $70 $50 $70
 
-; 15th entry of Jump Table from 2FD0 (indexed by $C03C)
+; 15th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3666_:
     call _LABEL_18E6_
     exx
     ld a, $58
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     ld a, b
     and $F8
     cp $40
@@ -5874,7 +5858,7 @@ _LABEL_3679_:
     jp c, _LABEL_3680_
     ld a, $48
 _LABEL_3680_:
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld b, a
     ld a, $03
     call _LABEL_37C7_
@@ -5888,14 +5872,14 @@ _LABEL_3680_:
     ld a, $01
 _LABEL_3699_:
     ld ($C0BA), a
-    ld a, ($C03C)
+    ld a, (RAM_NonVBlankDynamicFunction)
     set 6, a
-    ld ($C03C), a
+    ld (RAM_NonVBlankDynamicFunction), a
     ret
 
 _LABEL_36A5_:
     ld a, $0F
-    ld ($C200), a
+    ld (RAM_SpriteTable1_Y), a
     ld a, ($C02F)
     and $F8
     ld b, $28
@@ -5907,7 +5891,7 @@ _LABEL_36A5_:
     ld b, a
 _LABEL_36BC_:
     ld a, b
-    ld ($C240), a
+    ld (RAM_SpriteTable1_XN), a
     sub $28
     rrca
     rrca
@@ -5975,25 +5959,28 @@ _LABEL_372E_:
     ld b, $00
     djnz -3
     ld a, (hl)
-    out ($BE), a
+    out (Port_VDPData), a
     ret
 
 ; Data from 3742 to 3747 (6 bytes)
 .db $00 $03 $0C $0F $30 $3F
 
-_LABEL_3748_:
-    ld hl, $375F
-    ld de, $C200
-    ld bc, $0004
+InitialiseCursorSprites:
+    ld hl, InitialiseCursorSprites_Y
+    ld de, RAM_SpriteTable1_Y
+    ld bc, 4
     ldir
-    ld hl, $3763
-    ld de, $C240
-    ld bc, $0008
+    ld hl, InitialiseCursorSprites_XN
+    ld de, RAM_SpriteTable1_XN
+    ld bc, 8
     ldir
     ret
 
 ; Data from 375F to 376A (12 bytes)
-.db $40 $00 $E0 $E0 $40 $A8 $28 $A7 $00 $A7 $00 $A9
+InitialiseCursorSprites_Y:
+.db $40 $00 $E0 $E0 
+InitialiseCursorSprites_XN:
+.db $40 $A8 $28 $A7 $00 $A7 $00 $A9
 
 _LABEL_376B_:
     ld hl, $C083
@@ -6469,11 +6456,11 @@ _LABEL_3ACE_:
     ld a, ($C0BA)
     rrca
     jp nc, _LABEL_3AF5_
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     add a, $07
     ld ($C16F), a
     ld c, a
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     add a, $04
     ld ($C170), a
     ld ix, $C248
@@ -6482,11 +6469,11 @@ _LABEL_3ACE_:
     jp _LABEL_3A5A_
 
 _LABEL_3AF5_:
-    ld a, ($C240)
+    ld a, (RAM_SpriteTable1_XN)
     add a, $08
     ld ($C170), a
     ld c, a
-    ld a, ($C200)
+    ld a, (RAM_SpriteTable1_Y)
     add a, $03
     ld ($C16F), a
     ld ix, $C248
@@ -6541,7 +6528,7 @@ _LABEL_3B4D_:
     ld bc, $41B2
     add hl, bc
     ld b, $01
-    call _LABEL_1F5_
+    call Write2bppToVRAMCurrentAddress
     pop hl
     inc hl
     pop bc
