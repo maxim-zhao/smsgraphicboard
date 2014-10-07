@@ -62,8 +62,10 @@
 0000:098c TitleScreenTimedOut
 0000:0996 TitleScreenButtonPressed
 0000:09bc _LABEL_9BC_
-0000:09dc _LABEL_9DC_
-0000:0a14 Palette1
+0000:09e8 Text_NotGraphicBoard
+0000:09fc Text_PushButton
+0000:0a08 Text_CopyrightSega1987
+0000:0a14 Palette_TitleScreen
 0000:0a1b TitleScreenAnimate_Bit0Zero
 0000:0a2b _LABEL_A2B_
 0000:0a41 _LABEL_A41_
@@ -74,6 +76,11 @@
 0000:0b52 _LABEL_B52_
 0000:0b57 _LABEL_B57_
 0000:0b89 _LABEL_B89_
+0000:0b8a Tilemap_Logo
+0000:0c2a Palette_Logo
+0000:0c32 Tiles_Logo
+0000:14a2 Tilemap_SegaLogo
+0000:14ca Tiles_SegaLogo
 0000:164f _LABEL_164F_
 0000:1680 _LABEL_1680_
 0000:16c0 _LABEL_16C0_
@@ -413,4 +420,5 @@
 0000:3b13 _LABEL_3B13_
 0000:3b2e _LABEL_3B2E_
 0000:3b4d _LABEL_3B4D_
+0000:3c02 FontTiles
 0001:4552 ControlTiles

@@ -11,7 +11,7 @@ BANKSIZE $4000
 BANKS 2
 .ENDRO
 
-;.define BypassDetection
+.define BypassDetection
 
 .emptyfill $ff
 
@@ -54,7 +54,7 @@ BANKS 2
 .define RAM_VDPReg1Value $C003 ; 1b
 .define RAM_VRAMFillHighByte $C004 ; 1b
 ;---
-.define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set neabs read the graphics board in the VBlank
+.define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphics board in the VBlank
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
 .define RAM_PSGIsActive  $C009 ;  1b ???
 ;---
@@ -271,8 +271,8 @@ FillVRAMWithHL:
 -:  ld a, h
     out (Port_VDPData), a
     push af
-    ld a, l
-    out (Port_VDPData), a
+      ld a, l
+      out (Port_VDPData), a
     pop af
     dec bc
     ld a, b
@@ -337,8 +337,8 @@ RawDataToVRAM_Interleaved2:
     ld c, Port_VDPData
 -:  outi
     push af
-        ld a, (RAM_VRAMFillHighByte)
-        out (c), a
+      ld a, (RAM_VRAMFillHighByte)
+      out (c), a
     pop af
     jp nz, -
     ret
@@ -377,9 +377,13 @@ Write2bppToVRAMCurrentAddress:
     ret
 
 Write2bppToVRAMSlowly:
+    ; Write data from hl to VDP address de, interleaving with zeroes
+    ; Writes b tiles
+    ; Trashes c, a
+    ; 37 cycles between each write so safe for use during active display
     rst $08 ; VDPAddressToDE
 --: push bc
-      ld b, $10 ; counter: 16 x 4 bytes = 64 bytes, 2 tiles
+      ld b, $10 ; counter: 16 bytes data + 16 bytes zero = 1 tile
       ld c, Port_VDPData
 -:    xor a
       outi    ; copy 1 byte
@@ -1180,7 +1184,7 @@ TitleScreen: ; $865
     ld hl, $0200 ; 8533ms
     ld (RAM_SplashScreenTimeout), hl
 
-    ld hl, $3C02 ; compressed tile data: font
+    ld hl, FontTiles ; $3C02 ; compressed tile data: font
     ld de, $4000 ; tile 0
     call DecompressGraphics
 
@@ -1189,16 +1193,16 @@ TitleScreen: ; $865
     ld bc, $1800 ; 192 tiles (up to name table)
     call FillVRAMWithH
 
-    ld hl, $14CA ; compressed tile date: Sega logo
+    ld hl, Tiles_SegaLogo ; $14CA ; compressed tile date: Sega logo
     ld de, $7200 ; tile 400
     call DecompressGraphics
     
-    ld hl, Palette1
+    ld hl, Palette_TitleScreen
     ld de, $C000 ; Tile palette
     ld bc, $0007
     call RawDataToVRAM
     
-    ld hl, $0C2A
+    ld hl, Palette_Logo ; $0C2A
     ld de, $C010 ; Sprite palette
     ld bc, $0008
     call RawDataToVRAM
@@ -1247,14 +1251,14 @@ TitleScreen: ; $865
     di
     
 TitleScreen_PostAnimationLoop:
-    ld hl, $14A2 ; data: Sega tilemap data
+    ld hl, $14A2 ; data: Sega logo tilemap data
     ld de, $78D6 ; 11, 3
     ld bc, $040A ; 10x4
     ld a, $01
     ld (RAM_VRAMFillHighByte), a
     call WriteAreaToTilemap_1byte
     
-    ld hl, $0A08 ; data: (c) Sega 1987
+    ld hl, Text_CopyrightSega1987 ; $0A08 ; data: (c) Sega 1987
     ld de, $7D94 ; 10, 22
     ld b, $0C
     xor a
@@ -1272,7 +1276,7 @@ CheckForGraphicsBoard:
     jp z, GraphicsBoardDetected
 .endif
 
-    ld hl, $09E8 ; Data: "NOT GRAOHIC BOARD !!"
+    ld hl, Text_NotGraphicBoard ; $09E8 ; Data: "NOT GRAPHIC BOARD !!"
     ld ($C010), hl
     ld de, $7C0C ; 6, 16
     ld ($C012), de
@@ -1291,7 +1295,7 @@ CheckForGraphicsBoard:
     jp CheckForGraphicsBoard
 
 GraphicsBoardDetected:
-    ld hl, $09FC ; Data: "PUSH  BUTTON"
+    ld hl, Text_PushButton ; $09FC ; Data: "PUSH  BUTTON"
     ld ($C010), hl
     ld de, $7C14 ; 10, 16
     ld ($C012), de
@@ -1338,13 +1342,13 @@ TitleScreenButtonPressed:
     di
     call ScreenOff
     call FillNameTableWithTile9
-    ld hl, $0C32 ; Data
+    ld hl, Tiles_Logo ; $0C32 ; Data
     ld de, $6020 ; Tile $101
-    ld b, $87 ; 270 tiles (???!)
+    ld b, 135 ; $87 ; 135 tiles
     call Write2bppToVRAMSlowly
-    ld de, $7A00
-    ld hl, $0B8A
-    ld bc, $0520
+    ld de, $7A00 ; 0, 8
+    ld hl, Tilemap_Logo ; $0B8A
+    ld bc, $0520 ; 5 rows, 32 columns
     ld a, $09
     ld (RAM_VRAMFillHighByte), a
     call WriteAreaToTilemap_1byte
@@ -1360,7 +1364,7 @@ _LABEL_9BC_:
     ld a, (hl)
     xor $01
     ld (hl), a
-    jp z, _LABEL_9DC_
+    jp z, +
     ld de, ($C012)
     ld a, ($C014)
     ld b, a
@@ -1368,19 +1372,28 @@ _LABEL_9BC_:
     xor a
     jp RawDataToVRAM_Interleaved1
 
-_LABEL_9DC_:
-    ld de, $7C0C
-    ld bc, $0014
-    ld hl, $0009
-    jp FillVRAMWithHL
++:  ; Blank the text area
+    ld de, $7C0C ; tilemap 6, 16 
+    ld bc, 20 ; 20 tiles
+    ld hl, 9
+    jp FillVRAMWithHL ; and ret
 
-; Data from 9E8 to A1A (51 bytes)
-.db $18 $19 $1E $00 $11 $1C $0B $1A $12 $13 $0D $00 $0C $19 $0B $1C
-.db $0E $00 $26 $26 $1A $1F $1D $12 $00 $00 $0C $1F $1E $1E $19 $18
-.db $27 $00 $1D $0F $11 $0B $00 $00 $02 $0A $09 $08 
+.asciitable
+map ' ' = 0
+map '0' to '9' = 1
+map 'A' to 'Z' = 11
+map '!' = 38
+map '#' = 39 ; (c)
+.enda
+Text_NotGraphicBoard: ; $9e8
+.asc "NOT GRAPHIC BOARD !!"
+Text_PushButton: ; $9fc
+.asc "PUSH  BUTTON"
+Text_CopyrightSega1987: ; $a08
+.asc "# SEGA  1987"
 
 .org $0a14
-Palette1:
+Palette_TitleScreen:
 .db $10 $00 $3F $00 $30 $00 $3F
 
 TitleScreenAnimate_Bit0Zero:
@@ -1492,7 +1505,7 @@ UpdateSplashScreenAnimationTilesLine:
         ld e, a
         ld d, $00
         add hl, de ; x4
-        ld de, $0C32 ; magic
+        ld de, Tiles_Logo ; $0C32
         add hl, de
     pop de
 
@@ -1588,20 +1601,20 @@ _LABEL_B0A_:
 
 +:  ld a, $09
     ld (RAM_VRAMFillHighByte), a
-    ld hl, $0B8A
-    ld de, $7A00
+    ld hl, Tilemap_Logo + 32 * 0 ; $0B8A
+    ld de, $7A00        ; 0, 8
     call _LABEL_A2B_
-    ld hl, $0BAA
-    ld de, $7A40
+    ld hl, Tilemap_Logo + 32 * 1 ; $0BAA
+    ld de, $7A40        ; 0, 9
     call _LABEL_A41_
-    ld hl, $0BCA
-    ld de, $7A80
+    ld hl, Tilemap_Logo + 32 * 2 ; $0BCA
+    ld de, $7A80        ; 0, 10
     call _LABEL_A2B_
-    ld hl, $0BEA
-    ld de, $7AC0
+    ld hl, Tilemap_Logo + 32 * 3 ; $0BEA
+    ld de, $7AC0        ; 0, 11
     call _LABEL_A41_
-    ld hl, $0C0A
-    ld de, $7B00
+    ld hl, Tilemap_Logo + 32 * 4 ; $0C0A
+    ld de, $7B00        ; 0, 12
     jp _LABEL_A2B_
 
 _LABEL_B52_:
@@ -1641,8 +1654,24 @@ _LABEL_B57_:
 _LABEL_B89_:
     ret
 
-; Data from B8A to 164E (2757 bytes)
-.incbin "Sega Graphic Board v2.0 [Proto]_b8a.inc"
+;.orga $b8a
+Tilemap_Logo:
+.incbin "Logo tilemap.bin"
+;.orga $c2a
+Palette_Logo:
+.db $10 $3f $15 $2a $00 $00 $00 $00
+;.orga $c32
+Tiles_Logo:
+.incbin "Logo tiles.2bpp"
+;.orga $14a2
+Tilemap_SegaLogo:
+.db $90 $91 $92 $93 $94 $95 $96 $97 $98 $99 
+.db $9a $9b $9c $9d $9e $9f $a0 $a1 $a2 $a3 
+.db $a4 $a5 $a6 $a7 $a8 $a9 $aa $ab $ac $ad 
+.db $ae $af $b0 $ae $b1 $b2 $ae $ae $ae $b3
+;.orga $14ca
+Tiles_SegaLogo:
+.incbin "Sega logo.pscompr"
 
 _LABEL_164F_:
     ld hl, RAM_NonVBlankDynamicFunction
@@ -6525,6 +6554,7 @@ _LABEL_3B4D_:
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $03 $0f $0c $0f $12 $00 $0d $0f $04 $05 $00 $00 $00 $05 $12 $01 $13 $05 $00 $0d $0f $04 $05 $00 $00 $00 $13 $11 $15 $01 $12 $05 $00 $0d $0f $04 $05 $00 $00 $03 $09 $12 $03 $0c $05 $00 $0d $0f $04 $05 $00 $00 $05 $0c $0c $09 $10 $13 $05 $00 $0d $0f $04 $05 $00 $10 $01 $09 $0e $14 $00 $0d $0f $04 $05 $00 $00 $00 $03 $0f $10 $19 $00 $0d $0f $04 $05 $00 $00 $00 $00 $0d $09 $12 $12 $0f $12 $00 $0d $0f $04 $05 $00 $00 $0d $01 $07 $0e $09 $06 $19 $00 $0d $0f $04 $05 $00 $04 $09 $13 $10 $0c $01 $19 $00 $0d $0f $04 $05 $00 $00 $00 $14 $08 $05 $00 $05 $0e $04 $00 $00 $00
 
 .org $3c02
+FontTiles:
 .incbin "Font tiles.pscompr"
 
 .org $3eb2
