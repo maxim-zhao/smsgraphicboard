@@ -1180,7 +1180,7 @@ TitleScreen: ; $865
     ld hl, $0200 ; 8533ms
     ld (RAM_SplashScreenTimeout), hl
 
-    ld hl, $3C02 ; compressed tile data: alphabet
+    ld hl, $3C02 ; compressed tile data: font
     ld de, $4000 ; tile 0
     call DecompressGraphics
 
@@ -1533,16 +1533,16 @@ _LABEL_ACC_:
     add hl, hl
     add hl, hl
     push hl
-    add hl, hl
-    push hl
-    add hl, hl
-    add hl, hl
-    push hl
-    add hl, hl
-    pop de
-    add hl, de
-    pop de
-    add hl, de
+      add hl, hl
+      push hl
+        add hl, hl
+        add hl, hl
+        push hl
+          add hl, hl
+        pop de
+        add hl, de
+      pop de
+      add hl, de
     pop de
     add hl, de
     ld a, b
@@ -1586,8 +1586,7 @@ _LABEL_B0A_:
     jp z, _LABEL_B52_
     ret
 
-+:
-    ld a, $09
++:  ld a, $09
     ld (RAM_VRAMFillHighByte), a
     ld hl, $0B8A
     ld de, $7A00
@@ -1748,18 +1747,20 @@ _LABEL_1715_:
 _LABEL_171E_:
     ld a, ($C0BA)
     or a
-    jp z, _LABEL_1737_
+    jp z, +
+
     ld a, (RAM_PSGIsActive)
     or a
     ret nz
+
     di
-    ld de, $4000
+    ld de, $4000 ; Tiles
     ld h, $00
-    ld bc, $3180
+    ld bc, 396 * 32 ; $3180 ; 396 tiles
     call FillVRAMWithH
     ei
-_LABEL_1737_:
-    exx
+    ; fall through
++:  exx
     ld (hl), $00
     ld a, $01
     ld ($C00A), a
@@ -6495,33 +6496,38 @@ _LABEL_3B2E_:
     add hl, bc
     pop bc
     add hl, bc
-    ld bc, $3B66
+    ld bc, $3B66 ; table?
     add hl, bc
-    ld de, $7660
+    ld de, $7660 ; tile $1B3
     rst $08 ; VDPAddressToDE
     ld b, $0D
 _LABEL_3B4D_:
     push bc
-    ld a, (hl)
-    push hl
-    ld h, $00
-    ld l, a
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    ld bc, $41B2
-    add hl, bc
-    ld b, $01
-    call Write2bppToVRAMCurrentAddress
-    pop hl
-    inc hl
+      ld a, (hl)
+      push hl
+        ld h, $00
+        ld l, a
+        add hl, hl
+        add hl, hl
+        add hl, hl
+        add hl, hl
+        ld bc, $41B2
+        add hl, bc
+        ld b, $01
+        call Write2bppToVRAMCurrentAddress
+      pop hl
+      inc hl
     pop bc
     djnz _LABEL_3B4D_
     ret
+    
+.org $3b66
+.db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $03 $0f $0c $0f $12 $00 $0d $0f $04 $05 $00 $00 $00 $05 $12 $01 $13 $05 $00 $0d $0f $04 $05 $00 $00 $00 $13 $11 $15 $01 $12 $05 $00 $0d $0f $04 $05 $00 $00 $03 $09 $12 $03 $0c $05 $00 $0d $0f $04 $05 $00 $00 $05 $0c $0c $09 $10 $13 $05 $00 $0d $0f $04 $05 $00 $10 $01 $09 $0e $14 $00 $0d $0f $04 $05 $00 $00 $00 $03 $0f $10 $19 $00 $0d $0f $04 $05 $00 $00 $00 $00 $0d $09 $12 $12 $0f $12 $00 $0d $0f $04 $05 $00 $00 $0d $01 $07 $0e $09 $06 $19 $00 $0d $0f $04 $05 $00 $04 $09 $13 $10 $0c $01 $19 $00 $0d $0f $04 $05 $00 $00 $00 $14 $08 $05 $00 $05 $0e $04 $00 $00 $00
 
-; Data from 3B66 to 3FFF (1178 bytes)
-.incbin "Sega Graphic Board v2.0 [Proto]_3b66.inc"
+.org $3c02
+.incbin "fonttiles.pscompr"
+
+; blank to end of slot (somewhat unnecessarily)
 
 .BANK 1 slot 1
 .ORGA $4000
