@@ -79,6 +79,16 @@ BANKS 2
 .define RAM_SpriteTable2_Y RAM_SpriteTable2
 .define RAM_SpriteTable2_XN RAM_SpriteTable2+64
 
+.define SizeOfTile 32
+
+.macro LdDETilemap args x, y
+  ld de, $4000 | $3800 | ((x + 32 * y) * 2)
+.endm
+
+.macro LdDETile args index
+  ld de, $4000 | (index * 32)
+.endm
+
 .BANK 0 SLOT 0
 .ORG $0000
 FullReset:
@@ -162,23 +172,23 @@ Start_AfterRAMClear:
     call TitleScreen
     
     ; Zero tiles
-    ld de, $4000
-    ld bc, $3800
-    ld h, $00
+    LdDETile 0
+    ld bc, 448*SizeOfTile
+    ld h, 0
     call FillVRAMWithH
 
     ; Set up screen
 
     ld hl, ControlTiles ; $4552 ; data: tiles for palette, UI controls
-    ld de, $71A0 ; Tile $18d
+    LdDETile $18d
     call DecompressGraphics
 
-    ld de, $7660 ; Tile $1b3 
-    ld b, $0D ; 26 tiles?
+    LdDETile $1b3 
+    ld b, 13 ; 13 tiles (16 bytes)
     ld hl, $41B2 ; 2bpp tile data - all colour 0
-    call Write2bppToVRAM
+    call FillTiles2bpp
 
-    ld de, $7800 ; Tilemap
+    LdDETilemap 0, 0
     ld hl, $8D09 ; tile $18d = background, tile palette index 1
     ld bc, 32*28 ; $0380 
     call FillVRAMWithHL
@@ -261,8 +271,8 @@ InitialiseVDPRegisters:
     jp DisableSprites_RAMAndVRAM
 
 FillNameTableWithTile9:
-    ld de, $7800 ; Name table address
-    ld bc, $0380 ; Entry count
+    LdDETilemap 0, 0
+    ld bc, 32*28 ; Entry count
     ld hl, $0009 ; Date to write
     ; fall through
     
@@ -348,10 +358,10 @@ RawDataToVRAM_Interleaved2:
 .db $38 $02 $16 $00 $ED $51 $10 $F6 $D9 $23 $0B $78 $B1 $C2 $D7 $01
 .db $C9
 
-Write2bppToVRAM:
+FillTiles2bpp:
     ; write data from hl to VRAM address de, 2 bytes then 2 zeroes, b*16 times
     rst $08 ; VDPAddressToDE
-Write2bppToVRAMCurrentAddress:
+FillTiles2bppCurrentAddress:
     ; write data from hl to VDP, 2 bytes then 2 zeroes, b*16 times
 --: push hl
     push bc
@@ -628,22 +638,22 @@ DelayLoop1:
 
 DrawUIControls:
     ld hl, $0573 ; tilemap data: MENU | DO | PEN bar
-    ld de, $7D48 ; 4, 21
+    LdDETilemap 4, 21
     ld bc, $0330 ; 24x3 tiles
     call WriteAreaToTilemap
     ld hl, TopBarPaletteTiles
-    ld de, $784A ; 5, 1
-    ld bc, $002C ; count
+    LdDETilemap 5, 1
+    ld bc, 44 ; count
     call RawDataToVRAM
     ld hl, TopBarStatusTiles ; data: top bar status
-    ld de, $78AC ; 22, 2
-    ld bc, $000A ; count
+    LdDETilemap 22, 2
+    ld bc, 10 ; count
     jp RawDataToVRAM ; and ret
 
 SetDrawingAreaTilemap:
     ld hl, $0000 ; Tilemap data to write
     ld bc, $1216 ; 12 rows, 16 columns
-    ld de, $78CA ; tile $1c6
+    LdDETilemap 5, 3
 --: rst $08 ; VDPAddressToDE
     push bc
       ld b, c
@@ -696,12 +706,12 @@ SilencePSG:
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
 .db $30 $00 $3F $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
 
-.org $051d
+;.org $051d
 DrawingPalette:
 .db $3F $00 $01 $02 $03 $04 $08 $0C $10 $20 $30 $38 $07 $0F $1F $2F
 .db $00 $00 $3F $03 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $03
 
-.org $053d
+;.org $053d
 TopBarPaletteTiles:
 .dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c
 .dw $098D, $099D, $099E, $099F, $09A0, $09A1
@@ -890,7 +900,7 @@ CheckForReset:
     ret
 
 ReadGraphicBoard:
-    ; Main graphics board read
+    ; Main graphic board read
 
     in a, (Port_IOPort1)
     bit 4, a    ; Check for data
@@ -1188,16 +1198,16 @@ TitleScreen: ; $865
     ld (RAM_SplashScreenTimeout), hl
 
     ld hl, FontTiles ; $3C02 ; compressed tile data: font
-    ld de, $4000 ; tile 0
+    LdDETile 0
     call DecompressGraphics
 
     ld h, $00
-    ld de, $6000 ; tile 256
+    LdDETile 256
     ld bc, 192 * 32 ; $1800 ; 192 tiles (up to name table)
     call FillVRAMWithH
 
     ld hl, Tiles_SegaLogo ; $14CA ; compressed tile date: Sega logo
-    ld de, $7200 ; tile 400
+    LdDETile 400
     call DecompressGraphics
     
     ld hl, Palette_TitleScreen
@@ -1255,14 +1265,14 @@ TitleScreen: ; $865
     
 TitleScreen_PostAnimationLoop:
     ld hl, $14A2 ; data: Sega logo tilemap data
-    ld de, $78D6 ; 11, 3
+    LdDETilemap 11, 3
     ld bc, $040A ; 10x4
     ld a, $01
     ld (RAM_VRAMFillHighByte), a
     call WriteAreaToTilemap_1byte
     
     ld hl, Text_CopyrightSega1987 ; $0A08 ; data: (c) Sega 1987
-    ld de, $7D94 ; 10, 22
+    LdDETilemap 10, 22
     ld b, $0C
     xor a
     call RawDataToVRAM_Interleaved1
@@ -1281,7 +1291,7 @@ CheckForGraphicsBoard:
 
     ld hl, Text_NotGraphicBoard ; $09E8 ; Data: "NOT GRAPHIC BOARD !!"
     ld ($C010), hl
-    ld de, $7C0C ; 6, 16
+    LdDETilemap 6, 16
     ld ($C012), de
     ld bc, $0C14 ; area?
     ld ($C014), bc
@@ -1300,7 +1310,7 @@ CheckForGraphicsBoard:
 GraphicsBoardDetected:
     ld hl, Text_PushButton ; $09FC ; Data: "PUSH  BUTTON"
     ld ($C010), hl
-    ld de, $7C14 ; 10, 16
+    LdDETilemap 10, 16
     ld ($C012), de
     ld bc, $200C ; area?
     ld ($C014), bc
@@ -1346,10 +1356,10 @@ TitleScreenButtonPressed:
     call ScreenOff
     call FillNameTableWithTile9
     ld hl, Tiles_Logo ; $0C32 ; Data
-    ld de, $6020 ; Tile $101
+    LdDETile $101
     ld b, 135 ; $87 ; 135 tiles
     call Write2bppToVRAMSlowly
-    ld de, $7A00 ; 0, 8
+    LdDETilemap 0, 8
     ld hl, Tilemap_Logo ; $0B8A
     ld bc, $0520 ; 5 rows, 32 columns
     ld a, $09
@@ -1376,7 +1386,7 @@ _LABEL_9BC_:
     jp RawDataToVRAM_Interleaved1
 
 +:  ; Blank the text area
-    ld de, $7C0C ; tilemap 6, 16 
+    LdDETilemap 6, 16 
     ld bc, 20 ; 20 tiles
     ld hl, 9
     jp FillVRAMWithHL ; and ret
@@ -1610,19 +1620,19 @@ TitleScreenAnimation_Part1:
     ld a, $09
     ld (RAM_VRAMFillHighByte), a
     ld hl, Tilemap_Logo + 32 * 0 ; $0B8A
-    ld de, $7A00        ; 0, 8
+    LdDETilemap 0, 8
     call UpdateTilemap_RightToLeftRow
     ld hl, Tilemap_Logo + 32 * 1 ; $0BAA
-    ld de, $7A40        ; 0, 9
+    LdDETilemap 0, 9
     call UpdateTilemap_LeftToRightRow
     ld hl, Tilemap_Logo + 32 * 2 ; $0BCA
-    ld de, $7A80        ; 0, 10
+    LdDETilemap 0, 10
     call UpdateTilemap_RightToLeftRow
     ld hl, Tilemap_Logo + 32 * 3 ; $0BEA
-    ld de, $7AC0        ; 0, 11
+    LdDETilemap 0, 11
     call UpdateTilemap_LeftToRightRow
     ld hl, Tilemap_Logo + 32 * 4 ; $0C0A
-    ld de, $7B00        ; 0, 12
+    LdDETilemap 0, 12
     jp UpdateTilemap_RightToLeftRow ; and ret
 
 TitleScreenAnimation_Part2:
@@ -1792,7 +1802,7 @@ _LABEL_171E_:
     ret nz
 
     di
-    ld de, $4000 ; Tiles
+    LdDETile 0
     ld h, $00
     ld bc, 396 * 32 ; $3180 ; 396 tiles
     call FillVRAMWithH
@@ -1835,9 +1845,9 @@ _LABEL_1768_:
     di
     call ScreenOff
     call DisableSprites_VRAM
-    ld de, $7800
+    LdDETilemap 0, 0
     ld hl, $8D09
-    ld bc, $0380
+    ld bc, 32*28
     call FillVRAMWithHL
     call SetDrawingAreaTilemap
     ei
@@ -2060,6 +2070,7 @@ _LABEL_1902_:
     ld ($C01A), bc
     push de
       push hl
+        ; caculate de = (h+3) * 64
         push hl
           ld a, h
           add a, $03
@@ -2122,7 +2133,7 @@ _LABEL_1902_:
     add hl, hl
     add hl, de
     ld b, $01
-    call Write2bppToVRAMCurrentAddress
+    call FillTiles2bppCurrentAddress
     exx
 _LABEL_1973_:
     djnz -
@@ -2647,7 +2658,7 @@ _LABEL_1EE2_:
     ld hl, $0405
     call _LABEL_1902_
     ld hl, $1BE7
-    ld de, $7A1C
+    LdDETilemap 14, 8
     ld bc, $030E
     call WriteAreaToTilemap
     xor a
@@ -2688,7 +2699,7 @@ _LABEL_1F0F_:
       ld hl, $44A2
       add hl, bc
       ld b, $01
-      call Write2bppToVRAMCurrentAddress
+      call FillTiles2bppCurrentAddress
     pop hl
     ret
 
@@ -4938,12 +4949,12 @@ _LABEL_2FBD_:
     jp JumpToFunction
 
 ; 3rd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_2FCF_:
+DoNothing:
     ret
 
 ; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_NonVBlankDynamicFunction)
-.dw _LABEL_2FF4_ _LABEL_3006_ _LABEL_2FCF_ _LABEL_3044_ _LABEL_2FCF_ _LABEL_30F7_ _LABEL_31B6_ _LABEL_31AF_
-.dw _LABEL_3264_ _LABEL_3294_ _LABEL_33D1_ _LABEL_358D_ _LABEL_2FCF_ _LABEL_2FCF_ _LABEL_3666_ _LABEL_3666_
+.dw _LABEL_2FF4_ _LABEL_3006_ DoNothing _LABEL_3044_ DoNothing _LABEL_30F7_ _LABEL_31B6_ _LABEL_31AF_
+.dw _LABEL_3264_ _LABEL_3294_ _LABEL_33D1_ _LABEL_358D_ DoNothing DoNothing _LABEL_3666_ _LABEL_3666_
 .dw _LABEL_3666_ _LABEL_3666_
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
@@ -6168,28 +6179,28 @@ _LABEL_3894_:
     set 0, (ix+0)
     ld de, $73A0
     ld hl, $4002
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 388C (indexed by $C08A)
 _LABEL_38A1_:
     set 0, (ix+0)
     ld de, $73C0
     ld hl, $4022
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 388C (indexed by $C08A)
 _LABEL_38AE_:
     set 0, (ix+0)
     ld de, $73E0
     ld hl, $4042
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 388C (indexed by $C08A)
 _LABEL_38BB_:
     set 0, (ix+0)
     ld de, $7400
     ld hl, $4062
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 _LABEL_38C8_:
     ld b, $01
@@ -6205,28 +6216,28 @@ _LABEL_38DB_:
     res 0, (ix+0)
     ld de, $73A0
     ld hl, $3FF2
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 38D3 (indexed by $C00C)
 _LABEL_38E8_:
     res 0, (ix+0)
     ld de, $73C0
     ld hl, $4012
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 38D3 (indexed by $C00C)
 _LABEL_38F5_:
     res 0, (ix+0)
     ld de, $73E0
     ld hl, $4032
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 38D3 (indexed by $C00C)
 _LABEL_3902_:
     res 0, (ix+0)
     ld de, $7400
     ld hl, $4052
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 _LABEL_390F_:
     ld a, ($C062)
@@ -6238,12 +6249,12 @@ _LABEL_390F_:
     jp z, _LABEL_3929_
     ld de, $7420
     ld hl, $4082
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 _LABEL_3929_:
     ld de, $7420
     ld hl, $4072
-    jp Write2bppToVRAM
+    jp FillTiles2bpp
 
 _LABEL_3932_:
     ld a, ($C089)
@@ -6549,7 +6560,7 @@ _LABEL_3B4D_:
         ld bc, $41B2
         add hl, bc
         ld b, $01
-        call Write2bppToVRAMCurrentAddress
+        call FillTiles2bppCurrentAddress
       pop hl
       inc hl
     pop bc
@@ -6574,7 +6585,7 @@ FontTiles:
 ; Data from 4000 to 4551 (1362 bytes)
 .incbin "Sega Graphic Board v2.0 [Proto]_4000.inc"
 
-ControlTiles:
+ControlTiles: ; $4552
 .incbin "Control tiles.pscompr"
 
 ; .smstag ; Doesn't entirely match
