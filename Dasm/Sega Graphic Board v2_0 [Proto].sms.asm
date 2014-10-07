@@ -169,7 +169,7 @@ Start_AfterRAMClear:
 
     ; Set up screen
 
-    ld hl, $4552 ; data: tiles for palette, UI controls
+    ld hl, ControlTiles ; $4552 ; data: tiles for palette, UI controls
     ld de, $71A0 ; Tile $18d
     call DecompressGraphics
 
@@ -6525,15 +6525,21 @@ _LABEL_3B4D_:
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $03 $0f $0c $0f $12 $00 $0d $0f $04 $05 $00 $00 $00 $05 $12 $01 $13 $05 $00 $0d $0f $04 $05 $00 $00 $00 $13 $11 $15 $01 $12 $05 $00 $0d $0f $04 $05 $00 $00 $03 $09 $12 $03 $0c $05 $00 $0d $0f $04 $05 $00 $00 $05 $0c $0c $09 $10 $13 $05 $00 $0d $0f $04 $05 $00 $10 $01 $09 $0e $14 $00 $0d $0f $04 $05 $00 $00 $00 $03 $0f $10 $19 $00 $0d $0f $04 $05 $00 $00 $00 $00 $0d $09 $12 $12 $0f $12 $00 $0d $0f $04 $05 $00 $00 $0d $01 $07 $0e $09 $06 $19 $00 $0d $0f $04 $05 $00 $04 $09 $13 $10 $0c $01 $19 $00 $0d $0f $04 $05 $00 $00 $00 $14 $08 $05 $00 $05 $0e $04 $00 $00 $00
 
 .org $3c02
-.incbin "fonttiles.pscompr"
+.incbin "Font tiles.pscompr"
+
+.org $3eb2
+.incbin "Sega Graphic Board v2.0 [Proto]_3eb2.inc"
 
 ; blank to end of slot (somewhat unnecessarily)
 
 .BANK 1 slot 1
 .ORGA $4000
 
-; Data from 4000 to 7FFF (16384 bytes)
+; Data from 4000 to 4551 (1362 bytes)
 .incbin "Sega Graphic Board v2.0 [Proto]_4000.inc"
+
+ControlTiles:
+.incbin "Control tiles.pscompr"
 
 ; .smstag ; Doesn't entirely match
 .orga $7ff0
