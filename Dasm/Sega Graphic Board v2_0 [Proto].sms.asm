@@ -1173,7 +1173,7 @@ _LABEL_854_:
     ret
 
 TitleScreen: ; $865
-    ; blank RAM for ???
+    ; blank RAM for title screen animation?
     ld hl, $C15D
     ld de, $C15E
     ld bc, 8
@@ -1190,7 +1190,7 @@ TitleScreen: ; $865
 
     ld h, $00
     ld de, $6000 ; tile 256
-    ld bc, $1800 ; 192 tiles (up to name table)
+    ld bc, 192 * 32 ; $1800 ; 192 tiles (up to name table)
     call FillVRAMWithH
 
     ld hl, Tiles_SegaLogo ; $14CA ; compressed tile date: Sega logo
@@ -1199,7 +1199,7 @@ TitleScreen: ; $865
     
     ld hl, Palette_TitleScreen
     ld de, $C000 ; Tile palette
-    ld bc, $0007
+    ld bc, 7
     call RawDataToVRAM
     
     ld hl, Palette_Logo ; $0C2A
@@ -1392,7 +1392,7 @@ Text_PushButton: ; $9fc
 Text_CopyrightSega1987: ; $a08
 .asc "# SEGA  1987"
 
-.org $0a14
+;.org $0a14
 Palette_TitleScreen:
 .db $10 $00 $3F $00 $30 $00 $3F
 
@@ -1404,24 +1404,28 @@ TitleScreenAnimate_Bit0Zero:
     set 0, (ix+1) ; set low bit of $c15e
     ret
 
-_LABEL_A2B_:
+UpdateTilemap_RightToLeftRow:
+    ; get animation control value
     ld a, (ix+2)
     push hl
-        ld c, a
-        ld a, $1F
-        sub c
-        add a, a
-        ld l, a
-        ld h, $00
-        add hl, de
-        ex de, hl
+      ; de += 31 - n
+      ld c, a
+      ld a, $1F
+      sub c
+      add a, a
+      ld l, a
+      ld h, 0
+      add hl, de
+      ex de, hl
     pop hl
     ld b, (ix+2)
     inc b
     jp RawDataToVRAM_Interleaved2
 
-_LABEL_A41_:
+UpdateTilemap_LeftToRightRow:
+    ; get animation control value
     ld c, (ix+2)
+    ; hl += 31 - n
     ld a, $1F
     sub c
     ld c, a
@@ -1594,42 +1598,44 @@ _LABEL_B0A_:
     and %01111111 ; clear high bit
     ld ($C15E), a
     bit 0, a
-    jp z, +
+    jp z, TitleScreenAnimation_Part1
     bit 1, a
-    jp z, _LABEL_B52_
+    jp z, TitleScreenAnimation_Part2
     ret
 
-+:  ld a, $09
+TitleScreenAnimation_Part1:
+    ld a, $09
     ld (RAM_VRAMFillHighByte), a
     ld hl, Tilemap_Logo + 32 * 0 ; $0B8A
     ld de, $7A00        ; 0, 8
-    call _LABEL_A2B_
+    call UpdateTilemap_RightToLeftRow
     ld hl, Tilemap_Logo + 32 * 1 ; $0BAA
     ld de, $7A40        ; 0, 9
-    call _LABEL_A41_
+    call UpdateTilemap_LeftToRightRow
     ld hl, Tilemap_Logo + 32 * 2 ; $0BCA
     ld de, $7A80        ; 0, 10
-    call _LABEL_A2B_
+    call UpdateTilemap_RightToLeftRow
     ld hl, Tilemap_Logo + 32 * 3 ; $0BEA
     ld de, $7AC0        ; 0, 11
-    call _LABEL_A41_
+    call UpdateTilemap_LeftToRightRow
     ld hl, Tilemap_Logo + 32 * 4 ; $0C0A
     ld de, $7B00        ; 0, 12
-    jp _LABEL_A2B_
+    jp UpdateTilemap_RightToLeftRow ; and ret
 
-_LABEL_B52_:
+TitleScreenAnimation_Part2:
     ld c, $23
     ld b, (ix+4)
-_LABEL_B57_:
-    push bc
+-:  push bc
         call UpdateSplashScreenAnimationTilesLine
     pop bc
     dec c
     dec b
-    jp p, _LABEL_B57_
+    jp p, -
+
     ld a, (ix+4)
     cp $11
-    jp nc, _LABEL_B89_
+    jp nc, +
+
     inc a
     ld d, a
     ld a, $23
@@ -1647,11 +1653,12 @@ _LABEL_B57_:
     ld a, b
     cp d
     jp nz, -
+
     ld a, $23
     sub (ix+4)
     ld b, a
     call _LABEL_ACC_
-_LABEL_B89_:
++:
     ret
 
 ;.orga $b8a
