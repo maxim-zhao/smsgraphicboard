@@ -11,7 +11,7 @@ BANKSIZE $4000
 BANKS 2
 .ENDRO
 
-.define BypassDetection
+;.define BypassDetection
 
 .emptyfill $ff
 
@@ -6523,8 +6523,16 @@ _LABEL_3B4D_:
 ; Data from 3B66 to 3FFF (1178 bytes)
 .incbin "Sega Graphic Board v2.0 [Proto]_3b66.inc"
 
-.BANK 1
-.ORG $0000
+.BANK 1 slot 1
+.ORGA $4000
 
 ; Data from 4000 to 7FFF (16384 bytes)
 .incbin "Sega Graphic Board v2.0 [Proto]_4000.inc"
+
+; .smstag ; Doesn't entirely match
+.orga $7ff0
+.db "TMR SEGA", "WK", 
+.dw $2688 ; checksum
+.dw $4009 ; product code - not valid?
+.db $02 ; version 2
+.db $4c ; 32KB, SMS export
