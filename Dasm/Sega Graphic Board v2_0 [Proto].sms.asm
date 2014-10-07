@@ -11,7 +11,7 @@ BANKSIZE $4000
 BANKS 2
 .ENDRO
 
-.define BypassDetection
+;.define BypassDetection
 
 .emptyfill $ff
 
@@ -54,7 +54,7 @@ BANKS 2
 .define RAM_VDPReg1Value $C003 ; 1b
 .define RAM_VRAMFillHighByte $C004 ; 1b
 ;---
-.define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphics board in the VBlank
+.define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphic board in the VBlank
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
 .define RAM_PSGIsActive  $C009 ;  1b ???
 ;---
@@ -783,7 +783,7 @@ InterruptHandlerImpl:
         bit 1, a
         jp z, +
         push af
-            call ReadGraphicsBoard
+            call ReadGraphicBoard
         pop af
 +:      bit 0, a
         jp z, +
@@ -857,7 +857,7 @@ _LABEL_6CD_:
     pop af
     bit 1, a
     push af
-        call nz, ReadGraphicsBoard
+        call nz, ReadGraphicBoard
     pop af
     bit 2, a
     call nz, _LABEL_9BC_
@@ -889,7 +889,7 @@ CheckForReset:
     pop hl
     ret
 
-ReadGraphicsBoard:
+ReadGraphicBoard:
     ; Main graphics board read
 
     in a, (Port_IOPort1)
@@ -1038,7 +1038,7 @@ ReadGraphicsBoard:
     ld l, a
     add hl, bc ; add together
     ld e, $02
-    call DivMod168 ; very slow way to do this
+    call DivMod16_8_8_8 ; very slow way to do this
     ld (RAM_PenX_Smoothed), a
     jp ++
 
@@ -1057,7 +1057,7 @@ ReadGraphicsBoard:
     ld l, a
     add hl, bc
     ld e, 2
-    call DivMod168 ; very slow way to do this
+    call DivMod16_8_8_8 ; very slow way to do this
     ld (RAM_PenY_Smoothed), a
     ret
 
@@ -1100,24 +1100,27 @@ NoBoardData:
     out (Port_IOPortControl), a
     ret
 
-_LABEL_806_:
-    ld b, $11
+DivMod16_8_16_8:
+    ; hl = 16-bit number
+    ; e = 8-bit number
+    ; returns
+    ; hl = hl / e
+    ; a  = hl % e
+    ld b, $11  ; 17 bits
     xor a
-    jp _LABEL_815_
-
--:  adc a, a
-    jr c, +
-    cp e
+    jp +++
+-:  adc a, a   ; shift carry into a
+    jr c, +    ; if nothing came out
+    cp e       ; check if it's bigger than e
     jr c, ++
-+:  sub e
-    or a
++:  sub e      ; if so, subtract it
+    or a       ; then clear the carry flag
 ++: ccf
-_LABEL_815_:
-    adc hl, hl
++++:adc hl, hl ; shift hl let into carry
     djnz -
     ret
 
-DivMod168:
+DivMod16_8_8_8:
     ; hl = 16-bit number
     ; e = 8-bit number
     ; returns 
@@ -1125,7 +1128,7 @@ DivMod168:
     ; e = hl % e
     ld a, e
     or a
-    ret z ; 
+    ret z ; avoid divide by 0
     ld b, $08
     xor a
 -:  adc hl, hl
@@ -1547,21 +1550,21 @@ _LABEL_ACC_:
     and $F8
     ld l, a
     ld h, $00
-    add hl, hl
-    add hl, hl
+    add hl, hl ; x2
+    add hl, hl ; x4
     push hl
-      add hl, hl
+      add hl, hl ; x8
       push hl
-        add hl, hl
-        add hl, hl
+        add hl, hl ; x16
+        add hl, hl ; x32
         push hl
-          add hl, hl
+          add hl, hl ; x64
         pop de
-        add hl, de
+        add hl, de ; x96
       pop de
-      add hl, de
+      add hl, de ; x104
     pop de
-    add hl, de
+    add hl, de ; x108
     ld a, b
     and $07
     add a, a
@@ -1658,8 +1661,7 @@ TitleScreenAnimation_Part2:
     sub (ix+4)
     ld b, a
     call _LABEL_ACC_
-+:
-    ret
++:  ret
 
 ;.orga $b8a
 Tilemap_Logo:
@@ -5275,26 +5277,23 @@ _LABEL_323B_:
     ld b, a
     ld a, (RAM_SpriteTable1_XN)
     sub b
-    jr nc, _LABEL_3246_
+    jr nc, +
     cpl
-_LABEL_3246_:
-    ld b, a
++:  ld b, a
     ld a, ($C203)
     ld c, a
     ld a, (RAM_SpriteTable1_Y)
     sub c
-    jr nc, _LABEL_3252_
+    jr nc, +
     cpl
-_LABEL_3252_:
-    ld h, a
++:  ld h, a
     cp b
-    jr nc, _LABEL_3257_
+    jr nc, +
     ld a, b
-_LABEL_3257_:
-    ld ($C0AC), a
++:  ld ($C0AC), a
     ld e, b
     ld l, $00
-    call _LABEL_806_
+    call DivMod16_8_16_8
     ld ($C0A8), hl
     ret
 
