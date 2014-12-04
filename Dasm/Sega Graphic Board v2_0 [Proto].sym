@@ -19,13 +19,14 @@
 0000:01aa RawDataToVRAM
 0000:01c0 RawDataToVRAM_Interleaved1
 0000:01c3 RawDataToVRAM_Interleaved2
+0000:01d3 Write1bppToVRAMWithExtensionMask
 0000:01f4 FillTiles2bpp
 0000:01f5 FillTiles2bppCurrentAddress
 0000:0214 Write2bppToVRAMSlowly
 0000:0232 WriteAreaToTilemap_1byte
 0000:024d WriteAreaToTilemap
-0000:0263 _LABEL_263_
-0000:0277 _LABEL_277_
+0000:0263 CopyVRAMToRAM
+0000:0277 SetAreaTileAttributes
 0000:02d5 DecompressGraphics
 0000:02e2 DecompressBitplane
 0000:0304 _LABEL_304_

@@ -79,7 +79,13 @@ BANKS 2
 .define RAM_SpriteTable2_Y RAM_SpriteTable2
 .define RAM_SpriteTable2_XN RAM_SpriteTable2+64
 
+; VDP stuff
 .define SizeOfTile 32
+.define TileAttribute_None     %00000000
+.define TileAttribute_Priority %00010000
+.define TileAttribute_Palette2 %00001000
+.define TileAttribute_VFlip    %00000100
+.define TileAttribute_HFlip    %00000010
 
 .macro LdDETilemap args x, y
   ld de, $4000 | $3800 | ((x + 32 * y) * 2)
@@ -353,11 +359,36 @@ RawDataToVRAM_Interleaved2:
     jp nz, -
     ret
 
-; Data from 1D3 to 1F3 (33 bytes)
-.db $32 $05 $C0 $CF $7E $D9 $0E $BE $06 $04 $67 $3A $05 $C0 $1F $54
-.db $38 $02 $16 $00 $ED $51 $10 $F6 $D9 $23 $0B $78 $B1 $C2 $D7 $01
-.db $C9
-
+Write1bppToVRAMWithExtensionMask:
+    ; Unused function
+    ; Inputs:
+    ; a = bitmask. For the low 4 bits, a 1 will cause the data at hl to be written to VRAM and a 0 gives a 0.
+    ; bc = count
+    ; de = dest VRAM address
+    ; hl = source
+    ; This acts to take some 1bpp data and extend it up to 4bpp using the supplied bitmask.
+    ld ($c005),a ; save the bitmask
+    rst $08 ; VDPAddressToDE
+--: ld a,(hl) ; Read a byte
+    exx
+      ld c, Port_VDPData    
+      ld b, 4 ; Counter
+      ld h, a ; Hold read byte
+      ld a, ($c005)
+-:    rra
+      ld d,h
+      jr c,+
+      ld d,0
++:    out (c),d
+      djnz -
+    exx
+    inc hl
+    dec bc
+    ld a,b
+    or c
+    jp nz,--
+    ret
+    
 FillTiles2bpp:
     ; write data from hl to VRAM address de, 2 bytes then 2 zeroes, b*16 times
     rst $08 ; VDPAddressToDE
@@ -453,15 +484,16 @@ WriteAreaToTilemap:
     djnz --
     ret
 
-_LABEL_263_:
-    ; read b*c (?) bytes from VRAM address de to hl
+CopyVRAMToRAM:
+    ; read b*c bytes from VRAM address de and write to hl
+    ; if b=0, acts as if b=1
     rst $08 ; VDPAddressToDE
     push af ; delay
     pop af
 --: push bc
       ld b, c
       ld c, Port_VDPData
--:    ini ; read a byte to hl
+-:    ini ; read a byte to hl, --b
       push af ; delay
       pop af
       jr nz, -
@@ -472,37 +504,45 @@ _LABEL_263_:
     djnz --
     ret
 
-_LABEL_277_:
+SetAreaTileAttributes:
+    ; Modify the tilemap data in VRAM to have the given tile attributes
+    ; h = 0000pcvh0 (priority, palette, v-flip, h-flip)
+    ; Parameters:
+    ; de = VRAM address
+    ; b = rows
+    ; c = columns
+    ; h = bitmask
 --: push bc
-      ld b, c
+      ld b, c ; c = width
       push de
 -:      rst $08 ; VDPAddressToDE
         ex (sp), hl ; delay
         ex (sp), hl
-        in a, (Port_VDPData)
+        in a, (Port_VDPData) ; Read a byte
         ex af, af' ; save value
         ex (sp), hl ; delay
         ex (sp), hl
+        ; re-set address with write bit set
         ld a, e
         out (Port_VDPAddress), a
         ld a, d
         or $40
         out (Port_VDPAddress), a
         ex af, af' ; restore value
-        and $E1
-        or h
-        push af
+        and %11100001 ; Zero some bits
+        or h ; Set some bits from h
+        push af ; delay
         pop af
-        out (Port_VDPData), a
-        inc de
+        out (Port_VDPData), a ; Write it back
+        inc de ; Move on two bits
         inc de
         djnz -
       pop de
-    push hl
-      ld hl, $0040
-      add hl, de
-      ex de, hl
-    pop hl
+      push hl
+        ld hl, 64
+        add hl, de
+        ex de, hl
+      pop hl
     pop bc
     djnz --
     ret
@@ -2095,8 +2135,8 @@ _LABEL_1902_:
         add hl, de
         ld ($C018), hl
         ex de, hl
-        ld h, $08
-        call _LABEL_277_
+        ld h, TileAttribute_Palette2
+        call SetAreaTileAttributes
       pop hl
       push hl
         ld a, h
@@ -2163,8 +2203,8 @@ _LABEL_198B_:
     ld ($C082), a
     ld de, ($C018)
     ld bc, ($C01A)
-    ld h, $00
-    call _LABEL_277_
+    ld h, TileAttribute_None
+    call SetAreaTileAttributes
     push bc
     push de
     push hl
@@ -2602,7 +2642,7 @@ _LABEL_1E57_:
     push bc
       ld hl, $C073
       ld bc, $0004
-      call _LABEL_263_
+      call CopyVRAMToRAM
     pop bc
     ld a, c
     and $07
@@ -2964,7 +3004,7 @@ _LABEL_213E_:
     push de
       push af
         ld bc, $0004
-        call _LABEL_263_
+        call CopyVRAMToRAM
       pop af
       cpl
       ld b, a
@@ -4085,7 +4125,7 @@ _LABEL_2812_:
     push bc
     ld hl, $C073
     ld bc, $0004
-    call _LABEL_263_
+    call CopyVRAMToRAM
     pop bc
     pop de
     pop hl
@@ -4793,9 +4833,9 @@ _LABEL_2D0D_:
     ld bc, $0909
     call _LABEL_1902_
     pop de
-    ld h, $00
+    ld h, TileAttribute_None
     ld bc, $0808
-    call _LABEL_277_
+    call SetAreaTileAttributes
     ld a, ($C0C4)
     sub $16
     ld d, a
