@@ -547,19 +547,58 @@ SetAreaTileAttributes:
     djnz --
     ret
 
-; Data from 2A2 to 2D4 (51 bytes)
-.db $C5 $E5 $69 $26 $00 $29 $29 $29 $44 $4D $E1 $CD $BB $02 $E5 $21
-.db $C0 $02 $19 $EB $E1 $C1 $10 $E8 $C9 $CF $E5 $C5 $06 $04 $CB $0C
-.db $7D $DA $C7 $02 $AF $D3 $BE $00 $10 $F4 $C1 $E1 $0B $78 $B1 $C2
-.db $BC $02 $C9
+Fill1bppWithBitmaskToTilesColumn:
+    ; Unused function
+    ; de = tilemap address
+    ; c = number of tiles
+    ; h = 4-bit bitmask for bitplanes to write to
+    ; l = data to write for selected bitplanes
+-:  push bc
+    push hl
+      ld l,c
+      ld h,0      ; bc = c * 8
+      add hl,hl
+      add hl,hl
+      add hl,hl
+      ld b,h
+      ld c,l
+    pop hl
+    call +
+    push hl
+      ld hl,22 * SizeOfTile ; Presumably 22 is the "stride"? TODO
+      add hl,de
+      ex de,hl
+    pop hl
+    pop bc
+    djnz -
+    ret
+
++:  rst $08 ; VDPAddressToDE
+--: push hl
+    push bc
+      ld b,4      ; Counter
+-:    rrc h       ; Rotate a bit into carry
+      ld a,l      ; 1 = use l, 0 = use 0
+      jp c,+
+      xor a
++:    out (Port_VDPData),a
+      nop         ; delay
+      djnz -
+    pop bc
+    pop hl
+    dec bc
+    ld a,b
+    or c
+    jp nz,--
+    ret
 
 DecompressGraphics:
     ld b, $04 ; bitplane count
 -:  push bc
-        push de
-            call DecompressBitplane
-        pop de
-        inc de
+      push de
+        call DecompressBitplane
+      pop de
+      inc de
     pop bc
     djnz -
     ret
@@ -590,10 +629,10 @@ DecompressBitplane:
     inc hl
     jp --
 
-_LABEL_304_:
+CopySpriteTable2ToVRAM:
     ld a, (RAM_SpriteTable2DirtyFlag)
     or a
-    ret z
+    ret z ; Do nothing if not dirty
     xor a
     ld (RAM_SpriteTable2DirtyFlag), a
     ld a, ($C006)
@@ -791,7 +830,7 @@ InterruptHandlerImpl:
         jp nz, _LABEL_6CD_
         rrca
         jp nc, +
-        call _LABEL_304_
+        call CopySpriteTable2ToVRAM
         call _LABEL_376B_
         call _LABEL_371E_
         ld a, (RAM_NonVBlankDynamicFunction)
