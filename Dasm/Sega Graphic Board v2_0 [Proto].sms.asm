@@ -95,6 +95,16 @@ BANKS 2
   ld de, $4000 | (index * 32)
 .endm
 
+; Sound stuff
+.define PSG_Latch    %10000000
+.define PSG_Data     %00000000
+.define PSG_Channel0 %00000000
+.define PSG_Channel1 %00100000
+.define PSG_Channel2 %01000000
+.define PSG_Channel3 %01100000
+.define PSG_Tone     %00000000
+.define PSG_Volume   %00010000
+
 .BANK 0 SLOT 0
 .ORG $0000
 FullReset:
@@ -752,7 +762,7 @@ SetDrawingAreaTilemap:
     djnz -- ; Loop down rows
     ret
 
-_LABEL_4CD_:
+Beep:
     ld a, (RAM_PSGIsActive)
     or a
     ret z
@@ -760,22 +770,24 @@ _LABEL_4CD_:
     ld (RAM_PSGIsActive), a
     cp $05
     jp z, SilencePSG
-    ld a, $8F
+    
+    ; Set channel 0 to tone $3f = 1775.6Hz = A6
+    ld a, PSG_Latch | PSG_Channel0 | PSG_Tone | %1111 ; $8F
     out (Port_PSG), a
-    ld a, $03
+    ld a, PSG_Data | %000011 ; $03
     out (Port_PSG), a
-    ld a, $90
+    ld a, PSG_Latch | PSG_Channel0 | PSG_Volume | 0 ; $90
     out (Port_PSG), a
     ret
 
 SilencePSG:
-    ld a, $9F
+    ld a, PSG_Latch | PSG_Channel0 | PSG_Volume | 15
     out (Port_PSG), a
-    ld a, $BF
+    ld a, PSG_Latch | PSG_Channel1 | PSG_Volume | 15
     out (Port_PSG), a
-    ld a, $DF
+    ld a, PSG_Latch | PSG_Channel2 | PSG_Volume | 15
     out (Port_PSG), a
-    ld a, $FF
+    ld a, PSG_Latch | PSG_Channel3 | PSG_Volume | 15
     out (Port_PSG), a
     cpl
     ld (RAM_PSGIsActive), a
@@ -797,7 +809,6 @@ TopBarPaletteTiles:
 
 TopBarStatusTiles:
 .dw $09A4, $09A4, $09A4, $09A4, $09A4, $09A2, $0DA4, $0DA4, $0DA4, $0DA4
-
 .dw $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4
 .dw $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4
 .dw $0DA4, $0DA4, $0BA2, $0BA3, $09AA, $09AB, $09AC, $09AD
@@ -878,7 +889,7 @@ InterruptHandlerImpl:
         jp z, +
         call _LABEL_37EE_
         call _LABEL_386B_
-+:      call _LABEL_4CD_
++:      call Beep
         ; fall through
 VBlank_CheckResetAndExit:
         xor a
