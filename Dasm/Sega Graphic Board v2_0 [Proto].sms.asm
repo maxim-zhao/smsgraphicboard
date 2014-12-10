@@ -1,91 +1,23 @@
-.MEMORYMAP
-SLOTSIZE $4000
-SLOT 0 $0000
-SLOT 1 $4000
-SLOT 2 $8000
-DEFAULTSLOT 2
-.ENDME
-.ROMBANKMAP
-BANKSTOTAL 2
-BANKSIZE $4000
-BANKS 2
-.ENDRO
+.memorymap
+slotsize $4000
+slot 0 $0000
+slot 1 $4000
+slot 2 $8000
+defaultslot 2
+.endme
+.rombankmap
+bankstotal 2
+banksize $4000
+banks 2
+.endro
 
 ;.define BypassDetection
 
 .emptyfill $ff
 
-.define Port_IOPortControl $3f
-.define Port_PSG           $7f
-.define Port_VDPData       $be
-.define Port_VDPAddress    $bf
-.define Port_VDPStatus     $bf
-.define Port_IOPort1       $dc
-.define Port_IOPort2       $dd
+.include "definitions.asm"
 
-; Macros for Port_IOPortControl
-; These can be ORed together, best to specify four each time
-; It's presumably irrelevant what the high nibble is when the bit is set to IN...
-; Bits:
-; D7 : Port 2 TH pin output level (1=high, 0=low)
-; D6 : Port 2 TR pin output level (1=high, 0=low)
-; D5 : Port 1 TH pin output level (1=high, 0=low)
-; D4 : Port 1 TR pin output level (1=high, 0=low)
-; D3 : Port 2 TH pin direction (1=input, 0=output)
-; D2 : Port 2 TR pin direction (1=input, 0=output)
-; D1 : Port 1 TH pin direction (1=input, 0=output)
-; D0 : Port 1 TR pin direction (1=input, 0=output)
-.define IO_TR1_OUT_1 %00010000
-.define IO_TR1_OUT_0 %00000000
-.define IO_TR1_IN    %00010001
-.define IO_TH1_OUT_1 %00100000
-.define IO_TH1_OUT_0 %00000000
-.define IO_TH1_IN    %00100010
-.define IO_TR2_OUT_1 %01000000
-.define IO_TR2_OUT_0 %00000000
-.define IO_TR2_IN    %01000100
-.define IO_TH2_OUT_1 %10000000
-.define IO_TH2_OUT_0 %00000000
-.define IO_TH2_IN    %10001000
-
-; RAM
-.define RAM_ResetButton1 $C000 ; 1b Currently pressed value
-.define RAM_ResetButton2 $C001 ; 1b Positive edge signal
-.define RAM_VDPReg1Value $C003 ; 1b
-.define RAM_VRAMFillHighByte $C004 ; 1b
-;---
-.define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphic board in the VBlank
-.define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
-.define RAM_PSGIsActive  $C009 ;  1b ???
-;---
-.define RAM_ButtonsPressed $C02C ; 1b: buttons pressed last time we looked
-.define RAM_ButtonsNewlyPressed $C02D ; 1b: buttons pressed last time we looked which were'nt pressed in the previous frame
-.define RAM_PenY_Smoothed $C02E ; 1b: average of itself and the last raw value
-.define RAM_PenX_Smoothed $C02F ; 1b: average of itself and the last raw value
-.define RAM_PenX $C030 ; 1b
-;---
-.define RAM_PenY $C033 ; 1b
-.define RAM_Pressure $C034 ; 1b - never used
-.define RAM_NonVBlankDynamicFunction $C03C ; 2b
-;---
-.define RAM_Palette      $C042 ; 17b
-;---
-.define RAM_SplashScreenTimeout $C163 ; 2b
-;---
-.define RAM_SpriteTable1 $C200 ; 192b - write here
-.define RAM_SpriteTable1_Y RAM_SpriteTable1
-.define RAM_SpriteTable1_XN RAM_SpriteTable1+64
-.define RAM_SpriteTable2 $C2C0 ; 192b - copy here for staging to VRAM?
-.define RAM_SpriteTable2_Y RAM_SpriteTable2
-.define RAM_SpriteTable2_XN RAM_SpriteTable2+64
-
-; VDP stuff
-.define SizeOfTile 32
-.define TileAttribute_None     %00000000
-.define TileAttribute_Priority %00010000
-.define TileAttribute_Palette2 %00001000
-.define TileAttribute_VFlip    %00000100
-.define TileAttribute_HFlip    %00000010
+.include "ram.asm"
 
 .macro LdDETilemap args x, y
   ld de, $4000 | $3800 | ((x + 32 * y) * 2)
@@ -95,18 +27,9 @@ BANKS 2
   ld de, $4000 | (index * 32)
 .endm
 
-; Sound stuff
-.define PSG_Latch    %10000000
-.define PSG_Data     %00000000
-.define PSG_Channel0 %00000000
-.define PSG_Channel1 %00100000
-.define PSG_Channel2 %01000000
-.define PSG_Channel3 %01100000
-.define PSG_Tone     %00000000
-.define PSG_Volume   %00010000
 
-.BANK 0 SLOT 0
-.ORG $0000
+.bank 0 slot 0
+.org $0000
 FullReset:
     jp Start
 
@@ -763,11 +686,11 @@ SetDrawingAreaTilemap:
     ret
 
 Beep:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret z
     inc a
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     cp $05
     jp z, SilencePSG
     
@@ -790,7 +713,7 @@ SilencePSG:
     ld a, PSG_Latch | PSG_Channel3 | PSG_Volume | 15
     out (Port_PSG), a
     cpl
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ret
 
 ; Data from 4FD to 602 (262 bytes)
@@ -833,79 +756,79 @@ InterruptHandlerImpl:
     push bc
     push de
     push hl
-        in a, (Port_VDPStatus) ; Satisy VBlank interrupt
-        ld a, (RAM_VBlankFunctionControl)
-        or a
-        jp z, VBlank_CheckResetAndExit
-        bit 7, a
-        jp nz, _LABEL_6CD_
-        rrca
-        jp nc, +
-        call CopySpriteTable2ToVRAM
-        call _LABEL_376B_
-        call _LABEL_371E_
-        ld a, (RAM_NonVBlankDynamicFunction)
-        cp $83
-        jp nz, +
-        ld a, ($C054)
-        or a
-        jp z, +
-        xor a
-        ld ($C054), a
+      in a, (Port_VDPStatus) ; Satisy VBlank interrupt
+      ld a, (RAM_VBlankFunctionControl)
+      or a
+      jp z, VBlank_CheckResetAndExit
+      bit 7, a
+      jp nz, _LABEL_6CD_
+      rrca
+      jp nc, +
+      call CopySpriteTable2ToVRAM
+      call _LABEL_376B_
+      call _LABEL_371E_
+      ld a, (RAM_NonVBlankDynamicFunction)
+      cp $83
+      jp nz, +
+      ld a, ($C054)
+      or a
+      jp z, +
+      xor a
+      ld ($C054), a
 
-        ld hl, RAM_Palette
-        ld de, $C000 ; tile palette index 0
-        rst $08 ; VDPAddressToDE
-        ld b, $11 ; 17 palette entries
--:      ld a, (hl)
-        inc hl
-        push af
-        pop af
-        out (Port_VDPData), a
-        djnz -
+      ld hl, RAM_Palette
+      ld de, $C000 ; tile palette index 0
+      rst $08 ; VDPAddressToDE
+      ld b, $11 ; 17 palette entries
+-:    ld a, (hl)
+      inc hl
+      push af
+      pop af
+      out (Port_VDPData), a
+      djnz -
 
-        ld de, $C014 ; sprite palette index 4
-        rst $08 ; VDPAddressToDE
-        ld a, ($C053) ; value to write
-        ld b, 8       ; 8 palette entries
--:      out (Port_VDPData), a
-        inc a ; ???
-        push af
-        pop af
-        djnz -
+      ld de, $C014 ; sprite palette index 4
+      rst $08 ; VDPAddressToDE
+      ld a, ($C053) ; value to write
+      ld b, 8       ; 8 palette entries
+-:    out (Port_VDPData), a
+      inc a ; Write incrementing values..?
+      push af
+      pop af
+      djnz -
 
-        call _LABEL_1F0F_
+      call _LABEL_1F0F_
 
-+:      ld hl, $C006
-        inc (hl)
-        call _LABEL_3B2E_
-        ld a, (RAM_VBlankFunctionControl)
-        bit 1, a
-        jp z, +
-        push af
-            call ReadGraphicBoard
-        pop af
-+:      bit 0, a
-        jp z, +
-        call _LABEL_37EE_
-        call _LABEL_386B_
-+:      call Beep
-        ; fall through
++:    ld hl, $C006
+      inc (hl)
+      call _LABEL_3B2E_
+      ld a, (RAM_VBlankFunctionControl)
+      bit 1, a
+      jp z, +
+      push af
+        call ReadGraphicBoard
+      pop af
++:    bit 0, a
+      jp z, +
+      call _LABEL_37EE_
+      call _LABEL_386B_
++:    call Beep
+      ; fall through
 VBlank_CheckResetAndExit:
-        xor a
-        ld (RAM_VBlankFunctionControl), a
-        in a, (Port_IOPort2)
-        ld hl, RAM_ResetButton1
-        cpl
-        and $10 ; check for reset button
-        ld c, a
-        xor (hl)
-        ld (hl), c
-        inc hl ; RAM_ResetButton2
-        and c
-        ld (hl), a
-        bit 4, (hl) ; check for reset press
-        jp nz, VBlank_HandleReset
+      xor a
+      ld (RAM_VBlankFunctionControl), a
+      in a, (Port_IOPort2)
+      ld hl, RAM_ResetButton1
+      cpl
+      and $10 ; check for reset button
+      ld c, a
+      xor (hl)
+      ld (hl), c
+      inc hl ; RAM_ResetButton2
+      and c
+      ld (hl), a
+      bit 4, (hl) ; check for reset press
+      jp nz, VBlank_HandleReset
     pop hl
     pop de
     pop bc
@@ -953,11 +876,11 @@ _LABEL_6CD_:
     or a
     jp z, VBlank_CheckResetAndExit
     push af
-        call _LABEL_B0A_
+      call _LABEL_B0A_
     pop af
     bit 1, a
     push af
-        call nz, ReadGraphicBoard
+      call nz, ReadGraphicBoard
     pop af
     bit 2, a
     call nz, _LABEL_9BC_
@@ -973,18 +896,18 @@ SetVBlankFunctionAndWait:
 CheckForReset:
     push hl
     push af
-        in a, (Port_IOPort2)
-        ld hl, $C000
-        cpl
-        and $10
-        ld c, a
-        xor (hl)
-        ld (hl), c
-        inc hl
-        and c
-        ld (hl), a
-        bit 4, (hl)
-        jp nz, HandleReset
+      in a, (Port_IOPort2)
+      ld hl, $C000
+      cpl
+      and $10
+      ld c, a
+      xor (hl)
+      ld (hl), c
+      inc hl
+      and c
+      ld (hl), a
+      bit 4, (hl)
+      jp nz, HandleReset
     pop af
     pop hl
     ret
@@ -1200,51 +1123,7 @@ NoBoardData:
     out (Port_IOPortControl), a
     ret
 
-DivMod16_8_16_8:
-    ; hl = 16-bit number
-    ; e = 8-bit number
-    ; returns
-    ; hl = hl / e
-    ; a  = hl % e
-    ld b, $11  ; 17 bits
-    xor a
-    jp +++
--:  adc a, a   ; shift carry into a
-    jr c, +    ; if nothing came out
-    cp e       ; check if it's bigger than e
-    jr c, ++
-+:  sub e      ; if so, subtract it
-    or a       ; then clear the carry flag
-++: ccf
-+++:adc hl, hl ; shift hl let into carry
-    djnz -
-    ret
-
-DivMod16_8_8_8:
-    ; hl = 16-bit number
-    ; e = 8-bit number
-    ; returns 
-    ; a = hl / e
-    ; e = hl % e
-    ld a, e
-    or a
-    ret z ; avoid divide by 0
-    ld b, $08
-    xor a
--:  adc hl, hl
-    ld a, h
-    jp c, +
-    cp e
-    jp c, ++
-+:  sub e
-    ld h, a
-    xor a
-++: ccf
-    djnz -
-    rl l
-    ld a, l
-    ld e, a
-    ret
+.include "divmod.asm"
 
 ; Data from 835 to 846 (18 bytes)
 .db $2E $00 $67 $48 $06 $00 $3E $08 $29 $D2 $42 $08 $09 $3D $C2 $3D
@@ -1321,7 +1200,7 @@ TitleScreen: ; $865
     ld b, $00   ; Draw into tilemap for splash screen animation
     ld c, $23
 -:  push bc
-        call UpdateSplashScreenAnimationTilesLine
+      call UpdateSplashScreenAnimationTilesLine
     pop bc
     inc b
     dec c
@@ -1344,11 +1223,11 @@ TitleScreen: ; $865
     ; Update title screen state?
     ld hl, - ; push loop address
     push hl
-        ld ix, $C15D
-        bit 0, (ix+1) ; $c15e
-        jp z, TitleScreenAnimate_Bit0Zero ; Blinds slide animation
-        bit 1, (ix+1) ; $c15e
-        jp z, TitleScreenAnimate_Bit1Zero ; Piel slide/flip animation
+      ld ix, $C15D
+      bit 0, (ix+1) ; $c15e
+      jp z, TitleScreenAnimate_Bit0Zero ; Blinds slide animation
+      bit 1, (ix+1) ; $c15e
+      jp z, TitleScreenAnimate_Bit1Zero ; Piel slide/flip animation
     inc sp ; Discard loop address - could have popped it...
     inc sp
     di
@@ -1427,11 +1306,11 @@ GraphicsBoardDetected:
     
     ; check button presses from last read
     ld a, (RAM_ButtonsNewlyPressed)
-    and $07
+    and %00000111 ; any button
     jp z, - ; loop until pressed
     
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     di
     jp ScreenOff ; and return
 
@@ -1561,16 +1440,16 @@ UpdateSplashScreenAnimationTilesLine:
     add hl, hl  ; x2
     add hl, hl  ; x4
     push hl
-        add hl, hl  ; x8
+      add hl, hl  ; x8
+      push hl
+        add hl, hl  ; x16
+        add hl, hl  ; x32
         push hl
-            add hl, hl  ; x16
-            add hl, hl  ; x32
-            push hl
-                add hl, hl  ; x64
-            pop de
-            add hl, de  ; x64 + x32
+          add hl, hl  ; x64
         pop de
-        add hl, de  ; x64 + x32 + x8
+        add hl, de  ; x64 + x32
+      pop de
+      add hl, de  ; x64 + x32 + x8
     pop de
     add hl, de  ; x64 + x32 + x8 + x4 = x108
 
@@ -1586,54 +1465,54 @@ UpdateSplashScreenAnimationTilesLine:
     ld de, $6020 ; magic? Tile 257
     add hl, de
     push hl
-        ld a, c ; high 5 bits of c
-        and $F8
-        ; Multiply by 54
-        ld l, a
-        ld h, $00
-        add hl, hl ; x2
+      ld a, c ; high 5 bits of c
+      and $F8
+      ; Multiply by 54
+      ld l, a
+      ld h, $00
+      add hl, hl ; x2
+      push hl
+        add hl, hl  ; x4
         push hl
-            add hl, hl  ; x4
-            push hl
-                add hl, hl  ; x8
-                add hl, hl  ; x16
-                push hl
-                    add hl, hl  ; x32
-                pop de
-                add hl, de  ; x32 + x16
-            pop de
-            add hl, de  ; x32 + x16 + x4
+          add hl, hl  ; x8
+          add hl, hl  ; x16
+          push hl
+            add hl, hl  ; x32
+          pop de
+          add hl, de  ; x32 + x16
         pop de
-        add hl, de  ; x32 + x16 + x4 + x2 = x54
+        add hl, de  ; x32 + x16 + x4
+      pop de
+      add hl, de  ; x32 + x16 + x4 + x2 = x54
 
-        ld a, c ; low 3 bits of c
-        and $07
-        add a, a ; x2
-        ld e, a
-        ld d, $00
-        add hl, de ; x4
-        ld de, Tiles_Logo ; $0C32
-        add hl, de
+      ld a, c ; low 3 bits of c
+      and $07
+      add a, a ; x2
+      ld e, a
+      ld d, $00
+      add hl, de ; x4
+      ld de, Tiles_Logo ; $0C32
+      add hl, de
     pop de
 
     ld b, 27 ; counter
     ld c, Port_VDPData
 -:  push bc
     push de
-        push hl
-            ; VRAM address to de
-            ld a, e
-            out (Port_VDPAddress), a
-            ld a, d
-            out (Port_VDPAddress), a
-            ; output 2 bytes from hl
-            push af ; delay
-                outi
-            pop af ; delay
-            outi
-        pop hl
-        ld de, 16 ; hl += 16
-        add hl, de
+      push hl
+        ; VRAM address to de
+        ld a, e
+        out (Port_VDPAddress), a
+        ld a, d
+        out (Port_VDPAddress), a
+        ; output 2 bytes from hl
+        push af ; delay
+          outi
+        pop af ; delay
+        outi
+      pop hl
+      ld de, 16 ; hl += 16
+      add hl, de
     pop de
     ; de += 32
     push hl
@@ -1676,7 +1555,7 @@ _LABEL_ACC_:
     add hl, de
     ld de, $0020
     ld b, $1B
-    ld c, $BE
+    ld c, Port_VDPData
 -:  push bc
       ld a, l
       out (Port_VDPAddress), a
@@ -1729,7 +1608,7 @@ TitleScreenAnimation_Part2:
     ld c, $23
     ld b, (ix+4)
 -:  push bc
-        call UpdateSplashScreenAnimationTilesLine
+      call UpdateSplashScreenAnimationTilesLine
     pop bc
     dec c
     dec b
@@ -1822,7 +1701,7 @@ _LABEL_1680_:
     ld (RAM_PenY_Smoothed), hl
     ld ($C031), hl
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ei
     ret
 
@@ -1833,10 +1712,9 @@ _LABEL_16C0_:
     ld hl, (RAM_PenY_Smoothed)
     ld a, $48
     cp l
-    jp c, _LABEL_16D0_
+    jp c, +
     ld hl, $4858
-_LABEL_16D0_:
-    ld ($C03E), hl
++:  ld ($C03E), hl
     call _LABEL_198B_
     ld hl, ($C08D)
     ld (RAM_PenY_Smoothed), hl
@@ -1847,37 +1725,35 @@ _LABEL_16D0_:
     ld a, (hl)
     ld (hl), $00
     cp $03
-    jp nz, _LABEL_16F2_
+    jp nz, +
     ld (hl), a
     ld a, $0F
     jp _LABEL_1715_
 
-_LABEL_16F2_:
-    cp $04
-    jp nz, _LABEL_16FD_
++:  cp $04
+    jp nz, +
     ld (hl), a
     ld a, $11
     jp _LABEL_1715_
 
-_LABEL_16FD_:
-    cp $05
-    jp c, _LABEL_170D_
++:  cp $05
+    jp c, +
     cp $08
-    jp nc, _LABEL_170D_
+    jp nc, +
     ld (hl), a
     ld a, $0E
     jp _LABEL_1715_
 
-_LABEL_170D_:
-    cp $0A
++:  cp $0A
     jp nz, _LABEL_1715_
     ld (hl), a
     ld a, $10
+
 _LABEL_1715_:
     dec hl
     ld (hl), a
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ei
     ret
 
@@ -1887,7 +1763,7 @@ _LABEL_171E_:
     or a
     jp z, +
 
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
 
@@ -1906,51 +1782,52 @@ _LABEL_171E_:
 
 ; 13th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1740_:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     exx
     bit 7, (hl)
-    jp z, _LABEL_1768_
+    jp z, +
+
     ld a, (RAM_ButtonsNewlyPressed)
     bit 0, a
     ret z
     di
-    call DrawUIControls
-    ld hl, ($C08D)
-    ld (RAM_PenY_Smoothed), hl
-    ld hl, ($C08F)
-    ld ($C031), hl
-    ld a, $01
-    ld (RAM_NonVBlankDynamicFunction), a
+      call DrawUIControls
+      ld hl, ($C08D)
+      ld (RAM_PenY_Smoothed), hl
+      ld hl, ($C08F)
+      ld ($C031), hl
+      ld a, $01
+      ld (RAM_NonVBlankDynamicFunction), a
     ei
     ret
 
-_LABEL_1768_:
-    set 7, (hl)
++:  set 7, (hl)
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
     ld ($C08F), hl
     di
-    call ScreenOff
-    call DisableSprites_VRAM
-    LdDETilemap 0, 0
-    ld hl, $8D09
-    ld bc, 32*28
-    call FillVRAMWithHL
-    call SetDrawingAreaTilemap
+      call ScreenOff
+      call DisableSprites_VRAM
+      LdDETilemap 0, 0
+      ld hl, $8D09
+      ld bc, 32*28
+      call FillVRAMWithHL
+      call SetDrawingAreaTilemap
     ei
     jp ScreenOn
 
 ; 15th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1790_:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     exx
     bit 7, (hl)
-    jp z, _LABEL_17B8_
+    jp z, +
+    
     bit 6, (hl)
     ret z
     di
@@ -1969,8 +1846,7 @@ _LABEL_1790_:
     ei
     ret
 
-_LABEL_17B8_:
-    set 7, (hl)
++:  set 7, (hl)
     di
     ld bc, $040A
     ld de, $1AC7
@@ -1988,12 +1864,12 @@ _LABEL_17B8_:
 
 ; 16th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_17DE_:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     exx
     bit 7, (hl)
-    jp z, _LABEL_1806_
+    jp z, +
     bit 6, (hl)
     ret z
     di
@@ -2012,8 +1888,7 @@ _LABEL_17DE_:
     ei
     ret
 
-_LABEL_1806_:
-    set 7, (hl)
++:  set 7, (hl)
     di
     ld bc, $0410
     ld de, $1AF4
@@ -2031,12 +1906,12 @@ _LABEL_1806_:
 
 ; 17th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_182C_:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     exx
     bit 7, (hl)
-    jp z, _LABEL_1854_
+    jp z, +
     bit 6, (hl)
     ret z
     di
@@ -2055,8 +1930,7 @@ _LABEL_182C_:
     ei
     ret
 
-_LABEL_1854_:
-    set 7, (hl)
++:  set 7, (hl)
     di
     ld bc, $040E
     ld de, $1B39
@@ -2074,12 +1948,12 @@ _LABEL_1854_:
 
 ; 18th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_187A_:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     exx
     bit 7, (hl)
-    jp z, _LABEL_18A2_
+    jp z, +
     bit 6, (hl)
     ret z
     di
@@ -2098,8 +1972,7 @@ _LABEL_187A_:
     ei
     ret
 
-_LABEL_18A2_:
-    set 7, (hl)
++:  set 7, (hl)
     di
     ld bc, $040D
     ld de, $1C11
@@ -2119,15 +1992,14 @@ _LABEL_18A2_:
 _LABEL_18C8_:
     exx
     bit 7, (hl)
-    jp z, _LABEL_18D9_
+    jp z, +
     ld hl, RAM_SplashScreenTimeout
     dec (hl)
     ret p
     call ScreenOff
     jp FullReset
 
-_LABEL_18D9_:
-    set 7, (hl)
++:  set 7, (hl)
     ld a, $80
     ld (RAM_SplashScreenTimeout), a
     ld a, $E0
@@ -2137,8 +2009,8 @@ _LABEL_18D9_:
 _LABEL_18E6_:
     ld a, (RAM_ButtonsNewlyPressed)
     bit 0, a
-    ret z
-    ld a, (RAM_PSGIsActive)
+    ret z ; Do nothing if button not just pressed
+    ld a, (RAM_Beep)
     or a
     ret nz
     ld a, (RAM_NonVBlankDynamicFunction)
@@ -2212,7 +2084,7 @@ _LABEL_1902_:
 -:  ld a, (hl)
     cp $FF
     inc hl
-    jp z, _LABEL_1976_
+    jp z, +
     exx
     ld de, $41B2
     ld l, a
@@ -2225,18 +2097,16 @@ _LABEL_1902_:
     ld b, $01
     call FillTiles2bppCurrentAddress
     exx
-_LABEL_1973_:
-    djnz -
+--: djnz -
     ret
 
-_LABEL_1976_:
-    push hl
++:  push hl
       ld hl, $02C0
       add hl, de
       ex de, hl
     pop hl
     rst $08 ; VDPAddressToDE
-    jp _LABEL_1973_
+    jp --
 
 _LABEL_1981_:
     push bc
@@ -2269,24 +2139,23 @@ _LABEL_198B_:
       add hl, hl
       ld ($C0BB), hl
       ld hl, $C400
--:    push bc
+--:   push bc
         ld bc, ($C0BB)
         rst $08 ; VDPAddressToDE
-_LABEL_19BB_:
-        ld a, (hl)
+-:      ld a, (hl)
         out (Port_VDPData), a
         inc hl
         dec bc
         ld a, b
         or c
-        jp nz, _LABEL_19BB_
+        jp nz, -
         push hl
           ld hl, $02C0
           add hl, de
           ex de, hl
         pop hl
       pop bc
-      djnz -
+      djnz --
     pop hl
     pop de
     pop bc
@@ -2308,13 +2177,12 @@ _LABEL_19D3_:
       add hl, hl
       ld ($C0BB), hl
       ld hl, $C400
--:    push bc
+--:   push bc
         ld bc, ($C0BB)
         rst $08 ; VDPAddressToDE
         push af
         pop af
-_LABEL_19F6_:
-        push af
+-:      push af
         pop af
         in a, (Port_VDPData)
         ld (hl), a
@@ -2322,14 +2190,14 @@ _LABEL_19F6_:
         dec bc
         ld a, b
         or c
-        jp nz, _LABEL_19F6_
+        jp nz, -
         push hl
           ld hl, $02C0
           add hl, de
           ex de, hl
         pop hl
       pop bc
-      djnz -
+      djnz --
     pop hl
     pop de
     pop bc
@@ -2382,7 +2250,7 @@ _LABEL_1C4A_:
     di
     ld a, ($C062)
     or a
-    jp nz, _LABEL_1C7F_
+    jp nz, +
     ld a, (RAM_ButtonsPressed)
     ld ($C06D), a
     bit 2, a
@@ -2398,8 +2266,7 @@ _LABEL_1C4A_:
     ei
     ret
 
-_LABEL_1C7F_:
-    di
++:  di
     ld a, (RAM_ButtonsPressed)
     ld ($C06D), a
     ld hl, (RAM_PenY_Smoothed)
@@ -2434,7 +2301,7 @@ _LABEL_1CA1_:
     ld e, a
     ld a, d
     sub e
-    jp c, _LABEL_1CD9_
+    jp c, +
     ld h, d
     srl h
     ld l, d
@@ -2454,8 +2321,7 @@ _LABEL_1CA1_:
     exx
     jp -
 
-_LABEL_1CD9_:
-    ld h, e
++:  ld h, e
     srl h
     ld l, e
     inc l
@@ -2479,7 +2345,7 @@ _LABEL_1CF4_:
     ld e, a
     ld a, d
     sub e
-    jp c, _LABEL_1D17_
+    jp c, +
     ld h, d
     srl h
     ld l, d
@@ -2499,8 +2365,7 @@ _LABEL_1CF4_:
     exx
     jp -
 
-_LABEL_1D17_:
-    ld h, e
++:  ld h, e
     srl h
     ld l, e
     inc l
@@ -2520,6 +2385,7 @@ _LABEL_1D17_:
     jp -
 
 _LABEL_1D32_:
+    ; If low bit of c' is 0, --h' else ++h'
     exx
     bit 0, c
     jp nz, +
@@ -2530,7 +2396,7 @@ _LABEL_1D32_:
     ret
 
 ; Data from 1D3F to 1D3F (1 bytes)
-.db $C9
+    ret ; Unused
 
 _LABEL_1D40_:
     ld a, ($C06D)
@@ -2562,24 +2428,22 @@ _LABEL_1D50_:
     ld ($C066), a
     ld a, ($C06B)
     or a
-    jp z, _LABEL_1D85_
+    jp z, +
     cp $01
-    jp z, _LABEL_1D94_
+    jp z, ++
     cp $02
-    jp z, _LABEL_1DD0_
+    jp z, +++
     cp $03
-    jp z, _LABEL_1D94_
+    jp z, ++
     ret
 
-_LABEL_1D85_:
-    ld a, ($C063)
++:  ld a, ($C063)
     ld ($C064), a
     ld a, ($C067)
     ld ($C068), a
     jp _LABEL_1E57_
 
-_LABEL_1D94_:
-    ld a, ($C063)
+++: ld a, ($C063)
     ld ($C064), a
     ld a, ($C067)
     ld ($C068), a
@@ -2600,8 +2464,7 @@ _LABEL_1D94_:
     ld ($C068), a
     jp _LABEL_1E57_
 
-_LABEL_1DD0_:
-    ld a, ($C066)
++++:ld a, ($C066)
     ld ($C064), a
     ld a, ($C06A)
     ld ($C068), a
@@ -2659,24 +2522,24 @@ _LABEL_1E57_:
     ld c, a
     ld a, b
     and $F8
-    ld h, $00
+    ld h, 0 ; calculate de = a * 88
     ld l, a
-    add hl, hl
-    add hl, hl
-    add hl, hl
+    add hl, hl ; x2
+    add hl, hl ; x4
+    add hl, hl ; x8
     push hl
-      add hl, hl
+      add hl, hl ; x16
       push hl
-        add hl, hl
-        add hl, hl
+        add hl, hl ; x32
+        add hl, hl ; x64
       pop de
-      add hl, de
+      add hl, de ; x64 + x16
     pop de
-    add hl, de
+    add hl, de ; x64 + x16 + x8 = x88
     ex de, hl
     ld a, c
     and $F8
-    ld l, a
+    ld l, a ; hl = a * 4 + de
     ld h, $00
     add hl, hl
     add hl, hl
@@ -2733,7 +2596,14 @@ __:   rrc c
     jp RawDataToVRAM
 
 ; Data from 1EDA to 1EE1 (8 bytes)
-.db $80 $40 $20 $10 $08 $04 $02 $01
+.db %10000000
+.db %01000000
+.db %00100000
+.db %00010000
+.db %00001000
+.db %00000100
+.db %00000010
+.db %00000001
 
 ; 4th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1EE2_:
@@ -2802,7 +2672,7 @@ _LABEL_1F66_:
     ld a, ($C089)
     cp $03
     ret nz
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     exx
@@ -2968,7 +2838,7 @@ _LABEL_20AA_:
     ld a, (iy+13)
     ld c, a
     and $07
-    jp z, _LABEL_20CD_
+    jp z, +
     push de
       ld hl, $219A
       ld e, a
@@ -2984,25 +2854,23 @@ _LABEL_20AA_:
     add a, $08
     and $F8
     ld c, a
-_LABEL_20CD_:
-    ld a, (iy+15)
++:  ld a, (iy+15)
     and $F8
     sub c
-    jp c, _LABEL_20EA_
+    jp c, +
     and $F8
     rrca
     rrca
     rrca
     or a
-    jp z, _LABEL_20EA_
+    jp z, +
     ld b, a
--:  call _LABEL_20FE_
+-:  call ++
     ld hl, $0020
     add hl, de
     ex de, hl
     djnz -
-_LABEL_20EA_:
-    ld a, (iy+15)
++:  ld a, (iy+15)
     and $07
     ret z
     push de
@@ -3015,14 +2883,13 @@ _LABEL_20EA_:
     cpl
     jp _LABEL_213E_
 
-_LABEL_20FE_:
-    ld a, e
+++: ld a, e
     out (Port_VDPAddress), a
     ld a, d
     or $40
     out (Port_VDPAddress), a
     ld hl, $00FF
-    ld c, $BE
+    ld c, Port_VDPData
     ld a, (iy+10)
     rrca
     jp c, +
@@ -3117,7 +2984,7 @@ _LABEL_213E_:
 
 ; 7th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_21A2_:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     exx
@@ -3160,7 +3027,7 @@ _LABEL_21E1_:
     ld a, h
     dec a
     or l
-    jp z, _LABEL_2203_
+    jp z, +
     ld a, h
     or a
     jp z, _LABEL_22EC_
@@ -3174,8 +3041,7 @@ _LABEL_21E1_:
     ld ($C0A8), a
     jp _LABEL_2435_
 
-_LABEL_2203_:
-    ld l, e
++:  ld l, e
     ld h, $00
     ld ($C0A4), hl
     ld l, d
@@ -3186,15 +3052,14 @@ _LABEL_2203_:
     ld bc, $0000
     ld hl, $0000
     ld ($C0A6), hl
-_LABEL_2219_:
-    call _LABEL_259B_
+-:  call _LABEL_259B_
     ld hl, ($C0A6)
     inc hl
     or a
     sbc hl, de
     or a
     sbc hl, bc
-    jp m, _LABEL_223B_
+    jp m, +
     add hl, bc
     or a
     sbc hl, de
@@ -3203,10 +3068,9 @@ _LABEL_2219_:
     ld hl, ($C0A2)
     dec hl
     ld ($C0A2), hl
-    jp _LABEL_224A_
+    jp ++
 
-_LABEL_223B_:
-    add hl, de
++:  add hl, de
     or a
     sbc hl, bc
     ld ($C0A6), hl
@@ -3214,10 +3078,10 @@ _LABEL_223B_:
     ld hl, ($C0A4)
     dec hl
     ld ($C0A4), hl
-_LABEL_224A_:
-    ld a, d
+
+    ++: ld a, d
     or e
-    jp nz, _LABEL_2219_
+    jp nz, -
 _LABEL_224F_:
     call _LABEL_259B_
     ld hl, ($C0A6)
@@ -3800,7 +3664,7 @@ _LABEL_25F2_:
 
 ; 9th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_2605_:
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     ld a, ($C089)
@@ -4098,25 +3962,23 @@ _LABEL_27D8_:
     push bc
     push hl
     xor a
-_LABEL_27E9_:
-    rrc c
+-:  rrc c
     jp c, _LABEL_27EF_
     or (hl)
 _LABEL_27EF_:
     inc hl
-    djnz _LABEL_27E9_
+    djnz -
     pop hl
     pop bc
     cpl
     ld d, a
     ld a, $FF
-_LABEL_27F8_:
-    rrc c
+-:  rrc c
     jp nc, _LABEL_27FE_
     and (hl)
 _LABEL_27FE_:
     inc hl
-    djnz _LABEL_27F8_
+    djnz -
     and d
     jp _LABEL_2810_
 
@@ -4190,11 +4052,11 @@ _LABEL_2850_:
     push de
     push hl
     push bc
-    ld a, d
-    ld ($C068), a
-    ld a, e
-    ld ($C064), a
-    call _LABEL_1E57_
+      ld a, d
+      ld ($C068), a
+      ld a, e
+      ld ($C064), a
+      call _LABEL_1E57_
     pop bc
     pop hl
     pop de
@@ -4206,7 +4068,7 @@ _LABEL_2862_:
     ld a, ($C089)
     bit 3, a
     jp z, _LABEL_3932_
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     ld ix, $C15D
@@ -4249,44 +4111,39 @@ _LABEL_2862_:
     ld e, a
     ld h, (ix+5)
     ld l, (ix+6)
-_LABEL_28D0_:
-    push bc
+--: push bc
     push de
     push hl
-    ld b, c
-_LABEL_28D4_:
-    ld a, e
-    and $07
-    ld c, a
-    ld a, l
-    and $07
-    sub c
-    jp nc, _LABEL_28E1_
-    add a, $08
-_LABEL_28E1_:
-    ld ($C166), a
-    push bc
-    call _LABEL_2AB1_
-    call _LABEL_2ADC_
-    pop bc
-    inc e
-    inc l
-    ld a, l
-    cp $B0
-    jp nc, _LABEL_28F6_
-    djnz _LABEL_28D4_
-_LABEL_28F6_:
-    pop hl
+      ld b, c
+-:    ld a, e
+      and $07
+      ld c, a
+      ld a, l
+      and $07
+      sub c
+      jp nc, +
+      add a, $08
++:    ld ($C166), a
+      push bc
+      call _LABEL_2AB1_
+      call _LABEL_2ADC_
+      pop bc
+      inc e
+      inc l
+      ld a, l
+      cp $B0
+      jp nc, +
+      djnz -
++:  pop hl
     pop de
     pop bc
     inc d
     inc h
     ld a, h
     cp $90
-    jp nc, _LABEL_2903_
-    djnz _LABEL_28D0_
-_LABEL_2903_:
-    ei
+    jp nc, +
+    djnz --
++:  ei
     ld a, ($C089)
     and $06
     ld ($C089), a
@@ -4303,7 +4160,7 @@ _LABEL_290D_:
     ret nc
     rra
     jp nc, _LABEL_3932_
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     ld ix, $C15D
@@ -4523,27 +4380,25 @@ _LABEL_2ADC_:
     dec hl
     dec hl
     push hl
-    push bc
-    ld hl, $C167
-    ld a, (ix+9)
-    or a
-    jp z, _LABEL_2B48_
-    ld b, a
-_LABEL_2B39_:
-    push hl
-    rrc (hl)
-    inc hl
-    rrc (hl)
-    inc hl
-    rrc (hl)
-    inc hl
-    rrc (hl)
-    pop hl
-    djnz _LABEL_2B39_
-_LABEL_2B48_:
-    pop bc
-    push hl
-    pop iy
+      push bc
+        ld hl, $C167
+        ld a, (ix+9)
+        or a
+        jp z, +
+        ld b, a
+-:      push hl
+          rrc (hl)
+          inc hl
+          rrc (hl)
+          inc hl
+          rrc (hl)
+          inc hl
+          rrc (hl)
+        pop hl
+        djnz -
+  +:  pop bc
+      push hl
+      pop iy
     pop hl
     ld a, e
     out (Port_VDPAddress), a
@@ -4701,39 +4556,37 @@ _LABEL_2C15_:
     ld e, (ix+2)
     call _LABEL_2B74_
     ld hl, ($C171)
-_LABEL_2C24_:
-    rst $08 ; VDPAddressToDE
+--: rst $08 ; VDPAddressToDE
     push bc
-    ld b, $00
-    sla c
-    rl b
-    sla c
-    rl b
-    sla c
-    rl b
-    sla c
-    rl b
-    sla c
-    rl b
-    push hl
-_LABEL_2C3D_:
-    in a, (Port_VDPData)
-    ld (hl), a
-    inc hl
-    push af
-    pop af
-    dec bc
-    ld a, b
-    or c
-    jp nz, _LABEL_2C3D_
-    ld hl, $02C0
-    add hl, de
-    ex de, hl
-    pop hl
-    ld bc, $01A0
-    add hl, bc
+      ld b, $00
+      sla c
+      rl b
+      sla c
+      rl b
+      sla c
+      rl b
+      sla c
+      rl b
+      sla c
+      rl b
+      push hl
+-:      in a, (Port_VDPData)
+        ld (hl), a
+        inc hl
+        push af
+        pop af
+        dec bc
+        ld a, b
+        or c
+        jp nz, -
+        ld hl, $02C0
+        add hl, de
+        ex de, hl
+      pop hl
+      ld bc, $01A0
+      add hl, bc
     pop bc
-    djnz _LABEL_2C24_
+    djnz --
     pop bc
     pop de
     pop hl
@@ -4829,7 +4682,7 @@ _LABEL_2CF6_:
     pop hl
     ei
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
 _LABEL_2D05_:
     set 7, (hl)
     ld a, $02
@@ -4838,7 +4691,7 @@ _LABEL_2D05_:
 
 _LABEL_2D0D_:
     ex af, af'
-    ld a, (RAM_PSGIsActive)
+    ld a, (RAM_Beep)
     or a
     ret nz
     ex af, af'
@@ -4916,41 +4769,38 @@ _LABEL_2D0D_:
     ld e, a
     ld h, (ix+5)
     ld l, (ix+6)
-_LABEL_2DA2_:
-    push bc
+--: push bc
     push de
     push hl
-    ld b, c
-_LABEL_2DA6_:
-    push bc
-    push hl
-    call _LABEL_2DED_
-    call _LABEL_2AB1_
-    call _LABEL_2ADC_
-    inc l
-    call _LABEL_2DED_
-    call _LABEL_2AB1_
-    call _LABEL_2ADC_
-    dec l
-    inc h
-    call _LABEL_2DED_
-    call _LABEL_2AB1_
-    call _LABEL_2ADC_
-    inc l
-    call _LABEL_2DED_
-    call _LABEL_2AB1_
-    call _LABEL_2ADC_
-    pop hl
-    pop bc
-    inc e
-    inc l
-    inc l
-    ld a, l
-    cp $B0
-    jp nc, _LABEL_2DDD_
-    djnz _LABEL_2DA6_
-_LABEL_2DDD_:
-    pop hl
+      ld b, c
+-:    push bc
+      push hl
+        call _LABEL_2DED_
+        call _LABEL_2AB1_
+        call _LABEL_2ADC_
+        inc l
+        call _LABEL_2DED_
+        call _LABEL_2AB1_
+        call _LABEL_2ADC_
+        dec l
+        inc h
+        call _LABEL_2DED_
+        call _LABEL_2AB1_
+        call _LABEL_2ADC_
+        inc l
+        call _LABEL_2DED_
+        call _LABEL_2AB1_
+        call _LABEL_2ADC_
+      pop hl
+      pop bc
+      inc e
+      inc l
+      inc l
+      ld a, l
+      cp $B0
+      jp nc, +
+      djnz -
++:  pop hl
     pop de
     pop bc
     inc d
@@ -4958,10 +4808,9 @@ _LABEL_2DDD_:
     inc h
     ld a, h
     cp $90
-    jp nc, _LABEL_2DEB_
-    djnz _LABEL_2DA2_
-_LABEL_2DEB_:
-    ei
+    jp nc, +
+    djnz --
++:  ei
     ret
 
 _LABEL_2DED_:
@@ -5014,22 +4863,19 @@ _LABEL_2F92_:
     cp $0C
     ret z
     cp $09
-    jp c, _LABEL_2FB0_
+    jp c, +
     cp $0B
-    jp c, _LABEL_2FB6_
+    jp c, ++
     cp $0D
-    jp z, _LABEL_2FB6_
-_LABEL_2FB0_:
-    ld a, b
+    jp z, ++
++:  ld a, b
     cp $2F
     jp c, _LABEL_36A5_
-_LABEL_2FB6_:
-    ld a, b
+++: ld a, b
     sub $28
-    jp nc, _LABEL_2FBD_
+    jp nc, +
     xor a
-_LABEL_2FBD_:
-    ld b, a
++:  ld b, a
     ld a, $A8
     ld ($C241), a
     ld a, (RAM_NonVBlankDynamicFunction)
@@ -5066,33 +4912,29 @@ _LABEL_3006_:
     ld a, b
     and $F8
     cp $40
-    jp nc, _LABEL_3016_
+    jp nc, +
     ld a, $40
-_LABEL_3016_:
-    cp $98
-    jp c, _LABEL_301D_
++:  cp $98
+    jp c, +
     ld a, $98
-_LABEL_301D_:
-    ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1_Y), a
     sub $40
     bit 1, (hl)
-    jp z, _LABEL_303F_
+    jp z, ++
     rrca
     rrca
     rrca
     add a, $02
     cp $02
     ld b, a
-    jp z, _LABEL_3037_
+    jp z, +
     ld ($C03D), a
     ld a, $02
-_LABEL_3037_:
-    ld (RAM_NonVBlankDynamicFunction), a
++:  ld (RAM_NonVBlankDynamicFunction), a
     ld a, b
     dec a
     ld ($C00A), a
-_LABEL_303F_:
-    ld a, $03
+++: ld a, $03
     jp _LABEL_37C7_
 
 ; 4th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
@@ -5105,30 +4947,27 @@ _LABEL_3044_:
     jp nc, _LABEL_30B9_
     and $F0
     cp $40
-    jr nc, _LABEL_3058_
+    jr nc, +
     ld a, $40
-_LABEL_3058_:
-    ld b, a
++:  ld b, a
     dec a
     ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
     and $F0
     cp $70
-    jp nc, _LABEL_3069_
+    jp nc, +
     ld a, $70
-_LABEL_3069_:
-    cp $A0
-    jp c, _LABEL_3070_
++:  cp $A0
+    jp c, +
     ld a, $A0
-_LABEL_3070_:
-    ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1_XN), a
     ld c, a
     ld a, $02
     call _LABEL_37C7_
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, b
     sub $40
     rrca
@@ -5168,14 +5007,12 @@ _LABEL_30AF_:
 
 _LABEL_30B9_:
     cp $60
-    jp nc, _LABEL_30C0_
+    jp nc, +
     ld a, $60
-_LABEL_30C0_:
-    cp $68
-    jp c, _LABEL_30C7_
++:  cp $68
+    jp c, +
     ld a, $68
-_LABEL_30C7_:
-    dec a
++:  dec a
     ld (RAM_SpriteTable1_Y), a
     ex af, af'
     ld a, $58
@@ -5187,17 +5024,16 @@ _LABEL_30C7_:
     ex af, af'
     ld b, $04
     cp $60
-    jp c, _LABEL_30E3_
+    jp c, +
     ld b, $FC
-_LABEL_30E3_:
-    ld a, ($C053)
++:  ld a, ($C053)
     add a, b
     and $3F
     ld ($C053), a
     ld a, $01
     ld ($C054), a
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ret
 
 ; 6th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
@@ -5221,7 +5057,7 @@ _LABEL_30F7_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1_Y)
     ld ($C203), a
     ld a, (RAM_SpriteTable1_XN)
@@ -5249,7 +5085,7 @@ _LABEL_314E_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld hl, ($C06E)
     ld a, ($C246)
     ld b, a
@@ -5332,7 +5168,7 @@ _LABEL_31D5_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C246)
     ld b, a
     ld a, (RAM_SpriteTable1_XN)
@@ -5358,7 +5194,7 @@ _LABEL_3206_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1_Y)
     ld ($C203), a
     ld a, (RAM_SpriteTable1_XN)
@@ -5415,7 +5251,7 @@ _LABEL_3264_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, (RAM_PenX_Smoothed)
     ld h, a
     ld a, (RAM_PenY_Smoothed)
@@ -5465,7 +5301,7 @@ _LABEL_32CB_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C089)
     set 1, a
     ld ($C089), a
@@ -5546,7 +5382,7 @@ _LABEL_335D_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C089)
     set 2, a
     ld ($C089), a
@@ -5586,7 +5422,7 @@ _LABEL_33A8_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1_Y)
     add a, $07
     ld ($C0C8), a
@@ -5672,7 +5508,7 @@ _LABEL_343A_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C089)
     set 2, a
     ld ($C089), a
@@ -5716,7 +5552,7 @@ _LABEL_3493_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C089)
     set 1, a
     ld ($C089), a
@@ -5838,7 +5674,7 @@ _LABEL_3553_:
     ret z
     ex de, hl
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1_Y)
     add a, (hl)
     ld ($C16F), a
@@ -5898,7 +5734,7 @@ _LABEL_35C6_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C089)
     or $04
     ld ($C089), a
@@ -5987,7 +5823,7 @@ _LABEL_3680_:
     bit 1, (hl)
     ret z
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, b
     sub $40
     jp z, _LABEL_3699_
@@ -6028,12 +5864,12 @@ _LABEL_36BC_:
     jp z, _LABEL_36E4_
     ld ($C08A), a
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     jp _LABEL_3711_
 
 _LABEL_36E4_:
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C062)
     xor $01
     ld ($C062), a
@@ -6046,7 +5882,7 @@ _LABEL_36F4_:
     ld a, b
     ld ($C242), a
     ld a, $01
-    ld (RAM_PSGIsActive), a
+    ld (RAM_Beep), a
     ld a, ($C08A)
     cp $03
     jp nz, _LABEL_3711_
@@ -6117,7 +5953,7 @@ _LABEL_376B_:
 _LABEL_3780_:
     ld hl, ($C084)
     rst $08 ; VDPAddressToDE
-    ld c, $BE
+    ld c, Port_VDPData
     outi
     outi
     outi
@@ -6436,8 +6272,7 @@ _LABEL_39C0_:
     ld c, a
     ld de, $C0FA
     ld hl, $C0CA
-_LABEL_39DE_:
-    ld a, (hl)
+-:  ld a, (hl)
     ld (ix+0), a
     inc ix
     inc hl
@@ -6449,25 +6284,22 @@ _LABEL_39DE_:
     ld (iy+0), a
     inc iy
     inc de
-    djnz _LABEL_39DE_
-    jp _LABEL_3A24_
+    djnz -
+    jp +
 
 ; Data from 39F8 to 3A23 (44 bytes)
 .db $C5 $78 $3D $4F $06 $00 $21 $CA $C0 $09 $EB $C5 $E1 $29 $01 $FA
 .db $C0 $09 $23 $EB $C1 $7E $DD $77 $00 $DD $23 $2B $1A $FD $77 $01
 .db $1B $1A $FD $77 $00 $FD $23 $FD $23 $1B $10 $E9
 
-_LABEL_3A24_:
-    ld a, c
++:  ld a, c
     or a
-    jp z, _LABEL_3A33_
-_LABEL_3A29_:
-    ld (ix+0), $E0
+    jp z, +
+-:  ld (ix+0), $E0
     inc ix
     dec a
-    jp nz, _LABEL_3A29_
-_LABEL_3A33_:
-    ei
+    jp nz, -
++:  ei
     ret
 
 _LABEL_3A35_:
@@ -6495,7 +6327,7 @@ _LABEL_3A35_:
     ret
 
 _LABEL_3A5A_:
-    ex af, af'
+-:  ex af, af'
     ld a, (hl)
     add a, c
     ld (de), a
@@ -6506,7 +6338,7 @@ _LABEL_3A5A_:
     inc ix
     ld (ix+0), $A5
     inc ix
-    djnz _LABEL_3A5A_
+    djnz -
     ret
 
 _LABEL_3A6F_:
@@ -6544,7 +6376,7 @@ _LABEL_3A83_:
     ret
 
 _LABEL_3AA5_:
-    ld (de), a
+-:  ld (de), a
     ex af, af'
     inc de
     ld a, (hl)
@@ -6555,7 +6387,7 @@ _LABEL_3AA5_:
     ld (ix+0), $A6
     inc ix
     ex af, af'
-    djnz _LABEL_3AA5_
+    djnz -
     ret
 
 _LABEL_3ABA_:
@@ -6637,8 +6469,7 @@ _LABEL_3B2E_:
     ld de, $7660 ; tile $1B3
     rst $08 ; VDPAddressToDE
     ld b, $0D
-_LABEL_3B4D_:
-    push bc
+-:  push bc
       ld a, (hl)
       push hl
         ld h, $00
@@ -6654,7 +6485,7 @@ _LABEL_3B4D_:
       pop hl
       inc hl
     pop bc
-    djnz _LABEL_3B4D_
+    djnz -
     ret
     
 .org $3b66
@@ -6678,10 +6509,11 @@ FontTiles:
 ControlTiles: ; $4552
 .incbin "Control tiles.pscompr"
 
-; .smstag ; Doesn't entirely match
-.orga $7ff0
-.db "TMR SEGA", "WK", 
-.dw $2688 ; checksum
+; Header
+.smstag ; TMR SEGA, checksum
+.orga $7ff8
+.db "WK"
+.orga $7ffc
 .dw $4009 ; product code - not valid?
 .db $02 ; version 2
 .db $4c ; 32KB, SMS export
