@@ -1,0 +1,211 @@
+ReadGraphicBoard:
+    ; Main graphic board read
+
+    in a, (Port_IOPort1)
+    bit 4, a    ; Check for data
+    jp nz, NoBoardData ; not pressed -> skip
+    
+    ; no delay: 10us from in to out
+
+    ; ============================================================= Read 1 (TH = 1)
+
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $20 = all output, all zero except P1 TH = 1
+    out (Port_IOPortControl), a
+
+    ld b,16
+-:  djnz - ; delay: 238 cycles = 66us from out to in
+
+    ; Read the buttons and calculate what's new since last time
+    ld a, (RAM_ButtonsPressed)
+    ld b, a
+    in a, (Port_IOPort1) 
+    cpl
+    ld c, a
+    ld (RAM_ButtonsPressed), a
+    xor b
+    and c
+    ld (RAM_ButtonsNewlyPressed), a
+
+    ld b, 92
+-:  djnz - ; delay: 1266 cyles = 354us from in to out
+    nop
+    nop
+
+    ; ============================================================= Read 2 (TH = 0, 1)
+    
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; all output, all zero
+    out (Port_IOPortControl), a
+
+    ld b, 40
+-:  djnz - ; delay: 533 cycles = 149us from out to in
+
+    ; read low 4 bits
+    in a, (Port_IOPort1)
+    and $0F
+    rlca
+    rlca
+    rlca
+    rlca
+    ld d, a
+    
+    ; no delay: 45 cycles = 13us from in to out
+
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    out (Port_IOPortControl), a
+
+    ld b, 40
+-:  djnz - ; delay: 533 cycles = 149us from out to in
+
+    in a, (Port_IOPort1)
+    and $0F
+    or d
+    cp 253
+    jp c, PressureTooLow
+    ld (RAM_Pressure), a
+
+    ld b, 11
+-:  djnz - ; delay: 204 cycles = 57 cycles from in to out
+
+    ; ============================================================= Read 3 (TH = 0, 1)
+
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    out (Port_IOPortControl), a
+
+    ld b, 40
+-:  djnz - ; delay: 533 cycles = 149us from out to in
+
+    in a, (Port_IOPort1)
+    and $0F
+    rlca
+    rlca
+    rlca
+    rlca
+    ld h, a
+    
+    ; no delay: 45 cycles = 13us from in to out
+    
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    out (Port_IOPortControl), a
+
+    ld b, 40
+-:  djnz - ; delay: 533 cycles = 149us from out to in
+
+    in a, (Port_IOPort1)
+    and $0F
+    or h
+    ld (RAM_PenX), a
+    nop
+
+    ld b, 14
+-:  djnz - ; delay: 230 cycles = 64us from in to out
+
+    ; ============================================================= Read 4 (TH = 0, 1)
+
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    out (Port_IOPortControl), a
+
+    ld b, 40
+-:  djnz - ; delay: 533 cycles = 149us from out to in
+
+    in a, (Port_IOPort1)
+    and $0F
+    rlca
+    rlca
+    rlca
+    rlca
+    ld d, a
+    
+    ; no delay: 45 cycles = 13us from in to out
+     
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    out (Port_IOPortControl), a
+
+    ld b, 40
+-:  djnz - ; delay: 533 cycles = 149us from out to in
+
+    in a, (Port_IOPort1)
+    and $0F
+    or d
+    ld (RAM_PenY), a
+
+    ; ============================================================= Done: set TR, TH
+
+    ; no delay: 42 cycles = 12us from in to out
+     
+    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $30
+    out (Port_IOPortControl), a
+
+    ld a, (RAM_PenX)
+    ld c, a
+    ld a, (RAM_PenX_Smoothed)
+    or a
+    jp z, +
+
+    ; RAM_PenX_Smoothed = (RAM_PenX_Smoothed + RAM_PenX) / 2
+    ld b, 0
+    ld h, 0
+    ld l, a
+    add hl, bc ; add together
+    ld e, 2
+    call DivMod16_8_8_8 ; very slow way to do this
+    ld (RAM_PenX_Smoothed), a
+    jp ++
+
++:  ld a, c
+    ld (RAM_PenX_Smoothed), a
+
+++: ld a, (RAM_PenY)
+    ld c, a
+    ld a, (RAM_PenY_Smoothed)
+    or a
+    jp z, +
+
+    ; RAM_PenY_Smoothed = (RAM_PenY_Smoothed + RAM_PenY) / 2
+    ld b, 0
+    ld h, 0
+    ld l, a
+    add hl, bc
+    ld e, 2
+    call DivMod16_8_8_8 ; very slow way to do this
+    ld (RAM_PenY_Smoothed), a
+    ret
+
++:  ld a, c
+    ld (RAM_PenY_Smoothed), a
+    ret
+
+PressureTooLow:
+    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $30
+    out (Port_IOPortControl), a
+    ret
+
+    ; Board doesn't want to give us data
+    ; Note that this is rather duplicated from above, it looks like it 
+    ; could be optimised a bit
+NoBoardData:
+    ; no delay: 36 cycles = 10us from in to out
+
+    ; Set TH
+    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    out (Port_IOPortControl), a
+
+    ld b, 16
+-:  djnz - ; delay: 238 cycles = 66 cycles from out to in
+
+    ; Read the buttons and calculate what's new since last time
+    ld a, (RAM_ButtonsPressed)
+    ld b, a
+    in a, (Port_IOPort1)
+    cpl
+    ld c, a
+    ld (RAM_ButtonsPressed), a
+    xor b
+    and c
+    ld (RAM_ButtonsNewlyPressed), a
+
+    ; no delay: 60 cycles = 17us from in to out
+
+    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    out (Port_IOPortControl), a
+    ret
+    
