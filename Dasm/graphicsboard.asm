@@ -147,7 +147,7 @@ ReadGraphicBoard:
     ld l, a
     add hl, bc ; add together
     ld e, 2
-    call DivMod16_8_8_8 ; very slow way to do this
+    call DivMod_hl_e_a_e ; very slow way to do this
     ld (RAM_PenX_Smoothed), a
     jp ++
 
@@ -166,7 +166,7 @@ ReadGraphicBoard:
     ld l, a
     add hl, bc
     ld e, 2
-    call DivMod16_8_8_8 ; very slow way to do this
+    call DivMod_hl_e_a_e ; very slow way to do this
     ld (RAM_PenY_Smoothed), a
     ret
 

@@ -914,36 +914,7 @@ CheckForReset:
 
 .include "graphicsboard.asm"
 
-.include "divmod.asm"
-
-; Data from 835 to 846 (18 bytes)
-.db $2E $00 $67 $48 $06 $00 $3E $08 $29 $D2 $42 $08 $09 $3D $C2 $3D
-.db $08 $C9
-
-_LABEL_847_:
-    ld h, l
-    ld b, $08
-    ld d, $00
-    ld l, d
--:  add hl, hl
-    jr nc, +
-    add hl, de
-+:  djnz -
-    ret
-
-_LABEL_854_:
-    ld hl, $0000
-    or a
-    ret z
-    ld b, $08
--:
-    add hl, hl
-    adc a, a
-    jr nc, +
-    add hl, de
-    adc a, $00
-+:  djnz -
-    ret
+.include "maths.asm"
 
 TitleScreen: ; $865
     ; blank RAM for title screen animation?
@@ -1854,7 +1825,7 @@ _LABEL_1902_:
       push hl
         ld a, h
         ld de, $02C0
-        call _LABEL_854_
+        call Multiply_a_de_ahl
         ex de, hl
       pop hl
       ld h, $00
@@ -3172,7 +3143,7 @@ _LABEL_2435_:
     push de
     ld l, b
     ld de, ($C0A8)
-    call _LABEL_847_
+    call Multiply_l_e_hl
     ld a, l
     ld b, h
     add a, $80
@@ -5013,7 +4984,7 @@ _LABEL_323B_:
 +:  ld ($C0AC), a
     ld e, b
     ld l, $00
-    call DivMod16_8_16_8
+    call DivMod_hl_e_hl_a
     ld ($C0A8), hl
     ret
 

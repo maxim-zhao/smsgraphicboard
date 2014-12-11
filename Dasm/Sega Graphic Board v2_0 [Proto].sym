@@ -52,10 +52,11 @@
 0000:070b ReadGraphicBoard
 0000:07e4 PressureTooLow
 0000:07e9 NoBoardData
-0000:0806 DivMod16_8_16_8
-0000:081a DivMod16_8_8_8
-0000:0847 _LABEL_847_
-0000:0854 _LABEL_854_
+0000:0806 DivMod_hl_e_hl_a
+0000:081a DivMod_hl_e_a_e
+0000:0835 Multiply_a_b_hl
+0000:0847 Multiply_l_e_hl
+0000:0854 Multiply_a_de_ahl
 0000:0865 TitleScreen
 0000:08fb TitleScreen_PostAnimationLoop
 0000:091c CheckForGraphicsBoard
