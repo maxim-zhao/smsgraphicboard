@@ -22,6 +22,8 @@
 ;---
 .define RAM_Palette      $C042 ; 17b
 ;---
+.define RAM_TileModificationBuffer $C073 ; 4b+?
+;---
 .define RAM_SplashScreenTimeout $C163 ; 2b
 ;---
 .define RAM_SpriteTable1 $C200 ; 192b - write here

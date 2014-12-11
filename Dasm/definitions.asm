@@ -37,6 +37,7 @@
 
 ; VDP data sizes
 .define SizeOfTile 32
+.define SizeOfVRAM 16*1024
 
 ; Tile attribute flags
 .define TileAttribute_None     %00000000
@@ -44,6 +45,12 @@
 .define TileAttribute_Palette2 %00001000
 .define TileAttribute_VFlip    %00000100
 .define TileAttribute_HFlip    %00000010
+
+; VRAM address masks
+.define VDPAddressMask_Read     %00 << 14
+.define VDPAddressMask_Write    %01 << 14
+.define VDPAddressMask_Register %10 << 14
+.define VDPAddressMask_Palette  %11 << 14
 
 
 ; Sound stuff

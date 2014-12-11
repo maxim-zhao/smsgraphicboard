@@ -20,11 +20,11 @@ banks 2
 .include "ram.asm"
 
 .macro LdDETilemap args x, y
-  ld de, $4000 | $3800 | ((x + 32 * y) * 2)
+  ld de, VDPAddressMask_Write | $3800 | ((x + 32 * y) * 2)
 .endm
 
 .macro LdDETile args index
-  ld de, $4000 | (index * 32)
+  ld de, VDPAddressMask_Write | (index * 32)
 .endm
 
 
@@ -203,9 +203,9 @@ InitialiseVDPRegisters:
     ld a, (VDPRegisterValues+1)
     ld (RAM_VDPReg1Value), a
     
-    ld de, $4000 ; start of VRAM
-    ld h, $00
-    ld bc, $4000 ; all of VRAM
+    ld de, VDPAddressMask_Write | $0000 ; start of VRAM
+    ld h, 0
+    ld bc, SizeOfVRAM
     call FillVRAMWithH
     jp DisableSprites_RAMAndVRAM
 
@@ -459,7 +459,7 @@ SetAreaTileAttributes:
         ld a, e
         out (Port_VDPAddress), a
         ld a, d
-        or $40
+        or >VDPAddressMask_Write
         out (Port_VDPAddress), a
         ex af, af' ; restore value
         and %11100001 ; Zero some bits
@@ -2553,8 +2553,8 @@ _LABEL_1E57_:
     add hl, de
     ex de, hl
     push bc
-      ld hl, $C073
-      ld bc, $0004
+      ld hl, RAM_TileModificationBuffer
+      ld bc, 4
       call CopyVRAMToRAM
     pop bc
     ld a, c
@@ -2565,7 +2565,7 @@ _LABEL_1E57_:
       ld d, $00
       add hl, de
       ld a, (hl)
-      ld hl, $C073
+      ld hl, RAM_TileModificationBuffer
       ld e, a
       cpl
       ld d, a
@@ -2589,10 +2589,10 @@ __:   rrc c
       djnz _b
     pop de
     ld a, d
-    or $40
+    or >VDPAddressMask_Write
     ld d, a
-    ld hl, $C073
-    ld bc, $0004
+    ld hl, RAM_TileModificationBuffer
+    ld bc, 4
     jp RawDataToVRAM
 
 ; Data from 1EDA to 1EE1 (8 bytes)
@@ -2886,7 +2886,7 @@ _LABEL_20AA_:
 ++: ld a, e
     out (Port_VDPAddress), a
     ld a, d
-    or $40
+    or >VDPAddressMask_Write
     out (Port_VDPAddress), a
     ld hl, $00FF
     ld c, Port_VDPData
@@ -2917,15 +2917,15 @@ _LABEL_20AA_:
 ++: ret
 
 _LABEL_213E_:
-    ld hl, $C073
+    ld hl, RAM_TileModificationBuffer
     push de
       push af
-        ld bc, $0004
+        ld bc, 4
         call CopyVRAMToRAM
       pop af
       cpl
       ld b, a
-      ld hl, $C073
+      ld hl, RAM_TileModificationBuffer
       ld a, (hl)
       and b
       ld (hl), a
@@ -2945,11 +2945,11 @@ _LABEL_213E_:
     ld a, e
     out (Port_VDPAddress), a
     ld a, d
-    or $40
+    or >VDPAddressMask_Write
     out (Port_VDPAddress), a
     ld a, b
     cpl
-    ld hl, $C073
+    ld hl, RAM_TileModificationBuffer
     push de
       ld b, a
       ld e, (iy+10)
@@ -3906,40 +3906,36 @@ _LABEL_2792_:
     push de
     call _LABEL_2812_
     ld a, l
-    ld hl, $C073
+    ld hl, RAM_TileModificationBuffer
     push hl
-    and $07
-    ld de, $1EDA
-    ld l, a
-    ld h, $00
-    add hl, de
-    ld d, (hl)
+      and $07
+      ld de, $1EDA
+      ld l, a
+      ld h, $00
+      add hl, de
+      ld d, (hl)
     pop hl
     ld c, $00
     ld a, (hl)
     and d
-    jp z, _LABEL_27AF_
+    jp z, +
     set 0, c
-_LABEL_27AF_:
-    inc hl
++:  inc hl
     ld a, (hl)
     and d
-    jp z, _LABEL_27B7_
+    jp z, +
     set 1, c
-_LABEL_27B7_:
-    inc hl
++:  inc hl
     ld a, (hl)
     and d
-    jp z, _LABEL_27BF_
+    jp z, +
     set 2, c
-_LABEL_27BF_:
-    inc hl
++:  inc hl
     ld a, (hl)
     and d
-    jp z, _LABEL_27C7_
+    jp z, +
     set 3, c
-_LABEL_27C7_:
-    ld a, c
++:  ld a, c
     ld ($C0B2), a
     pop de
     ret
@@ -3952,50 +3948,46 @@ _LABEL_27CD_:
     ret
 
 _LABEL_27D8_:
-    ld hl, $C073
+    ld hl, RAM_TileModificationBuffer
     push bc
-    ld b, $04
-    ld a, ($C0B2)
-    or a
-    jp z, _LABEL_2805_
-    ld c, a
-    push bc
-    push hl
-    xor a
--:  rrc c
-    jp c, _LABEL_27EF_
-    or (hl)
-_LABEL_27EF_:
-    inc hl
-    djnz -
-    pop hl
-    pop bc
-    cpl
-    ld d, a
-    ld a, $FF
--:  rrc c
-    jp nc, _LABEL_27FE_
-    and (hl)
-_LABEL_27FE_:
-    inc hl
-    djnz -
-    and d
-    jp _LABEL_2810_
+      ld b, $04
+      ld a, ($C0B2)
+      or a
+      jp z, ++
+      ld c, a
+      push bc
+      push hl
+        xor a
+-:      rrc c
+        jp c, +
+        or (hl)
++:      inc hl
+        djnz -
+      pop hl
+      pop bc
+      cpl
+      ld d, a
+      ld a, $FF
+-:    rrc c
+      jp nc, +
+      and (hl)
++:    inc hl
+      djnz -
+      and d
+      jp +
 
-_LABEL_2805_:
-    push hl
-    xor a
-    or (hl)
-    inc hl
-    or (hl)
-    inc hl
-    or (hl)
-    inc hl
-    or (hl)
-    pop hl
-    cpl
-_LABEL_2810_:
-    pop bc
+++:   push hl
+        xor a
+        or (hl)
+        inc hl
+        or (hl)
+        inc hl
+        or (hl)
+        inc hl
+        or (hl)
+      pop hl
+      cpl
++:  pop bc
     ret
 
 _LABEL_2812_:
@@ -4035,8 +4027,8 @@ _LABEL_2812_:
     push hl
     push de
     push bc
-    ld hl, $C073
-    ld bc, $0004
+    ld hl, RAM_TileModificationBuffer
+    ld bc, 4
     call CopyVRAMToRAM
     pop bc
     pop de
@@ -4403,7 +4395,7 @@ _LABEL_2ADC_:
     ld a, e
     out (Port_VDPAddress), a
     ld a, d
-    or $40
+    or >VDPAddressMask_Write
     out (Port_VDPAddress), a
     ld a, (hl)
     or (iy+0)
@@ -6496,7 +6488,7 @@ FontTiles:
 .incbin "Font tiles.pscompr"
 
 .org $3eb2
-.incbin "Sega Graphic Board v2.0 [Proto]_3eb2.inc"
+.incbin "Sega Graphic Board v2.0 [Proto]_3eb2.inc" ; 334 bytes
 
 ; blank to end of slot (somewhat unnecessarily)
 
