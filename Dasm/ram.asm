@@ -8,7 +8,14 @@
 ;---
 .define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphic board in the VBlank
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
-.define RAM_Beep  $C009 ;  1b ???
+.define RAM_Beep $C009 ;  1b ???
+;---
+.define RAM_TitleScreenTextFlashCounter $C00E ; 1b Counter for title screen text flashing
+.define RAM_TitleScreenTextFlashState   $C00F ; 1b 1 or 0 for title screen text state. Assumed to follow previous byte.
+.define RAM_TitleScreenTextPointer      $C010 ; 2b Pointer to text for title screen to show
+.define RAM_TitleScreenTextLocation     $C012 ; 2b VRAM write address for text for title screen to show
+.define RAM_TitleScreenTextDimensions   $C014 ; 2b Dimensions for text for title screen to show
+.define RAM_TitleScreenTextFlashSpeed   $C015 ; 1b Number of frames between flashes
 ;---
 .define RAM_ButtonsPressed $C02C ; 1b: buttons pressed last time we looked
 .define RAM_ButtonsNewlyPressed $C02D ; 1b: buttons pressed last time we looked which were'nt pressed in the previous frame

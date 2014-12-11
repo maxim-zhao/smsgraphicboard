@@ -1021,11 +1021,11 @@ CheckForGraphicsBoard:
 .endif
 
     ld hl, Text_NotGraphicBoard ; $09E8 ; Data: "NOT GRAPHIC BOARD !!"
-    ld ($C010), hl
+    ld (RAM_TitleScreenTextPointer), hl
     LdDETilemap 6, 16
-    ld ($C012), de
+    ld (RAM_TitleScreenTextLocation), de
     ld bc, $0C14 ; area?
-    ld ($C014), bc
+    ld (RAM_TitleScreenTextDimensions), bc
     ld a, $84
     call SetVBlankFunctionAndWait
 
@@ -1042,9 +1042,9 @@ GraphicsBoardDetected:
     ld hl, Text_PushButton ; $09FC ; Data: "PUSH  BUTTON"
     ld ($C010), hl
     LdDETilemap 10, 16
-    ld ($C012), de
+    ld (RAM_TitleScreenTextLocation), de
     ld bc, $200C ; area?
-    ld ($C014), bc
+    ld (RAM_TitleScreenTextDimensions), bc
 -:  ld a, $86
     call SetVBlankFunctionAndWait
 
@@ -1099,24 +1099,27 @@ TitleScreenButtonPressed:
     jp TitleScreen_PostAnimationLoop
 
 _LABEL_9BC_:
-    ld hl, $C00E
+    ld hl, RAM_TitleScreenTextFlashCounter ; Decrement counter
     dec (hl)
-    ret p
-    ld a, ($C015)
+    ret p ; Wait for it to go below zero
+    ld a, (RAM_TitleScreenTextFlashSpeed) ; Reset value
     ld (hl), a
-    inc hl
+
+    inc hl ; Then go to the following byte (RAM_TitleScreenTextFlashState)
     ld a, (hl)
-    xor $01
+    xor 1 ; Flip its LSB
     ld (hl), a
     jp z, +
-    ld de, ($C012)
-    ld a, ($C014)
+
+    ; If 1, draw the text
+    ld de, (RAM_TitleScreenTextLocation)
+    ld a, (RAM_TitleScreenTextDimensions) ; ignore row count?
     ld b, a
-    ld hl, ($C010)
-    xor a
+    ld hl, (RAM_TitleScreenTextPointer)
+    xor a ; high byte
     jp RawDataToVRAM_Interleaved1
 
-+:  ; Blank the text area
++:  ; If 0, blank the text area
     LdDETilemap 6, 16 
     ld bc, 20 ; 20 tiles
     ld hl, 9
