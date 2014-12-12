@@ -1141,7 +1141,13 @@ Text_CopyrightSega1987: ; $a08
 
 ;.org $0a14
 Palette_TitleScreen:
-.db $10 $00 $3F $00 $30 $00 $3F
+.db %00010000 ; dark blue
+.db %00000000 ; Black
+.db %00111111 ; White
+.db %00000000 ; Black
+.db %00110000 ; Bright blue
+.db %00000000 ; Black
+.db %00111111 ; White
 
 TitleScreenAnimate_Bit0Zero:
     set 7, (ix+1) ; set high bit of $c15e
