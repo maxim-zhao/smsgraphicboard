@@ -27,6 +27,10 @@ banks 2
   ld de, VDPAddressMask_Write | (index * 32)
 .endm
 
+.macro LdDEPalette args index
+  ld de, VDPAddressMask_Palette | index
+.endm
+
 
 .bank 0 slot 0
 .org $0000
@@ -140,7 +144,7 @@ Start_AfterRAMClear:
     ld bc, 17
     ldir
     ld hl, DrawingPalette
-    ld de, $C000 ; palette
+    LdDEPalette 0
     ld bc, 32
     call RawDataToVRAM
     ; Blank ???
@@ -183,7 +187,7 @@ Start_AfterRAMClear:
     ld a, $03
     call SetVBlankFunctionAndWait
     call _LABEL_2F92_
-    call _LABEL_164F_
+    call CallNonVBlankDynamicFunction
     call SpriteTable1to2
     jp -
 
@@ -688,18 +692,19 @@ SetDrawingAreaTilemap:
 Beep:
     ld a, (RAM_Beep)
     or a
-    ret z
-    inc a
+    ret z ; Do nothing while zero
+    
+    inc a ; Else make sound for four more frames
     ld (RAM_Beep), a
-    cp $05
+    cp 5
     jp z, SilencePSG
     
     ; Set channel 0 to tone $3f = 1775.6Hz = A6
-    ld a, PSG_Latch | PSG_Channel0 | PSG_Tone | %1111 ; $8F
+    ld a, PSG_Latch | PSG_Channel0 | PSG_Tone | %1111
     out (Port_PSG), a
     ld a, PSG_Data | %000011 ; $03
     out (Port_PSG), a
-    ld a, PSG_Latch | PSG_Channel0 | PSG_Volume | 0 ; $90
+    ld a, PSG_Latch | PSG_Channel0 | PSG_Volume | 0
     out (Port_PSG), a
     ret
 
@@ -712,8 +717,8 @@ SilencePSG:
     out (Port_PSG), a
     ld a, PSG_Latch | PSG_Channel3 | PSG_Volume | 15
     out (Port_PSG), a
-    cpl
-    ld (RAM_Beep), a
+    cpl ; results in zero - could use "or a" to be clear
+    ld (RAM_Beep), a ; Disable counter
     ret
 
 ; Data from 4FD to 602 (262 bytes)
@@ -777,9 +782,9 @@ InterruptHandlerImpl:
       ld ($C054), a
 
       ld hl, RAM_Palette
-      ld de, $C000 ; tile palette index 0
+      LdDEPalette 0
       rst $08 ; VDPAddressToDE
-      ld b, $11 ; 17 palette entries
+      ld b, 17 ; palette entries
 -:    ld a, (hl)
       inc hl
       push af
@@ -787,7 +792,8 @@ InterruptHandlerImpl:
       out (Port_VDPData), a
       djnz -
 
-      ld de, $C014 ; sprite palette index 4
+      ; Skip 3 palette entries
+      LdDEPalette 20
       rst $08 ; VDPAddressToDE
       ld a, ($C053) ; value to write
       ld b, 8       ; 8 palette entries
@@ -1071,7 +1077,7 @@ GraphicsBoardDetected:
     and %00000111 ; any button
     jp z, - ; loop until pressed
     
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     di
     jp ScreenOff ; and return
@@ -1432,15 +1438,16 @@ Tilemap_SegaLogo:
 Tiles_SegaLogo:
 .incbin "Sega logo.pscompr"
 
-_LABEL_164F_:
+CallNonVBlankDynamicFunction:
     ld hl, RAM_NonVBlankDynamicFunction
     ld a, (hl)
     and $3F
     exx
-    ld hl, $165C
+    ld hl, NonVBlankDynamicFunctionTable
     jp JumpToFunction
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_NonVBlankDynamicFunction)
+NonVBlankDynamicFunctionTable:
 .dw _LABEL_1C4A_ _LABEL_1680_ _LABEL_16C0_ _LABEL_1EE2_ _LABEL_171E_ _LABEL_1F66_ _LABEL_21A2_ _LABEL_21A2_
 .dw _LABEL_2605_ _LABEL_2862_ _LABEL_290D_ _LABEL_2C5A_ _LABEL_1740_ _LABEL_18C8_ _LABEL_1790_ _LABEL_17DE_
 .dw _LABEL_182C_ _LABEL_187A_
@@ -1880,6 +1887,7 @@ _LABEL_1902_:
     jp --
 
 _LABEL_1981_:
+    ; Register-protecting version of the below
     push bc
     push de
     push hl
@@ -1890,38 +1898,47 @@ _LABEL_1981_:
     ret
 
 _LABEL_198B_:
-    xor a
+    ; Restore tile data?
+    ; Parameters:
+    ; $c016 = VRAM address of area to write to
+    ; $c018 = VRAM address of area to unset tile attributes
+    ; $c01a = column count
+    ; $c01b = row count
+    ; Data comes from RAM_GraphicsDataBuffer
+    xor a                     ; Zero ???
     ld ($C082), a
-    ld de, ($C018)
-    ld bc, ($C01A)
-    ld h, TileAttribute_None
+    ld de, ($C018)            ; VRAM address
+    ld bc, ($C01A)            ; rows, columns
+    ld h, TileAttribute_None  ; attributes
     call SetAreaTileAttributes
     push bc
     push de
     push hl
-      ld de, ($C016)
-      ld bc, ($C01A)
-      ld l, c
-      ld h, $00
+      ld de, ($C016)          ; VRAM address
+      ld bc, ($C01A)          ; rows, columns
+      ld l, c                 ; Calculate hl = c * 32 = byte count
+      ld h, 0
       add hl, hl
       add hl, hl
       add hl, hl
       add hl, hl
       add hl, hl
       ld ($C0BB), hl
-      ld hl, $C400
+
+      ld hl, RAM_GraphicsDataBuffer ; Data source
 --:   push bc
-        ld bc, ($C0BB)
+        ld bc, ($C0BB)        ; Byte count
         rst $08 ; VDPAddressToDE
--:      ld a, (hl)
-        out (Port_VDPData), a
+-:      ld a, (hl)            ; Read a byte
+        out (Port_VDPData), a ; Write to VRAM
         inc hl
         dec bc
         ld a, b
         or c
         jp nz, -
+
         push hl
-          ld hl, $02C0
+          ld hl, 22 * SizeOfTile ; Move VRAM pointer on by a row
           add hl, de
           ex de, hl
         pop hl
@@ -1947,7 +1964,7 @@ _LABEL_19D3_:
       add hl, hl
       add hl, hl
       ld ($C0BB), hl
-      ld hl, $C400
+      ld hl, RAM_GraphicsDataBuffer
 --:   push bc
         ld bc, ($C0BB)
         rst $08 ; VDPAddressToDE
@@ -2850,17 +2867,17 @@ _LABEL_21E1_:
     dec hl
     ld ($C0A4), hl
 
-    ++: ld a, d
+++: ld a, d
     or e
     jp nz, -
-_LABEL_224F_:
-    call _LABEL_259B_
+
+-:  call _LABEL_259B_
     ld hl, ($C0A6)
     inc hl
     add hl, bc
     or a
     sbc hl, de
-    jp p, _LABEL_2271_
+    jp p, +
     or a
     sbc hl, bc
     or a
@@ -2870,28 +2887,26 @@ _LABEL_224F_:
     ld hl, ($C0A2)
     dec hl
     ld ($C0A2), hl
-    jp _LABEL_227E_
+    jp ++
 
-_LABEL_2271_:
-    add hl, bc
++:  add hl, bc
     add hl, de
     ld ($C0A6), hl
     inc bc
     ld hl, ($C0A4)
     inc hl
     ld ($C0A4), hl
-_LABEL_227E_:
-    ld a, b
+++: ld a, b
     or c
-    jp nz, _LABEL_224F_
-_LABEL_2283_:
-    call _LABEL_259B_
+    jp nz, -
+
+-:  call _LABEL_259B_
     ld hl, ($C0A6)
     inc hl
     add hl, bc
     or a
     adc hl, de
-    jp m, _LABEL_22A3_
+    jp m, +
     or a
     sbc hl, bc
     add hl, de
@@ -2900,10 +2915,9 @@ _LABEL_2283_:
     ld hl, ($C0A2)
     inc hl
     ld ($C0A2), hl
-    jp _LABEL_22B2_
+    jp ++
 
-_LABEL_22A3_:
-    or a
++:  or a
     sbc hl, de
     add hl, bc
     ld ($C0A6), hl
@@ -2911,18 +2925,18 @@ _LABEL_22A3_:
     ld hl, ($C0A4)
     inc hl
     ld ($C0A4), hl
-_LABEL_22B2_:
-    ld a, d
+++: ld a, d
     or e
-    jp nz, _LABEL_2283_
-_LABEL_22B7_:
+    jp nz, -
+
+-:
     call _LABEL_259B_
     ld hl, ($C0A6)
     inc hl
     add hl, de
     or a
     sbc hl, bc
-    jp p, _LABEL_22D5_
+    jp p, +
     add hl, bc
     add hl, de
     ld ($C0A6), hl
@@ -2930,10 +2944,9 @@ _LABEL_22B7_:
     ld hl, ($C0A2)
     inc hl
     ld ($C0A2), hl
-    jp _LABEL_22E6_
+    jp ++
 
-_LABEL_22D5_:
-    or a
++: or a
     sbc hl, de
     or a
     sbc hl, bc
@@ -2942,10 +2955,9 @@ _LABEL_22D5_:
     ld hl, ($C0A4)
     dec hl
     ld ($C0A4), hl
-_LABEL_22E6_:
-    ld a, b
+++: ld a, b
     or c
-    jp nz, _LABEL_22B7_
+    jp nz, -
     ret
 
 _LABEL_22EC_:
@@ -2962,16 +2974,14 @@ _LABEL_22EC_:
     ld bc, $0000
     ld hl, $0000
     ld ($C0A6), hl
-_LABEL_2307_:
-    call _LABEL_259B_
-_LABEL_230A_:
-    ld hl, ($C0A6)
+-:  call _LABEL_259B_
+--: ld hl, ($C0A6)
     inc hl
     or a
     sbc hl, de
     or a
     sbc hl, bc
-    jp m, _LABEL_2329_
+    jp m, +
     add hl, bc
     or a
     sbc hl, de
@@ -2980,10 +2990,9 @@ _LABEL_230A_:
     ld hl, ($C0A2)
     dec hl
     ld ($C0A2), hl
-    jp _LABEL_2343_
+    jp ++
 
-_LABEL_2329_:
-    add hl, de
++:  add hl, de
     or a
     sbc hl, bc
     ld ($C0A6), hl
@@ -2992,20 +3001,18 @@ _LABEL_2329_:
     ld a, h
     sub l
     ld ($C0A9), a
-    jp nc, _LABEL_234B_
+    jp nc, +
     ld hl, ($C0A4)
     dec hl
     ld ($C0A4), hl
-_LABEL_2343_:
-    ld a, d
+++: ld a, d
     or e
-    jp nz, _LABEL_2307_
+    jp nz, -
     jp _LABEL_2353_
 
-_LABEL_234B_:
-    ld a, d
++:  ld a, d
     or e
-    jp nz, _LABEL_230A_
+    jp nz, --
     jp _LABEL_2356_
 
 _LABEL_2353_:
@@ -3016,7 +3023,7 @@ _LABEL_2356_:
     add hl, bc
     or a
     sbc hl, de
-    jp p, _LABEL_2375_
+    jp p, +
     or a
     sbc hl, bc
     or a
@@ -3026,10 +3033,9 @@ _LABEL_2356_:
     ld hl, ($C0A2)
     dec hl
     ld ($C0A2), hl
-    jp _LABEL_238D_
+    jp ++
 
-_LABEL_2375_:
-    add hl, bc
++:  add hl, bc
     add hl, de
     ld ($C0A6), hl
     inc bc
@@ -3037,20 +3043,18 @@ _LABEL_2375_:
     ld a, h
     add a, l
     ld ($C0A9), a
-    jp nc, _LABEL_2399_
+    jp nc, +
     ld hl, ($C0A4)
     inc hl
     ld ($C0A4), hl
-_LABEL_238D_:
-    ld a, b
+++: ld a, b
     or c
     jp nz, _LABEL_2353_
     ld hl, $C0A9
     inc (hl)
     jp _LABEL_23A5_
 
-_LABEL_2399_:
-    ld a, b
++:  ld a, b
     or c
     jp nz, _LABEL_2356_
     ld hl, $C0A9
@@ -3065,7 +3069,7 @@ _LABEL_23A8_:
     add hl, bc
     or a
     adc hl, de
-    jp m, _LABEL_23C5_
+    jp m, +
     or a
     sbc hl, bc
     add hl, de
@@ -3074,10 +3078,9 @@ _LABEL_23A8_:
     ld hl, ($C0A2)
     inc hl
     ld ($C0A2), hl
-    jp _LABEL_23DF_
+    jp ++
 
-_LABEL_23C5_:
-    or a
++:  or a
     sbc hl, de
     add hl, bc
     ld ($C0A6), hl
@@ -3086,18 +3089,16 @@ _LABEL_23C5_:
     ld a, h
     add a, l
     ld ($C0A9), a
-    jp nc, _LABEL_23E7_
+    jp nc, +
     ld hl, ($C0A4)
     inc hl
     ld ($C0A4), hl
-_LABEL_23DF_:
-    ld a, d
+++: ld a, d
     or e
     jp nz, _LABEL_23A5_
     jp _LABEL_23EF_
 
-_LABEL_23E7_:
-    ld a, d
++:  ld a, d
     or e
     jp nz, _LABEL_23A8_
     jp _LABEL_23F2_
@@ -3110,7 +3111,7 @@ _LABEL_23F2_:
     add hl, de
     or a
     sbc hl, bc
-    jp p, _LABEL_240D_
+    jp p, +
     add hl, bc
     add hl, de
     ld ($C0A6), hl
@@ -3118,10 +3119,9 @@ _LABEL_23F2_:
     ld hl, ($C0A2)
     inc hl
     ld ($C0A2), hl
-    jp _LABEL_2429_
+    jp ++
 
-_LABEL_240D_:
-    or a
++:  or a
     sbc hl, de
     or a
     sbc hl, bc
@@ -3131,60 +3131,55 @@ _LABEL_240D_:
     ld a, h
     sub l
     ld ($C0A9), a
-    jp nc, _LABEL_242F_
+    jp nc, +
     ld hl, ($C0A4)
     dec hl
     ld ($C0A4), hl
-_LABEL_2429_:
-    ld a, b
+++: ld a, b
     or c
     jp nz, _LABEL_23EF_
     ret
 
-_LABEL_242F_:
-    ld a, b
++:  ld a, b
     or c
     jp nz, _LABEL_23F2_
     ret
 
 _LABEL_2435_:
     push bc
-    push de
-    ld l, b
-    ld de, ($C0A8)
-    call Multiply_l_e_hl
-    ld a, l
-    ld b, h
-    add a, $80
-    jp nc, _LABEL_2447_
-    inc b
-_LABEL_2447_:
-    pop de
-    ld ($C0A9), a
-    ld l, e
-    ld h, $00
-    ld ($C0A4), hl
-    ld l, d
-    ld e, b
-    ld d, h
-    add hl, de
-    ld ($C0A2), hl
+      push de
+        ld l, b
+        ld de, ($C0A8)
+        call Multiply_l_e_hl
+        ld a, l
+        ld b, h
+        add a, $80
+        jp nc, +
+        inc b
++:    pop de
+      ld ($C0A9), a
+      ld l, e
+      ld h, $00
+      ld ($C0A4), hl
+      ld l, d
+      ld e, b
+      ld d, h
+      add hl, de
+      ld ($C0A2), hl
     pop de
     ld e, d
     ld d, $00
     ld bc, $0000
     ld hl, $0000
     ld ($C0A6), hl
-_LABEL_2465_:
-    call _LABEL_259B_
-_LABEL_2468_:
-    ld hl, ($C0A6)
+--: call _LABEL_259B_
+-:  ld hl, ($C0A6)
     inc hl
     or a
     sbc hl, de
     or a
     sbc hl, bc
-    jp m, _LABEL_2492_
+    jp m, +
     add hl, bc
     or a
     sbc hl, de
@@ -3194,14 +3189,13 @@ _LABEL_2468_:
     ld a, h
     sub l
     ld ($C0A9), a
-    jp nc, _LABEL_24AD_
+    jp nc, +++
     ld hl, ($C0A2)
     dec hl
     ld ($C0A2), hl
-    jp _LABEL_24A1_
+    jp ++
 
-_LABEL_2492_:
-    add hl, de
++:  add hl, de
     or a
     sbc hl, bc
     ld ($C0A6), hl
@@ -3209,18 +3203,16 @@ _LABEL_2492_:
     ld hl, ($C0A4)
     dec hl
     ld ($C0A4), hl
-_LABEL_24A1_:
-    ld a, d
+++: ld a, d
     or e
-    jp nz, _LABEL_2465_
+    jp nz, --
     ld hl, $C0A9
     dec (hl)
     jp _LABEL_24B9_
 
-_LABEL_24AD_:
-    ld a, d
++++:ld a, d
     or e
-    jp nz, _LABEL_2468_
+    jp nz, -
     ld hl, $C0A9
     dec (hl)
     jp _LABEL_24BC_
@@ -3233,7 +3225,7 @@ _LABEL_24BC_:
     add hl, bc
     or a
     sbc hl, de
-    jp p, _LABEL_24E6_
+    jp p, +
     or a
     sbc hl, bc
     or a
@@ -3244,28 +3236,25 @@ _LABEL_24BC_:
     ld a, h
     sub l
     ld ($C0A9), a
-    jp nc, _LABEL_24FB_
+    jp nc, +++
     ld hl, ($C0A2)
     dec hl
     ld ($C0A2), hl
-    jp _LABEL_24F3_
+    jp ++
 
-_LABEL_24E6_:
-    add hl, bc
++:  add hl, bc
     add hl, de
     ld ($C0A6), hl
     inc bc
     ld hl, ($C0A4)
     inc hl
     ld ($C0A4), hl
-_LABEL_24F3_:
-    ld a, b
+++: ld a, b
     or c
     jp nz, _LABEL_24B9_
     jp _LABEL_2503_
 
-_LABEL_24FB_:
-    ld a, b
++++:ld a, b
     or c
     jp nz, _LABEL_24BC_
     jp _LABEL_2506_
@@ -3278,7 +3267,7 @@ _LABEL_2506_:
     add hl, bc
     or a
     adc hl, de
-    jp m, _LABEL_252E_
+    jp m, +
     or a
     sbc hl, bc
     add hl, de
@@ -3288,14 +3277,13 @@ _LABEL_2506_:
     ld a, h
     add a, l
     ld ($C0A9), a
-    jp nc, _LABEL_2549_
+    jp nc, +++
     ld hl, ($C0A2)
     inc hl
     ld ($C0A2), hl
-    jp _LABEL_253D_
+    jp ++
 
-_LABEL_252E_:
-    or a
++:  or a
     sbc hl, de
     add hl, bc
     ld ($C0A6), hl
@@ -3303,16 +3291,14 @@ _LABEL_252E_:
     ld hl, ($C0A4)
     inc hl
     ld ($C0A4), hl
-_LABEL_253D_:
-    ld a, d
+++: ld a, d
     or e
     jp nz, _LABEL_2503_
     ld hl, $C0A9
     inc (hl)
     jp _LABEL_2555_
 
-_LABEL_2549_:
-    ld a, d
++++:ld a, d
     or e
     jp nz, _LABEL_2506_
     ld hl, $C0A9
@@ -3327,7 +3313,7 @@ _LABEL_2558_:
     add hl, de
     or a
     sbc hl, bc
-    jp p, _LABEL_257E_
+    jp p, +
     add hl, bc
     add hl, de
     ld ($C0A6), hl
@@ -3336,14 +3322,13 @@ _LABEL_2558_:
     ld a, h
     sub l
     ld ($C0A9), a
-    jp nc, _LABEL_2595_
+    jp nc, +++
     ld hl, ($C0A2)
     inc hl
     ld ($C0A2), hl
-    jp _LABEL_258F_
+    jp ++
 
-_LABEL_257E_:
-    or a
++:  or a
     sbc hl, de
     or a
     sbc hl, bc
@@ -3352,14 +3337,12 @@ _LABEL_257E_:
     ld hl, ($C0A4)
     dec hl
     ld ($C0A4), hl
-_LABEL_258F_:
-    ld a, b
+++: ld a, b
     or c
     jp nz, _LABEL_2555_
     ret
 
-_LABEL_2595_:
-    ld a, b
++++:ld a, b
     or c
     jp nz, _LABEL_2558_
     ret
@@ -3371,30 +3354,26 @@ _LABEL_259B_:
     ld hl, ($C0A2)
     ld a, h
     or a
-    jp z, _LABEL_25AF_
+    jp z, ++
     xor a
     bit 7, h
     ld h, a
-    jp nz, _LABEL_25AE_
+    jp nz, +
     cpl
-_LABEL_25AE_:
-    ld l, a
-_LABEL_25AF_:
-    ld de, ($C0A4)
++:  ld l, a
+++: ld de, ($C0A4)
     ld a, d
     or a
-    jp z, _LABEL_25C1_
+    jp z, ++
     xor a
     bit 7, d
     ld d, a
-    jp nz, _LABEL_25C0_
+    jp nz, +
     cpl
-_LABEL_25C0_:
-    ld e, a
-_LABEL_25C1_:
-    ex af, af'
++:  ld e, a
+++: ex af, af'
     or a
-    jp nz, _LABEL_25D1_
+    jp nz, +
     ex af, af'
     ld a, l
     ld l, e
@@ -3405,8 +3384,7 @@ _LABEL_25C1_:
     pop bc
     ret
 
-_LABEL_25D1_:
-    ex af, af'
++:  ex af, af'
     ld d, l
     ld hl, ($C0AA)
     call _LABEL_1CA1_
@@ -3418,6 +3396,7 @@ _LABEL_25D1_:
 ; Data from 25DD to 25F1 (21 bytes)
 .db $3E $10 $21 $00 $00 $29 $CB $11 $CB $10 $30 $04 $19 $30 $01 $03
 .db $3D $C2 $E2 $25 $C9
+; TODO unused code here
 
 _LABEL_25F2_:
     ld hl, $0100
@@ -3479,33 +3458,32 @@ _LABEL_2646_:
     push hl
       ld a, d
       cp $90
-      jp nc, _LABEL_274D_
+      jp nc, +++
       ld a, e
       ld ($C0AB), a
       ld a, d
       ld ($C0AA), a
       call _LABEL_2752_
       or a
-      jp nz, _LABEL_274D_
+      jp nz, +++
       ld hl, $0000
       ld ($C0AC), hl
 _LABEL_2665_:
       ld a, ($C0AB)
       or a
-      jr z, _LABEL_267D_
+      jr z, +
       dec a
       ld e, a
       ld a, ($C0AA)
       ld d, a
       call _LABEL_2752_
       or a
-      jr nz, _LABEL_267D_
+      jr nz, +
       ld a, e
       ld ($C0AB), a
       jr _LABEL_2665_
 
-_LABEL_267D_:
-      ld a, $01
++:    ld a, $01
       ld ($C0B0), a
       ld ($C0B1), a
 _LABEL_2685_:
@@ -3516,33 +3494,31 @@ _LABEL_2685_:
       ld a, ($C0AA)
       cp $8F
       ld a, $01
-      jr z, _LABEL_26A6_
+      jr z, +
       ld a, ($C0AB)
       ld e, a
       ld a, ($C0AA)
       inc a
       ld d, a
       call _LABEL_2752_
-_LABEL_26A6_:
-      ld ($C0B1), a
++:    ld ($C0B1), a
       ld a, ($C0AA)
       cp $00
       ld a, $01
-      jr z, _LABEL_26BE_
+      jr z, +
       ld a, ($C0AB)
       ld e, a
       ld a, ($C0AA)
       dec a
       ld d, a
       call _LABEL_2752_
-_LABEL_26BE_:
-      ld ($C0B0), a
++:    ld ($C0B0), a
       ld a, ($C0AE)
       ld b, a
       ld a, ($C0B0)
       xor $01
       and b
-      jr z, _LABEL_26DE_
+      jr z, +
       ld hl, ($C0AC)
       inc hl
       ld ($C0AC), hl
@@ -3552,13 +3528,12 @@ _LABEL_26BE_:
       dec a
       ld h, a
       push hl
-_LABEL_26DE_:
-        ld a, ($C0AF)
++:      ld a, ($C0AF)
         ld b, a
         ld a, ($C0B1)
         xor $01
         and b
-        jr z, _LABEL_26FB_
+        jr z, +
         ld hl, ($C0AC)
         inc hl
         ld ($C0AC), hl
@@ -3568,51 +3543,49 @@ _LABEL_26DE_:
         inc a
         ld h, a
         push hl
-_LABEL_26FB_:
++:        ld a, ($C0AB)
+          ld e, a
+          ld a, ($C0AA)
+          ld d, a
+          ld a, $01
+          call _LABEL_2850_
+          ld a, ($C0AB)
+          cp $AF
+          jr z, _f
+          inc a
+          ld e, a
+          ld a, ($C0AA)
+          ld d, a
+          call _LABEL_2752_
+          or a
+          jr nz, _f
+          ld a, ($C0AB)
+          inc a
+          ld ($C0AB), a
+          jp _LABEL_2685_
+
+__:       ld hl, ($C0AC)
+          ld a, h
+          or l
+          jr z, +++
+        pop hl
+        ld a, l
+        ld ($C0AB), a
+        ld a, h
+        ld ($C0AA), a
+        ld hl, ($C0AC)
+        dec hl
+        ld ($C0AC), hl
         ld a, ($C0AB)
-        ld e, a
-        ld a, ($C0AA)
-        ld d, a
-        ld a, $01
-        call _LABEL_2850_
-        ld a, ($C0AB)
-        cp $AF
-        jr z, _LABEL_2725_
-        inc a
         ld e, a
         ld a, ($C0AA)
         ld d, a
         call _LABEL_2752_
         or a
-        jr nz, _LABEL_2725_
-        ld a, ($C0AB)
-        inc a
-        ld ($C0AB), a
-        jp _LABEL_2685_
+        jr nz, _b
+        jp _LABEL_2665_
 
-_LABEL_2725_:
-        ld hl, ($C0AC)
-        ld a, h
-        or l
-        jr z, _LABEL_274D_
-      pop hl
-      ld a, l
-      ld ($C0AB), a
-      ld a, h
-      ld ($C0AA), a
-      ld hl, ($C0AC)
-      dec hl
-      ld ($C0AC), hl
-      ld a, ($C0AB)
-      ld e, a
-      ld a, ($C0AA)
-      ld d, a
-      call _LABEL_2752_
-      or a
-      jr nz, _LABEL_2725_
-      jp _LABEL_2665_
-
-_LABEL_274D_:
++++:
       pop hl
     pop de
     pop bc
@@ -3853,7 +3826,7 @@ _LABEL_2862_:
     sub e
     inc a
     ld ($C161), a
-    ld hl, $C400
+    ld hl, RAM_GraphicsDataBuffer
     ld ($C171), hl
     ld a, ($C0C8)
     sub $17
@@ -3952,7 +3925,7 @@ _LABEL_290D_:
     sub e
     inc a
     ld ($C161), a
-    ld hl, $C400
+    ld hl, RAM_GraphicsDataBuffer
     ld ($C171), hl
     ld a, ($C0BA)
     or a

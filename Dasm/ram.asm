@@ -39,3 +39,5 @@
 .define RAM_SpriteTable2 $C2C0 ; 192b - copy here for staging to VRAM
 .define RAM_SpriteTable2_Y RAM_SpriteTable2
 .define RAM_SpriteTable2_XN RAM_SpriteTable2+64
+; ---
+.define RAM_GraphicsDataBuffer $c400 ; lots of bytes?
