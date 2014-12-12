@@ -912,7 +912,7 @@ CheckForReset:
     pop hl
     ret
 
-.include "graphicsboard.asm"
+.include "graphicboard.asm"
 
 .include "maths.asm"
 
