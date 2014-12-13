@@ -3585,8 +3585,7 @@ __:       ld hl, ($C0AC)
         jr nz, _b
         jp _LABEL_2665_
 
-+++:
-      pop hl
++++:  pop hl
     pop de
     pop bc
     pop af
@@ -3596,54 +3595,46 @@ _LABEL_2752_:
     push bc
     push de
     push hl
-    push de
-    call _LABEL_27CD_
-    ex af, af'
-    pop de
-    ld a, e
-    cpl
-    and $07
-    ld c, a
-    ex af, af'
-    inc c
-    dec c
-    jp z, _LABEL_2781_
-    dec c
-    jp z, _LABEL_2782_
-    dec c
-    jp z, _LABEL_2783_
-    dec c
-    jp z, _LABEL_2784_
-    dec c
-    jp z, _LABEL_2785_
-    dec c
-    jp z, _LABEL_2786_
-    dec c
-    jp z, _LABEL_2787_
-    jp _LABEL_2788_
+      push de
+        call _LABEL_27CD_
+        ex af, af'
+      pop de
+      ld a, e
+      cpl
+      and 7
+      ld c, a
+      ex af, af'
+      inc c
+      dec c
+      jp z, _LABEL_2752_0
+      dec c
+      jp z, _LABEL_2752_1
+      dec c
+      jp z, _LABEL_2752_2
+      dec c
+      jp z, _LABEL_2752_3
+      dec c
+      jp z, _LABEL_2752_4
+      dec c
+      jp z, _LABEL_2752_5
+      dec c
+      jp z, _LABEL_2752_6
+      jp _LABEL_2752_7
 
-_LABEL_2781_:
-    rlca
-_LABEL_2782_:
-    rlca
-_LABEL_2783_:
-    rlca
-_LABEL_2784_:
-    rlca
-_LABEL_2785_:
-    rlca
-_LABEL_2786_:
-    rlca
-_LABEL_2787_:
-    rlca
-_LABEL_2788_:
-    rlca
+_LABEL_2752_0: rlca
+_LABEL_2752_1: rlca
+_LABEL_2752_2: rlca
+_LABEL_2752_3: rlca
+_LABEL_2752_4: rlca
+_LABEL_2752_5: rlca
+_LABEL_2752_6: rlca
+_LABEL_2752_7: rlca
     pop hl
     pop de
     pop bc
-    ld a, $00
+    ld a, 0
     ret nc
-    ld a, $01
+    ld a, 1
     ret
 
 _LABEL_2792_:
@@ -3743,21 +3734,21 @@ _LABEL_2812_:
     add hl, hl
     add hl, hl
     push hl
-    add hl, hl
-    push hl
-    add hl, hl
-    add hl, hl
+      add hl, hl
+      push hl
+        add hl, hl
+        add hl, hl
+      pop bc
+      add hl, bc
     pop bc
     add hl, bc
-    pop bc
-    add hl, bc
     push hl
-    ld a, e
-    and $F8
-    ld l, a
-    ld h, $00
-    add hl, hl
-    add hl, hl
+      ld a, e
+      and $F8
+      ld l, a
+      ld h, $00
+      add hl, hl
+      add hl, hl
     pop bc
     add hl, bc
     ld a, d
@@ -3771,9 +3762,9 @@ _LABEL_2812_:
     push hl
     push de
     push bc
-    ld hl, RAM_TileModificationBuffer
-    ld bc, 4
-    call CopyVRAMToRAM
+      ld hl, RAM_TileModificationBuffer
+      ld bc, 4
+      call CopyVRAMToRAM
     pop bc
     pop de
     pop hl
@@ -3861,8 +3852,8 @@ _LABEL_2862_:
       add a, $08
 +:    ld ($C166), a
       push bc
-      call _LABEL_2AB1_
-      call _LABEL_2ADC_
+        call _LABEL_2AB1_
+        call _LABEL_2ADC_
       pop bc
       inc e
       inc l
@@ -3974,36 +3965,34 @@ _LABEL_29A1_:
 _LABEL_2A0B_:
     ld hl, $2A52
     push hl
-    ld a, ($C15F)
-    cp (ix+19)
-    jp nc, _LABEL_2A40_
-    add a, (ix+4)
-    cp (ix+19)
-    jp nc, _LABEL_2A33_
-    ld a, ($C15F)
-    add a, (ix+4)
-    sub (ix+19)
-    neg
-    add a, (ix+19)
-    ld (RAM_SplashScreenTimeout), a
-    ret
+      ld a, ($C15F)
+      cp (ix+19)
+      jp nc, ++
+      add a, (ix+4)
+      cp (ix+19)
+      jp nc, +
+      ld a, ($C15F)
+      add a, (ix+4)
+      sub (ix+19)
+      neg
+      add a, (ix+19)
+      ld (RAM_SplashScreenTimeout), a
+      ret
 
-_LABEL_2A33_:
-    ld a, ($C170)
-    ld (RAM_SplashScreenTimeout), a
-    sub (ix+2)
-    ld ($C161), a
-    ret
++:    ld a, ($C170)
+      ld (RAM_SplashScreenTimeout), a
+      sub (ix+2)
+      ld ($C161), a
+      ret
 
-_LABEL_2A40_:
-    ld a, ($C15F)
-    add a, (ix+4)
-    sub (ix+19)
-    ld b, a
-    ld a, ($C170)
-    sub b
-    ld (RAM_SplashScreenTimeout), a
-    ret
+++:   ld a, ($C15F)
+      add a, (ix+4)
+      sub (ix+19)
+      ld b, a
+      ld a, ($C170)
+      sub b
+      ld (RAM_SplashScreenTimeout), a
+      ret
 
 ; Data from 2A52 to 2AB0 (95 bytes)
 .db $F3 $DD $CB $00 $46 $CC $D8 $2B $DD $46 $03 $DD $4E $04 $DD $7E
@@ -4016,36 +4005,36 @@ _LABEL_2A40_:
 _LABEL_2AB1_:
     push hl
     push de
-    push bc
-    ld a, e
-    and $07
-    ld c, a
-    ld b, $00
-    ld hl, $2BD0
-    add hl, bc
-    ld a, (hl)
-    pop bc
-    ld hl, $C167
-    ld c, a
-    call _LABEL_2BA0_
-    ld a, (de)
-    and c
-    ld (hl), a
-    inc hl
-    inc de
-    ld a, (de)
-    and c
-    ld (hl), a
-    inc hl
-    inc de
-    ld a, (de)
-    and c
-    ld (hl), a
-    inc hl
-    inc de
-    ld a, (de)
-    and c
-    ld (hl), a
+      push bc
+        ld a, e
+        and $07
+        ld c, a
+        ld b, $00
+        ld hl, _LABEL_2BD0_
+        add hl, bc
+        ld a, (hl)
+      pop bc
+      ld hl, $C167
+      ld c, a
+      call _LABEL_2BA0_
+      ld a, (de)
+      and c
+      ld (hl), a
+      inc hl
+      inc de
+      ld a, (de)
+      and c
+      ld (hl), a
+      inc hl
+      inc de
+      ld a, (de)
+      and c
+      ld (hl), a
+      inc hl
+      inc de
+      ld a, (de)
+      and c
+      ld (hl), a
     pop de
     pop hl
     ret
@@ -4055,107 +4044,107 @@ _LABEL_2ADC_:
     push hl
     push de
     push bc
-    ld a, e
-    ex af, af'
-    ex de, hl
-    call _LABEL_2B74_
-    ld hl, $C16B
-    rst $08 ; VDPAddressToDE
-    push af
-    pop af
-    push de
-    in a, (Port_VDPData)
-    ld (hl), a
-    inc hl
-    pop de
-    in a, (Port_VDPData)
-    ld (hl), a
-    inc hl
-    push de
-    in a, (Port_VDPData)
-    ld (hl), a
-    inc hl
-    pop de
-    in a, (Port_VDPData)
-    ld (hl), a
-    dec hl
-    dec hl
-    dec hl
-    ex af, af'
-    push hl
-    push de
-    push bc
-    add a, (ix+9)
-    and $07
-    ld c, a
-    ld b, $00
-    ld hl, $2BD0
-    add hl, bc
-    ld a, (hl)
-    cpl
-    pop bc
-    pop de
-    pop hl
-    ld c, a
-    ld a, (hl)
-    and c
-    ld (hl), a
-    inc hl
-    ld a, (hl)
-    and c
-    ld (hl), a
-    inc hl
-    ld a, (hl)
-    and c
-    ld (hl), a
-    inc hl
-    ld a, (hl)
-    and c
-    ld (hl), a
-    dec hl
-    dec hl
-    dec hl
-    push hl
-      push bc
-        ld hl, $C167
-        ld a, (ix+9)
-        or a
-        jp z, +
-        ld b, a
--:      push hl
-          rrc (hl)
-          inc hl
-          rrc (hl)
-          inc hl
-          rrc (hl)
-          inc hl
-          rrc (hl)
-        pop hl
-        djnz -
-  +:  pop bc
+      ld a, e
+      ex af, af'
+      ex de, hl
+      call _LABEL_2B74_
+      ld hl, $C16B
+      rst $08 ; VDPAddressToDE
+      push af
+      pop af
+      push de
+        in a, (Port_VDPData)
+        ld (hl), a
+        inc hl
+      pop de
+      in a, (Port_VDPData)
+      ld (hl), a
+      inc hl
+      push de
+        in a, (Port_VDPData)
+        ld (hl), a
+        inc hl
+      pop de
+      in a, (Port_VDPData)
+      ld (hl), a
+      dec hl
+      dec hl
+      dec hl
+      ex af, af'
       push hl
-      pop iy
-    pop hl
-    ld a, e
-    out (Port_VDPAddress), a
-    ld a, d
-    or >VDPAddressMask_Write
-    out (Port_VDPAddress), a
-    ld a, (hl)
-    or (iy+0)
-    out (Port_VDPData), a
-    inc hl
-    ld a, (hl)
-    or (iy+1)
-    out (Port_VDPData), a
-    inc hl
-    ld a, (hl)
-    or (iy+2)
-    out (Port_VDPData), a
-    inc hl
-    ld a, (hl)
-    or (iy+3)
-    out (Port_VDPData), a
+      push de
+      push bc
+        add a, (ix+9)
+        and $07
+        ld c, a
+        ld b, $00
+        ld hl, _LABEL_2BD0_
+        add hl, bc
+        ld a, (hl)
+        cpl
+      pop bc
+      pop de
+      pop hl
+      ld c, a
+      ld a, (hl)
+      and c
+      ld (hl), a
+      inc hl
+      ld a, (hl)
+      and c
+      ld (hl), a
+      inc hl
+      ld a, (hl)
+      and c
+      ld (hl), a
+      inc hl
+      ld a, (hl)
+      and c
+      ld (hl), a
+      dec hl
+      dec hl
+      dec hl
+      push hl
+        push bc
+          ld hl, $C167
+          ld a, (ix+9)
+          or a
+          jp z, +
+          ld b, a
+-:        push hl
+            rrc (hl)
+            inc hl
+            rrc (hl)
+            inc hl
+            rrc (hl)
+            inc hl
+            rrc (hl)
+          pop hl
+          djnz -
++:      pop bc
+        push hl
+        pop iy
+      pop hl
+      ld a, e
+      out (Port_VDPAddress), a
+      ld a, d
+      or >VDPAddressMask_Write
+      out (Port_VDPAddress), a
+      ld a, (hl)
+      or (iy+0)
+      out (Port_VDPData), a
+      inc hl
+      ld a, (hl)
+      or (iy+1)
+      out (Port_VDPData), a
+      inc hl
+      ld a, (hl)
+      or (iy+2)
+      out (Port_VDPData), a
+      inc hl
+      ld a, (hl)
+      or (iy+3)
+      out (Port_VDPData), a
     pop bc
     pop de
     pop hl
@@ -4164,39 +4153,39 @@ _LABEL_2ADC_:
 _LABEL_2B74_:
     push hl
     push bc
-    ld a, d
-    and $F8
-    ld l, a
-    ld h, $00
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    push hl
-    add hl, hl
-    push hl
-    add hl, hl
-    add hl, hl
-    pop bc
-    add hl, bc
-    pop bc
-    add hl, bc
-    push hl
-    ld a, e
-    and $F8
-    ld l, a
-    ld h, $00
-    add hl, hl
-    add hl, hl
-    pop bc
-    add hl, bc
-    ld a, d
-    and $07
-    add a, a
-    add a, a
-    ld b, $00
-    ld c, a
-    add hl, bc
-    ex de, hl
+      ld a, d
+      and $F8
+      ld l, a
+      ld h, $00
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      push hl
+        add hl, hl
+        push hl
+          add hl, hl
+          add hl, hl
+        pop bc
+        add hl, bc
+      pop bc
+      add hl, bc
+      push hl
+        ld a, e
+        and $F8
+        ld l, a
+        ld h, $00
+        add hl, hl
+        add hl, hl
+      pop bc
+      add hl, bc
+      ld a, d
+      and $07
+      add a, a
+      add a, a
+      ld b, $00
+      ld c, a
+      add hl, bc
+      ex de, hl
     pop bc
     pop hl
     ret
@@ -4204,46 +4193,54 @@ _LABEL_2B74_:
 _LABEL_2BA0_:
     push bc
     push hl
-    ld a, d
-    and $F8
-    ld l, a
-    ld h, $00
-    add hl, hl
-    add hl, hl
-    push hl
-    add hl, hl
-    add hl, hl
-    push hl
-    add hl, hl
-    pop bc
-    add hl, bc
-    pop bc
-    add hl, bc
-    push hl
-    ld a, e
-    and $F8
-    ld l, a
-    ld h, $00
-    add hl, hl
-    add hl, hl
-    pop bc
-    add hl, bc
-    ld a, d
-    and $07
-    add a, a
-    add a, a
-    ld c, a
-    ld b, $00
-    add hl, bc
-    ld bc, ($C171)
-    add hl, bc
-    ex de, hl
+      ld a, d
+      and $F8
+      ld l, a
+      ld h, $00
+      add hl, hl
+      add hl, hl
+      push hl
+        add hl, hl
+        add hl, hl
+        push hl
+          add hl, hl
+        pop bc
+        add hl, bc
+      pop bc
+      add hl, bc
+      push hl
+        ld a, e
+        and $F8
+        ld l, a
+        ld h, $00
+        add hl, hl
+        add hl, hl
+      pop bc
+      add hl, bc
+      ld a, d
+      and $07
+      add a, a
+      add a, a
+      ld c, a
+      ld b, $00
+      add hl, bc
+      ld bc, ($C171)
+      add hl, bc
+      ex de, hl
     pop hl
     pop bc
     ret
 
 ; Data from 2BD0 to 2BD7 (8 bytes)
-.db $80 $40 $20 $10 $08 $04 $02 $01
+_LABEL_2BD0_:
+.db %10000000
+.db %01000000
+.db %00100000
+.db %00010000
+.db %00001000
+.db %00000100
+.db %00000010
+.db %00000001
 
 _LABEL_2BD8_:
     set 0, (ix+0)
@@ -4265,10 +4262,9 @@ _LABEL_2BD8_:
     ld b, a
     ld a, d
     and $07
-    jp z, _LABEL_2BFA_
+    jp z, +
     inc b
-_LABEL_2BFA_:
-    ld a, ($C0C5)
++:  ld a, ($C0C5)
     sub $28
     ld e, a
     ld a, ($C0C7)
@@ -4283,10 +4279,9 @@ _LABEL_2BFA_:
     ld c, a
     ld a, e
     and $07
-    jp z, _LABEL_2C15_
+    jp z, +
     inc c
-_LABEL_2C15_:
-    ld a, (ix+1)
++:  ld a, (ix+1)
     and $F8
     ld d, a
     ld e, (ix+2)
@@ -4365,18 +4360,17 @@ _LABEL_2C5A_:
     di
     ld a, ($C08A)
     cp $03
-    jp z, _LABEL_2CAC_
+    jp z, +
     ld a, $01
-_LABEL_2CAC_:
-    ld ($C06B), a
++:  ld ($C06B), a
     push hl
-    ld a, $24
-    add a, h
-    ld h, a
-    ld a, $3C
-    add a, l
-    ld l, a
-    call _LABEL_1D50_
+      ld a, $24
+      add a, h
+      ld h, a
+      ld a, $3C
+      add a, l
+      ld l, a
+      call _LABEL_1D50_
     pop hl
     ld a, l
     sub (ix+5)
@@ -4397,14 +4391,13 @@ _LABEL_2CAC_:
     ld a, ($C06C)
     ld b, a
     push af
-    ld a, ($C08A)
-    cp $03
-    jp nz, _LABEL_2CE9_
-    ld b, $00
-_LABEL_2CE9_:
-    ld a, b
-    ld ($C06C), a
-    call _LABEL_1D50_
+      ld a, ($C08A)
+      cp $03
+      jp nz, +
+      ld b, $00
++:    ld a, b
+      ld ($C06C), a
+      call _LABEL_1D50_
     pop af
     ld ($C06C), a
     ei
@@ -4413,8 +4406,8 @@ _LABEL_2CE9_:
 _LABEL_2CF6_:
     di
     push hl
-    call _LABEL_3B13_
-    call _LABEL_198B_
+      call _LABEL_3B13_
+      call _LABEL_198B_
     pop hl
     ei
     ld a, $01
@@ -4461,16 +4454,16 @@ _LABEL_2D0D_:
     ld d, (hl)
     inc hl
     push de
-    ld e, (hl)
-    inc hl
-    ld d, (hl)
-    inc hl
-    ld a, (hl)
-    inc hl
-    ld h, (hl)
-    ld l, a
-    ld bc, $0909
-    call _LABEL_1902_
+      ld e, (hl)
+      inc hl
+      ld d, (hl)
+      inc hl
+      ld a, (hl)
+      inc hl
+      ld h, (hl)
+      ld l, a
+      ld bc, $0909
+      call _LABEL_1902_
     pop de
     ld h, TileAttribute_None
     ld bc, $0808
@@ -4556,10 +4549,9 @@ _LABEL_2DED_:
     ld a, l
     and $07
     sub c
-    jp nc, _LABEL_2DFA_
+    jp nc, +
     add a, $08
-_LABEL_2DFA_:
-    ld ($C166), a
++:  ld ($C166), a
     ret
 
 ; Data from 2DFE to 2F91 (404 bytes)
@@ -4785,10 +4777,10 @@ _LABEL_30F7_:
     ld a, (RAM_PenX_Smoothed)
     ld (RAM_SpriteTable1_XN), a
     push hl
-    bit 0, d
-    jp nz, _LABEL_314E_
-    ld a, $05
-    call _LABEL_37C7_
+      bit 0, d
+      jp nz, +
+      ld a, $05
+      call _LABEL_37C7_
     pop hl
     bit 1, (hl)
     ret z
@@ -4814,9 +4806,8 @@ _LABEL_30F7_:
     ld a, $25
     jp _LABEL_37C7_
 
-_LABEL_314E_:
-    ld a, $04
-    call _LABEL_37C7_
++:    ld a, $04
+      call _LABEL_37C7_
     pop hl
     bit 1, (hl)
     ret z
@@ -4838,31 +4829,28 @@ _LABEL_314E_:
     sub d
     ld d, a
     push af
-    add a, l
-    ld ($C070), a
+      add a, l
+      ld ($C070), a
     pop af
     ld a, d
-    jp nc, _LABEL_3185_
+    jp nc, +
     neg
-_LABEL_3185_:
-    ld ($C072), a
++:  ld ($C072), a
     ld hl, ($C06E)
     ld de, ($C070)
     ld a, l
     cp e
-    jp c, _LABEL_3197_
+    jp c, +
     ld b, l
     ld l, e
     ld e, b
-_LABEL_3197_:
-    ld a, h
++:  ld a, h
     cp d
-    jp c, _LABEL_319F_
+    jp c, +
     ld b, h
     ld h, d
     ld d, b
-_LABEL_319F_:
-    ld ($C06E), hl
++:  ld ($C06E), hl
     ld ($C070), de
     ld a, ($C089)
     set 1, a
@@ -4874,14 +4862,13 @@ _LABEL_31AF_:
     ld a, $01
     and a
     ex af, af'
-    jp _LABEL_31B8_
+    jp +
 
 ; 7th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_31B6_:
     xor a
     ex af, af'
-_LABEL_31B8_:
-    call _LABEL_18E6_
++:  call _LABEL_18E6_
     ld a, $09
     call _LABEL_37C7_
     ld hl, $C089
@@ -4893,10 +4880,9 @@ _LABEL_31B8_:
     ld a, ($C203)
     ld c, a
     ex af, af'
-    jp nz, _LABEL_31D5_
+    jp nz, +
     ld b, c
-_LABEL_31D5_:
-    ex af, af'
++:  ex af, af'
     ld a, b
     ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
@@ -4909,10 +4895,9 @@ _LABEL_31D5_:
     ld b, a
     ld a, (RAM_SpriteTable1_XN)
     sub b
-    jp nc, _LABEL_31F5_
+    jp nc, +
     neg
-_LABEL_31F5_:
-    ld ($C0AC), a
++:  ld ($C0AC), a
     ld hl, $0100
     ld ($C0A8), hl
     ex af, af'
@@ -5011,27 +4996,24 @@ _LABEL_3294_:
     ld c, $10
     ld a, b
     cp c
-    jp nc, _LABEL_32B0_
+    jp nc, +
     ld a, c
-_LABEL_32B0_:
-    ld c, $98
++:  ld c, $98
     cp c
-    jp c, _LABEL_32B7_
+    jp c, +
     ld a, c
-_LABEL_32B7_:
++:
     ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
     ld c, $21
     cp c
-    jp nc, _LABEL_32C4_
+    jp nc, +
     ld a, c
-_LABEL_32C4_:
-    ld c, $C9
++:  ld c, $C9
     cp c
-    jp c, _LABEL_32CB_
+    jp c, +
     ld a, c
-_LABEL_32CB_:
-    ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1_XN), a
     ld a, $05
     call _LABEL_37C7_
     bit 1, (hl)
@@ -5065,15 +5047,13 @@ _LABEL_3311_:
     add a, $07
     ld c, a
     cp b
-    jp c, _LABEL_331C_
+    jp c, +
     ld b, c
-_LABEL_331C_:
-    ld a, c
++:  ld a, c
     add a, $58
-    jp nc, _LABEL_3324_
+    jp nc, +
     ld a, $FF
-_LABEL_3324_:
-    ld c, a
++:  ld c, a
     cp b
     jp nc, _LABEL_332A_
     ld b, c
@@ -5081,10 +5061,9 @@ _LABEL_332A_:
     ld a, b
     ld c, $A6
     cp c
-    jp c, _LABEL_3332_
+    jp c, +
     ld a, c
-_LABEL_3332_:
-    ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1_Y), a
     ld ($C0C6), a
     ld a, (RAM_PenX_Smoothed)
     ld b, a
@@ -5092,26 +5071,22 @@ _LABEL_3332_:
     add a, $07
     ld c, a
     cp b
-    jp c, _LABEL_3347_
+    jp c, +
     ld b, c
-_LABEL_3347_:
-    ld a, c
++:  ld a, c
     add a, $58
-    jp nc, _LABEL_334F_
+    jp nc, +
     ld a, $FF
-_LABEL_334F_:
-    ld c, a
++:  ld c, a
     cp b
-    jp nc, _LABEL_3355_
+    jp nc, +
     ld b, c
-_LABEL_3355_:
-    ld a, b
++:  ld a, b
     ld c, $D7
     cp c
-    jp c, _LABEL_335D_
+    jp c, +
     ld a, c
-_LABEL_335D_:
-    ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
     ld a, $04
     call _LABEL_37C7_
@@ -5132,27 +5107,23 @@ _LABEL_3385_:
     ld c, $10
     ld a, b
     cp c
-    jp nc, _LABEL_338D_
+    jp nc, +
     ld a, c
-_LABEL_338D_:
-    ld c, $97
++:  ld c, $97
     cp c
-    jp c, _LABEL_3394_
+    jp c, +
     ld a, c
-_LABEL_3394_:
-    ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
     ld c, $21
     cp c
-    jp nc, _LABEL_33A1_
+    jp nc, +
     ld a, c
-_LABEL_33A1_:
-    ld c, $C9
++:  ld c, $C9
     cp c
-    jp c, _LABEL_33A8_
+    jp c, +
     ld a, c
-_LABEL_33A8_:
-    ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1_XN), a
     ld a, $05
     call _LABEL_37C7_
     bit 1, (hl)
@@ -5187,26 +5158,22 @@ _LABEL_33D1_:
     add a, $07
     ld c, a
     cp b
-    jp c, _LABEL_33F2_
+    jp c, +
     ld b, c
-_LABEL_33F2_:
-    ld a, c
++:  ld a, c
     add a, $58
-    jp nc, _LABEL_33FA_
+    jp nc, +
     ld a, $FF
-_LABEL_33FA_:
-    ld c, a
++:  ld c, a
     cp b
-    jp nc, _LABEL_3400_
+    jp nc, +
     ld b, c
-_LABEL_3400_:
-    ld a, b
++:  ld a, b
     ld c, $A6
     cp c
-    jp c, _LABEL_3408_
+    jp c, +
     ld a, c
-_LABEL_3408_:
-    bit 0, (iy+0)
++:  bit 0, (iy+0)
     call nz, _LABEL_34E0_
     ld (RAM_SpriteTable1_Y), a
     ld ($C0C6), a
@@ -5216,26 +5183,22 @@ _LABEL_3408_:
     add a, $07
     ld c, a
     cp b
-    jp c, _LABEL_3424_
+    jp c, +
     ld b, c
-_LABEL_3424_:
-    ld a, c
++:  ld a, c
     add a, $58
-    jp nc, _LABEL_342C_
+    jp nc, +
     ld a, $FF
-_LABEL_342C_:
-    ld c, a
++:  ld c, a
     cp b
-    jp nc, _LABEL_3432_
+    jp nc, +
     ld b, c
-_LABEL_3432_:
-    ld a, b
++:  ld a, b
     ld c, $D7
     cp c
-    jp c, _LABEL_343A_
+    jp c, +
     ld a, c
-_LABEL_343A_:
-    bit 0, (iy+0)
++:  bit 0, (iy+0)
     call z, _LABEL_3501_
     ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
@@ -5258,28 +5221,28 @@ _LABEL_3469_:
     ld c, $10
     ld a, b
     cp c
-    jp nc, _LABEL_3471_
+    jp nc, +
     ld a, c
-_LABEL_3471_:
++:
     ld c, $98
     cp c
-    jp c, _LABEL_3478_
+    jp c, +
     ld a, c
-_LABEL_3478_:
++:
     bit 0, (iy+0)
     call nz, _LABEL_34ED_
     ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
     ld c, $21
     cp c
-    jp nc, _LABEL_348C_
+    jp nc, +
     ld a, c
-_LABEL_348C_:
++:
     ld c, $C9
     cp c
-    jp c, _LABEL_3493_
+    jp c, +
     ld a, c
-_LABEL_3493_:
++:
     bit 0, (iy+0)
     call z, _LABEL_3513_
     ld (RAM_SpriteTable1_XN), a
@@ -5316,9 +5279,9 @@ _LABEL_34E0_:
     ld a, ($C16F)
     add a, $60
     cp c
-    jp nc, _LABEL_34EB_
+    jp nc, +
     ld c, a
-_LABEL_34EB_:
++:
     ld a, c
     ret
 
@@ -5327,9 +5290,9 @@ _LABEL_34ED_:
     ld a, ($C16F)
     sub $07
     cp c
-    jp c, _LABEL_34F8_
+    jp c, +
     ld c, a
-_LABEL_34F8_:
++:
     add a, $58
     cp c
     jp nc, _LABEL_34FF_
