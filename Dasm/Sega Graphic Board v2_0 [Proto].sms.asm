@@ -889,7 +889,7 @@ _LABEL_6CD_:
       call nz, ReadGraphicBoard
     pop af
     bit 2, a
-    call nz, _LABEL_9BC_
+    call nz, TitleScreenTextUpdate
     jp VBlank_CheckResetAndExit
 
 SetVBlankFunctionAndWait:
@@ -1104,7 +1104,7 @@ TitleScreenButtonPressed:
     call WriteAreaToTilemap_1byte
     jp TitleScreen_PostAnimationLoop
 
-_LABEL_9BC_:
+TitleScreenTextUpdate:
     ld hl, RAM_TitleScreenTextFlashCounter ; Decrement counter
     dec (hl)
     ret p ; Wait for it to go below zero
@@ -2296,7 +2296,7 @@ _LABEL_1D50_:
     ld ($C064), a
     ld a, ($C069)
     ld ($C068), a
-    jp _LABEL_1E57_
+    jp _LABEL_1E57_ ; ### Unnecessary, could fall through
 
 _LABEL_1E57_:
     ld a, ($C068)
@@ -2465,133 +2465,133 @@ _LABEL_1F66_:
     ret nz
     exx
     push hl
-    di
-    ld a, ($C08A)
-    ld b, a
-    ld a, ($C0BA)
-    or a
-    jp z, +
-    ld b, $00
-+:  ld a, b
-    ld ($C06B), a
-    ld a, $04
-    ld ($C06D), a
-    ld iy, $C062
-    ld h, (iy+13)
-    ld l, (iy+12)
-    ld d, h
-    ld e, (iy+14)
-    call _LABEL_1CA1_
-    ld h, (iy+13)
-    ld l, (iy+14)
-    ld d, (iy+15)
-    ld e, l
-    call _LABEL_1CA1_
-    ld h, (iy+15)
-    ld l, (iy+14)
-    ld d, h
-    ld e, (iy+12)
-    call _LABEL_1CA1_
-    ld h, (iy+15)
-    ld l, (iy+12)
-    ld d, (iy+13)
-    ld e, l
-    call _LABEL_1CA1_
-    ld a, ($C0BA)
-    or a
-    jp z, _LABEL_2079_
-    ld a, (iy+16)
-    or a
-    jp nz, +
-    inc a
-+:  ld b, a
-    ld a, (iy+15)
-    sub (iy+13)
-    cp $08
-    jp c, _LABEL_2085_
-    ld a, $24
-    cp (iy+13)
-    jp c, +
-    cp (iy+15)
-    jp nc, _LABEL_2079_
-+:  ld a, $D4
-    cp (iy+13)
-    jp nc, +
-    cp (iy+15)
-    jp c, _LABEL_2079_
-+:  ld a, (iy+13)
-    call _LABEL_209E_
-    ld (iy+13), a
-    ld a, (iy+15)
-    call _LABEL_209E_
-    ld (iy+15), a
-    ld a, (iy+12)
-    add a, (iy+16)
-    sub $3C
-    jp c, _LABEL_2079_
-    ld a, (iy+12)
-    cp $CC
-    jp c, +
-    ld a, (iy+14)
-    cp $CC
-    jp nc, _LABEL_2079_
-+:  ld a, (iy+12)
-    sub $3C
-    jp nc, +
-    xor a
-+:  ld (iy+12), a
-    ld c, a
-    ld a, (iy+14)
-    sub $3C
-    sub c
-    ld b, a
--:  push bc
+      di
+      ld a, ($C08A)
+      ld b, a
+      ld a, ($C0BA)
+      or a
+      jp z, +
+      ld b, $00
++:    ld a, b
+      ld ($C06B), a
+      ld a, $04
+      ld ($C06D), a
+      ld iy, $C062
+      ld h, (iy+13)
+      ld l, (iy+12)
+      ld d, h
+      ld e, (iy+14)
+      call _LABEL_1CA1_
+      ld h, (iy+13)
+      ld l, (iy+14)
+      ld d, (iy+15)
+      ld e, l
+      call _LABEL_1CA1_
+      ld h, (iy+15)
+      ld l, (iy+14)
+      ld d, h
+      ld e, (iy+12)
+      call _LABEL_1CA1_
+      ld h, (iy+15)
+      ld l, (iy+12)
+      ld d, (iy+13)
+      ld e, l
+      call _LABEL_1CA1_
+      ld a, ($C0BA)
+      or a
+      jp z, _LABEL_2079_
+      ld a, (iy+16)
+      or a
+      jp nz, +
+      inc a
++:    ld b, a
+      ld a, (iy+15)
+      sub (iy+13)
+      cp $08
+      jp c, _LABEL_2085_
+      ld a, $24
+      cp (iy+13)
+      jp c, +
+      cp (iy+15)
+      jp nc, _LABEL_2079_
++:    ld a, $D4
+      cp (iy+13)
+      jp nc, +
+      cp (iy+15)
+      jp c, _LABEL_2079_
++:    ld a, (iy+13)
+      call _LABEL_209E_
+      ld (iy+13), a
+      ld a, (iy+15)
+      call _LABEL_209E_
+      ld (iy+15), a
       ld a, (iy+12)
-      and $F8
-      ld l, a
-      ld h, $00
-      add hl, hl
-      add hl, hl
-      add hl, hl
-      push hl
-        add hl, hl
-        push hl
-          add hl, hl
-          add hl, hl
-        pop de
-        add hl, de
-      pop de
-      add hl, de
-      push hl
-        ld a, (iy+13)
+      add a, (iy+16)
+      sub $3C
+      jp c, _LABEL_2079_
+      ld a, (iy+12)
+      cp $CC
+      jp c, +
+      ld a, (iy+14)
+      cp $CC
+      jp nc, _LABEL_2079_
++:    ld a, (iy+12)
+      sub $3C
+      jp nc, +
+      xor a
++:    ld (iy+12), a
+      ld c, a
+      ld a, (iy+14)
+      sub $3C
+      sub c
+      ld b, a
+-:    push bc
+        ld a, (iy+12)
         and $F8
         ld l, a
         ld h, $00
         add hl, hl
         add hl, hl
-      pop de
-      add hl, de
+        add hl, hl
+        push hl
+          add hl, hl
+          push hl
+            add hl, hl
+            add hl, hl
+          pop de
+          add hl, de
+        pop de
+        add hl, de
+        push hl
+          ld a, (iy+13)
+          and $F8
+          ld l, a
+          ld h, $00
+          add hl, hl
+          add hl, hl
+        pop de
+        add hl, de
+        ld a, (iy+12)
+        and $07
+        add a, a
+        add a, a
+        ld e, a
+        ld d, $00
+        add hl, de
+        ex de, hl
+        call _LABEL_20AA_
+      pop bc
+      inc (iy+12)
       ld a, (iy+12)
-      and $07
-      add a, a
-      add a, a
-      ld e, a
-      ld d, $00
-      add hl, de
-      ex de, hl
-      call _LABEL_20AA_
-    pop bc
-    inc (iy+12)
-    ld a, (iy+12)
-    cp $90
-    jp nc, _LABEL_2079_
-    djnz -
+      cp $90
+      jp nc, _LABEL_2079_
+      djnz -
 
 _LABEL_2079_:
-    ld a, $F0
-    ld ($C203), a
-    xor a
-    ld ($C089), a
+      ld a, $F0
+      ld ($C203), a
+      xor a
+      ld ($C089), a
     pop hl
     ei
     ret
@@ -2600,12 +2600,11 @@ _LABEL_2085_:
     ld h, (iy+13)
     ld l, (iy+12)
     ld d, (iy+15)
--:
-    push bc
+-:  push bc
     push de
     push hl
-    ld e, l
-    call _LABEL_1CA1_
+      ld e, l
+      call _LABEL_1CA1_
     pop hl
     pop de
     pop bc
@@ -2662,10 +2661,10 @@ _LABEL_20AA_:
     and $07
     ret z
     push de
-    ld hl, $219A
-    ld e, a
-    ld d, $00
-    add hl, de
+      ld hl, $219A
+      ld e, a
+      ld d, $00
+      add hl, de
     pop de
     ld a, (hl)
     cpl
@@ -2768,7 +2767,14 @@ _LABEL_213E_:
     ret
 
 ; Data from 219A to 21A1 (8 bytes)
-.db $FF $7F $3F $1F $0F $07 $03 $01
+.db %11111111
+.db %01111111
+.db %00111111
+.db %00011111
+.db %00001111
+.db %00000111
+.db %00000011
+.db %00000001
 
 ; 7th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_21A2_:
@@ -2807,158 +2813,154 @@ _LABEL_21A2_:
     ret
 
 _LABEL_21E1_:
-    ex af, af'
-    ld a, b
-    cp $02
-    ret c
-    ld ($C0A8), hl
-    ld a, h
-    dec a
-    or l
-    jp z, +
-    ld a, h
-    or a
-    jp z, _LABEL_22EC_
-    ex de, hl
-    push hl
-    push bc
-    call _LABEL_25F2_
-    pop bc
-    pop hl
-    ex de, hl
-    ld ($C0A8), a
-    jp _LABEL_2435_
+      ex af, af'
+      ld a, b
+      cp $02
+      ret c
+      ld ($C0A8), hl
+      ld a, h
+      dec a
+      or l
+      jp z, +
+      ld a, h
+      or a
+      jp z, _LABEL_22EC_
+      ex de, hl
+      push hl
+      push bc
+        call _LABEL_25F2_
+      pop bc
+      pop hl
+      ex de, hl
+      ld ($C0A8), a
+      jp _LABEL_2435_
 
-+:  ld l, e
-    ld h, $00
-    ld ($C0A4), hl
-    ld l, d
-    ld e, b
-    ld d, h
-    add hl, de
-    ld ($C0A2), hl
-    ld bc, $0000
-    ld hl, $0000
-    ld ($C0A6), hl
--:  call _LABEL_259B_
-    ld hl, ($C0A6)
-    inc hl
-    or a
-    sbc hl, de
-    or a
-    sbc hl, bc
-    jp m, +
-    add hl, bc
-    or a
-    sbc hl, de
-    ld ($C0A6), hl
-    dec de
-    ld hl, ($C0A2)
-    dec hl
-    ld ($C0A2), hl
-    jp ++
++:    ld l, e
+      ld h, $00
+      ld ($C0A4), hl
+      ld l, d
+      ld e, b
+      ld d, h
+      add hl, de
+      ld ($C0A2), hl
+      ld bc, $0000
+      ld hl, $0000
+      ld ($C0A6), hl
+-:    call _LABEL_259B_
+      ld hl, ($C0A6)
+      inc hl
+      or a
+      sbc hl, de
+      or a
+      sbc hl, bc
+      jp m, +
+      add hl, bc
+      or a
+      sbc hl, de
+      ld ($C0A6), hl
+      dec de
+      ld hl, ($C0A2)
+      dec hl
+      ld ($C0A2), hl
+      jp ++
 
-+:  add hl, de
-    or a
-    sbc hl, bc
-    ld ($C0A6), hl
-    dec bc
-    ld hl, ($C0A4)
-    dec hl
-    ld ($C0A4), hl
++:    add hl, de
+      or a
+      sbc hl, bc
+      ld ($C0A6), hl
+      dec bc
+      ld hl, ($C0A4)
+      dec hl
+      ld ($C0A4), hl
 
-++: ld a, d
-    or e
-    jp nz, -
+++:   ld a, d
+      or e
+      jp nz, -
 
--:  call _LABEL_259B_
-    ld hl, ($C0A6)
-    inc hl
-    add hl, bc
-    or a
-    sbc hl, de
-    jp p, +
-    or a
-    sbc hl, bc
-    or a
-    sbc hl, de
-    ld ($C0A6), hl
-    dec de
-    ld hl, ($C0A2)
-    dec hl
-    ld ($C0A2), hl
-    jp ++
+-:    call _LABEL_259B_
+      ld hl, ($C0A6)
+      inc hl
+      add hl, bc
+      or a
+      sbc hl, de
+      jp p, +
+      or a
+      sbc hl, bc
+      or a
+      sbc hl, de
+      ld ($C0A6), hl
+      dec de
+      ld hl, ($C0A2)
+      dec hl
+      ld ($C0A2), hl
+      jp ++
 
-+:  add hl, bc
-    add hl, de
-    ld ($C0A6), hl
-    inc bc
-    ld hl, ($C0A4)
-    inc hl
-    ld ($C0A4), hl
-++: ld a, b
-    or c
-    jp nz, -
++:    add hl, bc
+      add hl, de
+      ld ($C0A6), hl
+      inc bc
+      ld hl, ($C0A4)
+      inc hl
+      ld ($C0A4), hl
+++:   ld a, b
+      or c
+      jp nz, -
 
--:  call _LABEL_259B_
-    ld hl, ($C0A6)
-    inc hl
-    add hl, bc
-    or a
-    adc hl, de
-    jp m, +
-    or a
-    sbc hl, bc
-    add hl, de
-    ld ($C0A6), hl
-    inc de
-    ld hl, ($C0A2)
-    inc hl
-    ld ($C0A2), hl
-    jp ++
-
-+:  or a
-    sbc hl, de
-    add hl, bc
-    ld ($C0A6), hl
-    inc bc
-    ld hl, ($C0A4)
-    inc hl
-    ld ($C0A4), hl
-++: ld a, d
-    or e
-    jp nz, -
-
--:
-    call _LABEL_259B_
-    ld hl, ($C0A6)
-    inc hl
-    add hl, de
-    or a
-    sbc hl, bc
-    jp p, +
-    add hl, bc
-    add hl, de
-    ld ($C0A6), hl
-    inc de
-    ld hl, ($C0A2)
-    inc hl
-    ld ($C0A2), hl
-    jp ++
-
-+: or a
-    sbc hl, de
-    or a
-    sbc hl, bc
-    ld ($C0A6), hl
-    dec bc
-    ld hl, ($C0A4)
-    dec hl
-    ld ($C0A4), hl
-++: ld a, b
-    or c
-    jp nz, -
-    ret
+-:    call _LABEL_259B_
+      ld hl, ($C0A6)
+      inc hl
+      add hl, bc
+      or a
+      adc hl, de
+      jp m, +
+      or a
+      sbc hl, bc
+      add hl, de
+      ld ($C0A6), hl
+      inc de
+      ld hl, ($C0A2)
+      inc hl
+      ld ($C0A2), hl
+      jp ++
++:    or a
+      sbc hl, de
+      add hl, bc
+      ld ($C0A6), hl
+      inc bc
+      ld hl, ($C0A4)
+      inc hl
+      ld ($C0A4), hl
+++:   ld a, d
+      or e
+      jp nz, -
+-:    call _LABEL_259B_
+      ld hl, ($C0A6)
+      inc hl
+      add hl, de
+      or a
+      sbc hl, bc
+      jp p, +
+      add hl, bc
+      add hl, de
+      ld ($C0A6), hl
+      inc de
+      ld hl, ($C0A2)
+      inc hl
+      ld ($C0A2), hl
+      jp ++
++:    or a
+      sbc hl, de
+      or a
+      sbc hl, bc
+      ld ($C0A6), hl
+      dec bc
+      ld hl, ($C0A4)
+      dec hl
+      ld ($C0A4), hl
+++:   ld a, b
+      or c
+      jp nz, -
+      ret
 
 _LABEL_22EC_:
     ld a, $7F
@@ -3351,43 +3353,43 @@ _LABEL_259B_:
     push bc
     push de
     push hl
-    ld hl, ($C0A2)
-    ld a, h
-    or a
-    jp z, ++
-    xor a
-    bit 7, h
-    ld h, a
-    jp nz, +
-    cpl
-+:  ld l, a
-++: ld de, ($C0A4)
-    ld a, d
-    or a
-    jp z, ++
-    xor a
-    bit 7, d
-    ld d, a
-    jp nz, +
-    cpl
-+:  ld e, a
-++: ex af, af'
-    or a
-    jp nz, +
-    ex af, af'
-    ld a, l
-    ld l, e
-    ld h, a
-    call _LABEL_1D50_
+      ld hl, ($C0A2)
+      ld a, h
+      or a
+      jp z, ++
+      xor a
+      bit 7, h
+      ld h, a
+      jp nz, +
+      cpl
++:    ld l, a
+++:   ld de, ($C0A4)
+      ld a, d
+      or a
+      jp z, ++
+      xor a
+      bit 7, d
+      ld d, a
+      jp nz, +
+      cpl
++:    ld e, a
+++:   ex af, af'
+      or a
+      jp nz, +
+      ex af, af'
+      ld a, l
+      ld l, e
+      ld h, a
+      call _LABEL_1D50_
     pop hl
     pop de
     pop bc
     ret
 
-+:  ex af, af'
-    ld d, l
-    ld hl, ($C0AA)
-    call _LABEL_1CA1_
++:    ex af, af'
+      ld d, l
+      ld hl, ($C0AA)
+      call _LABEL_1CA1_
     pop hl
     pop de
     pop bc
@@ -3469,7 +3471,7 @@ _LABEL_2646_:
       ld hl, $0000
       ld ($C0AC), hl
 _LABEL_2665_:
-      ld a, ($C0AB)
+-:    ld a, ($C0AB)
       or a
       jr z, +
       dec a
@@ -3481,8 +3483,7 @@ _LABEL_2665_:
       jr nz, +
       ld a, e
       ld ($C0AB), a
-      jr _LABEL_2665_
-
+      jr -
 +:    ld a, $01
       ld ($C0B0), a
       ld ($C0B1), a
@@ -5002,8 +5003,7 @@ _LABEL_3294_:
     cp c
     jp c, +
     ld a, c
-+:
-    ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
     ld c, $21
     cp c
@@ -5223,13 +5223,11 @@ _LABEL_3469_:
     cp c
     jp nc, +
     ld a, c
-+:
-    ld c, $98
++:  ld c, $98
     cp c
     jp c, +
     ld a, c
-+:
-    bit 0, (iy+0)
++:  bit 0, (iy+0)
     call nz, _LABEL_34ED_
     ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
@@ -5237,13 +5235,11 @@ _LABEL_3469_:
     cp c
     jp nc, +
     ld a, c
-+:
-    ld c, $C9
++:  ld c, $C9
     cp c
     jp c, +
     ld a, c
-+:
-    bit 0, (iy+0)
++:  bit 0, (iy+0)
     call z, _LABEL_3513_
     ld (RAM_SpriteTable1_XN), a
     ld a, $05
@@ -5281,8 +5277,7 @@ _LABEL_34E0_:
     cp c
     jp nc, +
     ld c, a
-+:
-    ld a, c
++:  ld a, c
     ret
 
 _LABEL_34ED_:
@@ -5292,8 +5287,7 @@ _LABEL_34ED_:
     cp c
     jp c, +
     ld c, a
-+:
-    add a, $58
++:  add a, $58
     cp c
     jp nc, _LABEL_34FF_
     ld c, a
@@ -5479,7 +5473,7 @@ _LABEL_3626_:
 
 _LABEL_363C_:
     bit 1, (hl)
-    jp nz, _LABEL_3655_
+    jp nz, +
     ld a, (RAM_PenX_Smoothed)
     and $FE
     dec a
@@ -5490,7 +5484,7 @@ _LABEL_363C_:
     ld a, $08
     jp _LABEL_37C7_
 
-_LABEL_3655_:
++:
     ld a, ($C089)
     or $80
     ld ($C089), a
@@ -5508,13 +5502,13 @@ _LABEL_3666_:
     ld a, b
     and $F8
     cp $40
-    jp nc, _LABEL_3679_
+    jp nc, +
     ld a, $40
-_LABEL_3679_:
++:
     cp $48
-    jp c, _LABEL_3680_
+    jp c, +
     ld a, $48
-_LABEL_3680_:
++:
     ld (RAM_SpriteTable1_Y), a
     ld b, a
     ld a, $03
@@ -5525,9 +5519,9 @@ _LABEL_3680_:
     ld (RAM_Beep), a
     ld a, b
     sub $40
-    jp z, _LABEL_3699_
+    jp z, +
     ld a, $01
-_LABEL_3699_:
++:
     ld ($C0BA), a
     ld a, (RAM_NonVBlankDynamicFunction)
     set 6, a
@@ -5541,12 +5535,12 @@ _LABEL_36A5_:
     and $F8
     ld b, $28
     cp b
-    jp c, _LABEL_36BC_
+    jp c, +
     ld b, $D0
     cp b
-    jp nc, _LABEL_36BC_
+    jp nc, +
     ld b, a
-_LABEL_36BC_:
++:
     ld a, b
     ld (RAM_SpriteTable1_XN), a
     sub $28
@@ -5554,29 +5548,27 @@ _LABEL_36BC_:
     rrca
     rrca
     cp $10
-    jp c, _LABEL_36F4_
+    jp c, +
     sub $11
-    jp m, _LABEL_3711_
+    jp m, ++
     bit 2, (hl)
-    jp z, _LABEL_3711_
+    jp z, ++
     cp $04
-    jp z, _LABEL_36E4_
+    jp z, +++
     ld ($C08A), a
     ld a, $01
     ld (RAM_Beep), a
-    jp _LABEL_3711_
+    jp ++
 
-_LABEL_36E4_:
-    ld a, $01
++++:ld a, $01
     ld (RAM_Beep), a
     ld a, ($C062)
     xor $01
     ld ($C062), a
-    jp _LABEL_3711_
+    jp ++
 
-_LABEL_36F4_:
-    bit 2, (hl)
-    jp z, _LABEL_3711_
++:  bit 2, (hl)
+    jp z, ++
     ld ($C06C), a
     ld a, b
     ld ($C242), a
@@ -5584,11 +5576,10 @@ _LABEL_36F4_:
     ld (RAM_Beep), a
     ld a, ($C08A)
     cp $03
-    jp nz, _LABEL_3711_
+    jp nz, ++
     xor a
     ld ($C08A), a
-_LABEL_3711_:
-    ld a, $A8
+++: ld a, $A8
     ld ($C241), a
     ld a, $01
     call _LABEL_37C7_
@@ -5603,9 +5594,9 @@ _LABEL_371E_:
     ld a, (hl)
     inc a
     cp $06
-    jp c, _LABEL_372E_
+    jp c, +
     xor a
-_LABEL_372E_:
++:
     ld (hl), a
     ld hl, $3742
     ld d, $00
@@ -5647,72 +5638,43 @@ _LABEL_376B_:
     set 6, (hl)
     ld de, $7500
     bit 5, (hl)
-    jp z, _LABEL_3780_
+    jp z, +
     ld de, $7520
-_LABEL_3780_:
++:
     ld hl, ($C084)
     rst $08 ; VDPAddressToDE
     ld c, Port_VDPData
+.rept 32
     outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
-    outi
+.endr
     ret
 
 _LABEL_37C7_:
     push bc
     push hl
-    ld b, a
-    ld hl, $C083
-    ld a, (hl)
-    and $3F
-    cp b
-    jp z, _LABEL_37EB_
-    ld a, b
-    ld (hl), a
-    res 5, a
-    push hl
-    ld l, a
-    ld h, $00
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    ld de, $3EB2
-    add hl, de
-    ld ($C084), hl
-    pop hl
-    set 7, (hl)
-_LABEL_37EB_:
+      ld b, a
+      ld hl, $C083
+      ld a, (hl)
+      and $3F
+      cp b
+      jp z, +
+      ld a, b
+      ld (hl), a
+      res 5, a
+      push hl
+        ld l, a
+        ld h, $00
+        add hl, hl
+        add hl, hl
+        add hl, hl
+        add hl, hl
+        add hl, hl
+        ld de, $3EB2
+        add hl, de
+        ld ($C084), hl
+      pop hl
+      set 7, (hl)
++:
     pop hl
     pop bc
     ret
@@ -5789,7 +5751,7 @@ _LABEL_386B_:
     jp z, _LABEL_390F_
     bit 0, (ix+0)
     push af
-    call nz, _LABEL_38C8_
+      call nz, _LABEL_38C8_
     pop af
     ld (ix+1), a
     ld b, $01
@@ -5830,10 +5792,11 @@ _LABEL_38BB_:
 _LABEL_38C8_:
     ld b, $01
     ld a, (ix+1)
-    ld hl, $38D3
+    ld hl, JumpTable_38D3
     jp JumpToFunction
 
 ; Jump Table from 38D3 to 38DA (4 entries, indexed by $C00C)
+JumpTable_38D3:
 .dw _LABEL_38DB_ _LABEL_38E8_ _LABEL_38F5_ _LABEL_3902_
 
 ; 1st entry of Jump Table from 38D3 (indexed by $C00C)
@@ -5871,13 +5834,12 @@ _LABEL_390F_:
     ld (ix+2), a
     ld b, $01
     bit 0, a
-    jp z, _LABEL_3929_
+    jp z, +
     ld de, $7420
     ld hl, $4082
     jp FillTiles2bpp
 
-_LABEL_3929_:
-    ld de, $7420
++:  ld de, $7420
     ld hl, $4072
     jp FillTiles2bpp
 
@@ -5900,9 +5862,9 @@ _LABEL_3932_:
     rrca
     inc a
     cp $0D
-    jp c, _LABEL_3957_
+    jp c, +
     ld a, $0C
-_LABEL_3957_:
++:
     ld ($C0BF), a
     ld a, b
     and $07
@@ -5920,9 +5882,9 @@ _LABEL_3957_:
     rrca
     inc a
     cp $0D
-    jp c, _LABEL_397A_
+    jp c, +
     ld a, $0C
-_LABEL_397A_:
++:
     ld ($C0C2), a
     ld a, c
     and $07
@@ -6004,24 +5966,24 @@ _LABEL_39C0_:
 _LABEL_3A35_:
     ld hl, $3B21
     push bc
-    dec b
-    jp z, _LABEL_3A6F_
-    call _LABEL_3A5A_
-    ex af, af'
-    dec de
-    ld a, (de)
-    inc de
-    ld b, a
-    ld a, ($C0C0)
-    add a, b
-    inc a
-    ld (de), a
-    inc de
-    ex af, af'
-    ld (ix+0), a
-    inc ix
-    ld (ix+0), $A5
-    inc ix
+      dec b
+      jp z, _LABEL_3A6F_
+      call _LABEL_3A5A_
+      ex af, af'
+      dec de
+      ld a, (de)
+      inc de
+      ld b, a
+      ld a, ($C0C0)
+      add a, b
+      inc a
+      ld (de), a
+      inc de
+      ex af, af'
+      ld (ix+0), a
+      inc ix
+      ld (ix+0), $A5
+      inc ix
     pop bc
     ret
 
@@ -6041,36 +6003,36 @@ _LABEL_3A5A_:
     ret
 
 _LABEL_3A6F_:
-    ex af, af'
-    ld a, (hl)
-    add a, c
-    ld (de), a
-    inc de
-    inc hl
-    ex af, af'
-    ld (ix+0), a
-    inc ix
-    ld (ix+0), $A5
-    inc ix
+      ex af, af'
+      ld a, (hl)
+      add a, c
+      ld (de), a
+      inc de
+      inc hl
+      ex af, af'
+      ld (ix+0), a
+      inc ix
+      ld (ix+0), $A5
+      inc ix
     pop bc
     ret
 
 _LABEL_3A83_:
     push bc
-    ld hl, $3B21
-    dec b
-    jp z, _LABEL_3ABA_
-    call _LABEL_3AA5_
-    ld (de), a
-    inc de
-    ld a, ($C0C3)
-    add a, (ix+-2)
-    add a, b
-    inc a
-    ld (ix+0), a
-    inc ix
-    ld (ix+0), $A6
-    inc ix
+      ld hl, $3B21
+      dec b
+      jp z, _LABEL_3ABA_
+      call _LABEL_3AA5_
+      ld (de), a
+      inc de
+      ld a, ($C0C3)
+      add a, (ix+-2)
+      add a, b
+      inc a
+      ld (ix+0), a
+      inc ix
+      ld (ix+0), $A6
+      inc ix
     pop bc
     ret
 
@@ -6090,17 +6052,17 @@ _LABEL_3AA5_:
     ret
 
 _LABEL_3ABA_:
-    ld (de), a
-    ex af, af'
-    inc de
-    ld a, (hl)
-    add a, c
-    ld (ix+0), a
-    inc hl
-    inc ix
-    ld (ix+0), $A6
-    inc ix
-    ex af, af'
+      ld (de), a
+      ex af, af'
+      inc de
+      ld a, (hl)
+      add a, c
+      ld (ix+0), a
+      inc hl
+      inc ix
+      ld (ix+0), $A6
+      inc ix
+      ex af, af'
     pop bc
     ret
 
@@ -6108,7 +6070,7 @@ _LABEL_3ACE_:
     ld b, $0C
     ld a, ($C0BA)
     rrca
-    jp nc, _LABEL_3AF5_
+    jp nc, +
     ld a, (RAM_SpriteTable1_Y)
     add a, $07
     ld ($C16F), a
@@ -6121,7 +6083,7 @@ _LABEL_3ACE_:
     ld hl, $3B21
     jp _LABEL_3A5A_
 
-_LABEL_3AF5_:
++:
     ld a, (RAM_SpriteTable1_XN)
     add a, $08
     ld ($C170), a
