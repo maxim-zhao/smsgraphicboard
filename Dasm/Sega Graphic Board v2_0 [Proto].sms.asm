@@ -1443,14 +1443,29 @@ CallNonVBlankDynamicFunction:
     ld a, (hl)
     and $3F
     exx
-    ld hl, NonVBlankDynamicFunctionTable
+    ld hl, JumpTable_NonVBlankDynamicFunction
     jp JumpToFunction
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_NonVBlankDynamicFunction)
-NonVBlankDynamicFunctionTable:
-.dw _LABEL_1C4A_ _LABEL_1680_ _LABEL_16C0_ _LABEL_1EE2_ _LABEL_171E_ _LABEL_1F66_ _LABEL_21A2_ _LABEL_21A2_
-.dw _LABEL_2605_ _LABEL_2862_ _LABEL_290D_ _LABEL_2C5A_ _LABEL_1740_ _LABEL_18C8_ _LABEL_1790_ _LABEL_17DE_
-.dw _LABEL_182C_ _LABEL_187A_
+JumpTable_NonVBlankDynamicFunction:
+.dw _LABEL_1C4A_ 
+.dw _LABEL_1680_ 
+.dw _LABEL_16C0_
+.dw _LABEL_1EE2_
+.dw _LABEL_171E_
+.dw _LABEL_1F66_
+.dw _LABEL_21A2_
+.dw _LABEL_21A2_
+.dw _LABEL_2605_
+.dw _LABEL_2862_
+.dw _LABEL_290D_
+.dw _LABEL_2C5A_
+.dw _LABEL_1740_
+.dw _LABEL_18C8_
+.dw _LABEL_1790_
+.dw _LABEL_17DE_
+.dw _LABEL_182C_
+.dw _LABEL_187A_
 
 ; 2nd entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1680_:
@@ -1813,9 +1828,9 @@ _LABEL_1902_:
         ; caculate de = (h+3) * 64
         push hl
           ld a, h
-          add a, $03
+          add a, 3
           ld l, a
-          ld h, $00
+          ld h, 0
           add hl, hl
           add hl, hl
           add hl, hl
@@ -1825,7 +1840,7 @@ _LABEL_1902_:
           ex de, hl
         pop hl
         ld a, l
-        add a, $05
+        add a, 5
         add a, a
         ld h, $00
         ld l, a
@@ -5755,35 +5770,39 @@ _LABEL_386B_:
     pop af
     ld (ix+1), a
     ld b, $01
-    ld hl, $388C
+    ld hl, JumpTable_388C
     jp JumpToFunction
 
 ; Jump Table from 388C to 3893 (4 entries, indexed by $C08A)
-.dw _LABEL_3894_ _LABEL_38A1_ _LABEL_38AE_ _LABEL_38BB_
+JumpTable_388C:
+.dw JumpTable_388C_0
+.dw JumpTable_388C_1
+.dw JumpTable_388C_2
+.dw JumpTable_388C_3
 
 ; 1st entry of Jump Table from 388C (indexed by $C08A)
-_LABEL_3894_:
+JumpTable_388C_0:
     set 0, (ix+0)
     ld de, $73A0
     ld hl, $4002
     jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 388C (indexed by $C08A)
-_LABEL_38A1_:
+JumpTable_388C_1:
     set 0, (ix+0)
     ld de, $73C0
     ld hl, $4022
     jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 388C (indexed by $C08A)
-_LABEL_38AE_:
+JumpTable_388C_2:
     set 0, (ix+0)
     ld de, $73E0
     ld hl, $4042
     jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 388C (indexed by $C08A)
-_LABEL_38BB_:
+JumpTable_388C_3:
     set 0, (ix+0)
     ld de, $7400
     ld hl, $4062
@@ -5797,31 +5816,34 @@ _LABEL_38C8_:
 
 ; Jump Table from 38D3 to 38DA (4 entries, indexed by $C00C)
 JumpTable_38D3:
-.dw _LABEL_38DB_ _LABEL_38E8_ _LABEL_38F5_ _LABEL_3902_
+.dw JumpTable_38D3_0 
+.dw JumpTable_38D3_1 
+.dw JumpTable_38D3_2 
+.dw JumpTable_38D3_3
 
 ; 1st entry of Jump Table from 38D3 (indexed by $C00C)
-_LABEL_38DB_:
+JumpTable_38D3_0:
     res 0, (ix+0)
     ld de, $73A0
     ld hl, $3FF2
     jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 38D3 (indexed by $C00C)
-_LABEL_38E8_:
+JumpTable_38D3_1:
     res 0, (ix+0)
     ld de, $73C0
     ld hl, $4012
     jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 38D3 (indexed by $C00C)
-_LABEL_38F5_:
+JumpTable_38D3_2:
     res 0, (ix+0)
     ld de, $73E0
     ld hl, $4032
     jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 38D3 (indexed by $C00C)
-_LABEL_3902_:
+JumpTable_38D3_3:
     res 0, (ix+0)
     ld de, $7400
     ld hl, $4052

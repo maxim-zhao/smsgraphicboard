@@ -25,7 +25,7 @@
 ;---
 .define RAM_PenY $C033 ; 1b
 .define RAM_Pressure $C034 ; 1b - never used
-.define RAM_NonVBlankDynamicFunction $C03C ; 2b
+.define RAM_NonVBlankDynamicFunction $C03C ; 1b Index into function pointer tables - low 6 bits only. High bits are ???
 ;---
 .define RAM_Palette      $C042 ; 17b
 ;---
