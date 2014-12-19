@@ -46,7 +46,7 @@
 0000:0686 VBlank_CheckResetAndExit
 0000:06ad VBlank_HandleReset
 0000:06bd HandleReset
-0000:06cd _LABEL_6CD_
+0000:06cd VBlank_TitleScreen
 0000:06e8 SetVBlankFunctionAndWait
 0000:06f3 CheckForReset
 0000:070b ReadGraphicBoard
@@ -74,7 +74,7 @@
 0000:0a52 TitleScreenAnimate_Bit1Zero
 0000:0a64 UpdateSplashScreenAnimationTilesLine
 0000:0acc _LABEL_ACC_
-0000:0b0a _LABEL_B0A_
+0000:0b0a TitleScreenAnimationVBlankEntry
 0000:0b20 TitleScreenAnimation_Part1
 0000:0b52 TitleScreenAnimation_Part2
 0000:0b8a Tilemap_Logo

@@ -20,7 +20,7 @@ banks 2
 .include "ram.asm"
 
 .macro LdDETilemap args x, y
-  ld de, VDPAddressMask_Write | $3800 | ((x + 32 * y) * 2)
+  ld de, VDPAddressMask_Write | TileMapAddress | ((x + 32 * y) * 2)
 .endm
 
 .macro LdDETile args index
@@ -31,6 +31,13 @@ banks 2
   ld de, VDPAddressMask_Palette | index
 .endm
 
+.macro ldDESpriteTableY args index
+  ld de, VDPAddressMask_Write | SpriteTableAddress | index
+.endm
+
+.macro ldDESpriteTableX args index
+  ld de, VDPAddressMask_Write | SpriteTableAddress | (index*2 + 128)
+.endm
 
 .bank 0 slot 0
 .org $0000
@@ -237,16 +244,16 @@ DisableSprites_RAMAndVRAM:
     ld hl, RAM_SpriteTable1_Y
     ld de, RAM_SpriteTable1_Y+1
     ld bc, 64-1
-    ld (hl), 224
+    ld (hl), SpriteTableYTerminator
     ldir
     ld hl, RAM_SpriteTable2_Y
     ld de, RAM_SpriteTable2_Y+1
     ld bc, 64-1
-    ld (hl), 224
+    ld (hl), SpriteTableYTerminator
     ldir
 DisableSprites_VRAM:
-    ld de, $7F00 ; Sprite table Y addresses
-    ld h, 224
+    ldDESpriteTableY 0
+    ld h, SpriteTableYTerminator
     ld bc, 64
     ; fall through
 
@@ -572,14 +579,14 @@ CopySpriteTable2ToVRAM:
     ret z ; Do nothing if not dirty
     xor a
     ld (RAM_SpriteTable2DirtyFlag), a
-    ld a, ($C006)
-    ld de, $7F00 ; Sprite table: Y
+    ld a, ($C006) ; ### Immediately discarded...
+    ldDESpriteTableY 0 ; Sprite table: Y
     rst $08 ; VDPAddressToDE
     ld hl, RAM_SpriteTable2_Y
     ld c, Port_VDPData
     call Outi64
     ld hl, RAM_SpriteTable2_XN
-    ld de, $7F80 ; Sprite table: XN
+    ldDESpriteTableX 0 ; Sprite table: XN
     rst $08 ; VDPAddressToDE
     ; fall though
 Outi128:    
@@ -766,9 +773,11 @@ InterruptHandlerImpl:
       or a
       jp z, VBlank_CheckResetAndExit
       bit 7, a
-      jp nz, _LABEL_6CD_
+      jp nz, VBlank_TitleScreen ; Bit 7 set -> we are i the title screen, jump to a specialised handler
       rrca
-      jp nc, +
+      jp nc, + ; Bit 0 set -> ???
+      
+      ; Regular VBlank
       call CopySpriteTable2ToVRAM
       call _LABEL_376B_
       call _LABEL_371E_
@@ -850,6 +859,20 @@ VBlank_CheckResetAndExit:
     ei
     ret
 
+.endasm
+; Some pushes to match the pops below - ignore!
+push af
+push af
+push af
+push af
+push af
+push af
+push af
+push af
+push af
+push af
+.asm
+    
 VBlank_HandleReset:
     pop hl
     pop de
@@ -877,18 +900,18 @@ HandleReset:
     ; Then go to the usual startup code
     jp Start_AfterRAMClear
 
-_LABEL_6CD_:
+VBlank_TitleScreen:
     ld a, (RAM_VBlankFunctionControl)
     or a
     jp z, VBlank_CheckResetAndExit
     push af
-      call _LABEL_B0A_
+      call TitleScreenAnimationVBlankEntry ; Always update title screen animation
     pop af
-    bit 1, a
+    bit 1, a ; Bit 1 set -> read graphic board
     push af
       call nz, ReadGraphicBoard
     pop af
-    bit 2, a
+    bit 2, a ; Bit 2 set -> update title screen text
     call nz, TitleScreenTextUpdate
     jp VBlank_CheckResetAndExit
 
@@ -1350,7 +1373,7 @@ _LABEL_ACC_:
     djnz -
     ret
 
-_LABEL_B0A_:
+TitleScreenAnimationVBlankEntry:
     ld a, ($C15E) ; check for high bit = new write
     bit 7, a
     ret z
@@ -1476,25 +1499,25 @@ _LABEL_1680_:
     inc hl
     ld (hl), $00
     di
-    xor a
-    ld ($C089), a
-    inc a
-    ld ($C00A), a
-    call _LABEL_3B13_
-    call SetDrawingAreaTilemap
-    ld bc, $0E0C
-    ld de, $1A10
-    ld hl, $0405
-    call _LABEL_1902_
-    ld hl, (RAM_PenY_Smoothed)
-    ld ($C08D), hl
-    ld hl, ($C031)
-    ld ($C08F), hl
-    ld hl, ($C03E)
-    ld (RAM_PenY_Smoothed), hl
-    ld ($C031), hl
-    ld a, $01
-    ld (RAM_Beep), a
+      xor a
+      ld ($C089), a
+      inc a
+      ld ($C00A), a
+      call _LABEL_3B13_
+      call SetDrawingAreaTilemap
+      ld bc, $0E0C
+      ld de, $1A10
+      ld hl, $0405
+      call _LABEL_1902_
+      ld hl, (RAM_PenY_Smoothed)
+      ld ($C08D), hl
+      ld hl, ($C031)
+      ld ($C08F), hl
+      ld hl, ($C03E)
+      ld (RAM_PenY_Smoothed), hl
+      ld ($C031), hl
+      ld a, $01
+      ld (RAM_Beep), a
     ei
     ret
 

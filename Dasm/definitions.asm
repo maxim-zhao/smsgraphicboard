@@ -52,6 +52,12 @@
 .define VDPAddressMask_Register %10 << 14
 .define VDPAddressMask_Palette  %11 << 14
 
+; VRAM addresses
+.define TileMapAddress $3800
+.define SpriteTableAddress $3f00
+
+.define SpriteTableYTerminator 224
+
 
 ; Sound stuff
 .define PSG_Latch    %10000000
