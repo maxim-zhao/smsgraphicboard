@@ -1,5 +1,39 @@
 ReadGraphicBoard:
     ; Main graphic board read
+    ;
+    ; If TL is 1, the graphic board has no pen data and only buttons are read.
+    ; Bit 3 should always be 0.
+    ; 
+    ; Cycles       |36|238|60|
+    ; Read TL      X
+    ; TR        ------|______|---
+    ; TH        -----------------
+    ; Read data           X
+    ;              Buttons^
+    ;
+    ; If it is 0, pen pressure is read.
+    ; The data read is the high nibble followed by the low.
+    ; If the value is too low, it stops there. (TODO: calculate the time - it is quite short.)
+    ;
+    ; Cycles       |10|238|1266|533|45|533|???|
+    ; Read TL      X
+    ; TR        ------|_______________________|---
+    ; TH        ---------------|______|-----------
+    ; Read data           X        X      X
+    ;              Buttons^        Pressure
+    ;
+    ; If the pen pressure is OK, it continues on to read the X and Y positions.
+    ;
+    ; Cycles       |10|238|1266|533|45|533|204|533|45|533|230|533|45|533|42|
+    ; Read TL      X
+    ; TR        ------|____________________________________________________|---
+    ; TH        ---------------|______|-------|______|-------|______|----------
+    ; Read data           X        X      X       X      X       X      X
+    ;              Buttons^        Pressure       ^Pen X^^       ^Pen Y^^
+    ;
+    ; Note that during the title screen, the board is read with TH floating and TR high.
+    ; In this state, the button data is returned. Thus it's unclear why this code waits 
+    ; before reading the buttons...
 
     in a, (Port_IOPort1)
     bit 4, a    ; Check for data
@@ -41,7 +75,7 @@ ReadGraphicBoard:
 
     ; read low 4 bits
     in a, (Port_IOPort1)
-    and $0F
+    and %00001111
     rlca
     rlca
     rlca
@@ -57,7 +91,7 @@ ReadGraphicBoard:
 -:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
-    and $0F
+    and %00001111
     or d
     cp 253
     jp c, PressureTooLow
@@ -75,7 +109,7 @@ ReadGraphicBoard:
 -:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
-    and $0F
+    and %00001111
     rlca
     rlca
     rlca
@@ -91,7 +125,7 @@ ReadGraphicBoard:
 -:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
-    and $0F
+    and %00001111
     or h
     ld (RAM_PenX), a
     nop
@@ -108,7 +142,7 @@ ReadGraphicBoard:
 -:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
-    and $0F
+    and %00001111
     rlca
     rlca
     rlca
@@ -124,7 +158,7 @@ ReadGraphicBoard:
 -:  djnz - ; delay: 533 cycles = 149us from out to in
 
     in a, (Port_IOPort1)
-    and $0F
+    and %00001111
     or d
     ld (RAM_PenY), a
 
@@ -175,7 +209,7 @@ ReadGraphicBoard:
     ret
 
 PressureTooLow:
-    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $30
+    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
     ret
 
@@ -190,7 +224,7 @@ NoBoardData:
     out (Port_IOPortControl), a
 
     ld b, 16
--:  djnz - ; delay: 238 cycles = 66 cycles from out to in
+-:  djnz - ; delay: 238 cycles = 66us from out to in
 
     ; Read the buttons and calculate what's new since last time
     ld a, (RAM_ButtonsPressed)
@@ -208,4 +242,3 @@ NoBoardData:
     ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
     out (Port_IOPortControl), a
     ret
-    
