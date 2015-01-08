@@ -10,7 +10,7 @@
 
 ; Values for Port_IOPortControl
 ; These can be ORed together, best to specify four each time
-; It's presumably irrelevant what the high nibble is when the bit is set to IN...
+; It's presumably irrelevant what the high nibble is when the bit is set to IN... but the Graphic Board software uses 1.
 ; Bits:
 ; D7 : Port 2 TH pin output level (1=high, 0=low)
 ; D6 : Port 2 TR pin output level (1=high, 0=low)
@@ -37,6 +37,9 @@
 
 ; VDP data sizes
 .define SizeOfTile 32
+.define SizeOfNameTableEntry 2
+.define TilesPerRow 32
+.define SizeOfRow TilesPerRow*SizeOfNameTableEntry
 .define SizeOfVRAM 16*1024
 
 ; Tile attribute flags
