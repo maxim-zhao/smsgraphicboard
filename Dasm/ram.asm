@@ -33,6 +33,11 @@
 ;---
 .define RAM_SplashScreenTimeout $C163 ; 2b
 ;---
+.define RAM_UnknownWriteOnlyC182 $C182 ; 1b
+.define RAM_UnknownWriteOnlyC183 $C183 ; 2b
+;---
+.define RAM_UnknownWriteOnlyC187 $C187 ; 2b
+;---
 .define RAM_SpriteTable1 $C200 ; 192b - write here
 .define RAM_SpriteTable1_Y RAM_SpriteTable1
 .define RAM_SpriteTable1_XN RAM_SpriteTable1+64

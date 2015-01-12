@@ -158,16 +158,19 @@ Start_AfterRAMClear:
     ld hl, $C15D
     ld de, $C15E
     ld bc, 8
-    ld (hl), $00
+    ld (hl), 0
     ldir
-    ; Paging unnecessary, we are 32KB
+
+    ; Blank the upper 32KB of ROM space - which doesn't exist
+    ; Maybe a holdover from an original design to use RAM for the bitmap?
+    ; Maybe just to clear out the RAM devcart, to make sure it's not used?
+    ; Maybe a sneaky way to make a 32KB RAM cart kill itself?
     ld a, $02
     ld ($FFFF), a
-    ; Write a bunch of zeroes in there..?
     ld hl, $8000
     ld de, $8001
     ld bc, $3FFF
-    ld (hl), $00
+    ld (hl), 0
     ldir
     ; Then another 16KB
     ld a, $03
@@ -175,20 +178,23 @@ Start_AfterRAMClear:
     ld hl, $8000
     ld de, $8001
     ld bc, $3FFF
-    ld (hl), $00
+    ld (hl), 0
     ldir
-    ; Store a pointer?
+
+    ; Some write-only stuff...
     ld hl, $8000
-    ld ($C183), hl
-    ld ($C187), hl
+    ld (RAM_UnknownWriteOnlyC183), hl
+    ld (RAM_UnknownWriteOnlyC187), hl
     ld a, $01
-    ld ($C182), a
+    ld (RAM_UnknownWriteOnlyC182), a
+
     call InitialiseCursorSprites
     call ScreenOn
     ld hl, $4858
     ld ($C03E), hl
     ld a, $01
     ld ($C00B), a
+
     ; Main loop
 -:  ei
     ld a, $03
@@ -729,6 +735,7 @@ SilencePSG:
     ret
 
 ; Data from 4FD to 602 (262 bytes)
+; Unused palette? Black with two white
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
 .db $30 $00 $3F $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
 
@@ -1022,6 +1029,11 @@ TitleScreen: ; $865
     inc sp ; Discard loop address - could have popped it...
     inc sp
     di
+    
+; Matching push above, ignore
+.endasm
+pop hl
+.asm    
     
 TitleScreen_PostAnimationLoop:
     ld hl, $14A2 ; data: Sega logo tilemap data
@@ -2030,8 +2042,13 @@ _LABEL_19D3_:
     ret
 
 ; Data from 1A10 to 1C49 (570 bytes)
-.db $B6 $1F $20 $20 $00 $0D $05 $0E $15 $00 $20 $20 $21 $FF $26 $00
-.db $00 $05 $18 $09 $14 $00 $00 $00 $00 $22 $FF $26 $00 $00 $03 $0F
+.db $B6 $1F $20 $20 
+.db $00 $0D $05 $0E 
+.db $15 $00 $20 $20 
+.db $21 $FF $26 $00
+.db $00 $05 $18 $09 
+
+.db $14 $00 $00 $00 $00 $22 $FF $26 $00 $00 $03 $0F
 .db $0C $0F $12 $00 $00 $00 $22 $FF $26 $00 $00 $05 $12 $01 $13 $05
 .db $00 $00 $00 $22 $FF $26 $00 $00 $13 $11 $15 $01 $12 $05 $00 $00
 .db $22 $FF $26 $00 $00 $03 $09 $12 $03 $0C $05 $00 $00 $22 $FF $26
@@ -3423,6 +3440,13 @@ _LABEL_259B_:
     pop de
     pop bc
     ret
+    
+; push/pop matching, ignore
+.endasm
+push af
+push af
+push af
+.asm
 
 +:    ex af, af'
       ld d, l
@@ -3508,7 +3532,7 @@ _LABEL_2646_:
       jp nz, +++
       ld hl, $0000
       ld ($C0AC), hl
-_LABEL_2665_:
+---:
 -:    ld a, ($C0AB)
       or a
       jr z, +
@@ -3525,7 +3549,7 @@ _LABEL_2665_:
 +:    ld a, $01
       ld ($C0B0), a
       ld ($C0B1), a
-_LABEL_2685_:
+--:
       ld a, ($C0B0)
       ld ($C0AE), a
       ld a, ($C0B1)
@@ -3601,7 +3625,7 @@ _LABEL_2685_:
           ld a, ($C0AB)
           inc a
           ld ($C0AB), a
-          jp _LABEL_2685_
+          jp --
 
 __:       ld hl, ($C0AC)
           ld a, h
@@ -3622,9 +3646,13 @@ __:       ld hl, ($C0AC)
         call _LABEL_2752_
         or a
         jr nz, _b
-        jp _LABEL_2665_
+        jp ---
 
-+++:  pop hl
+.endasm ; push/pop matching
+pop hl
+.asm
+        
++++:pop hl
     pop de
     pop bc
     pop af
@@ -3678,39 +3706,39 @@ _LABEL_2752_7: rlca
 
 _LABEL_2792_:
     push de
-    call _LABEL_2812_
-    ld a, l
-    ld hl, RAM_TileModificationBuffer
-    push hl
-      and $07
-      ld de, $1EDA
-      ld l, a
-      ld h, $00
-      add hl, de
-      ld d, (hl)
-    pop hl
-    ld c, $00
-    ld a, (hl)
-    and d
-    jp z, +
-    set 0, c
-+:  inc hl
-    ld a, (hl)
-    and d
-    jp z, +
-    set 1, c
-+:  inc hl
-    ld a, (hl)
-    and d
-    jp z, +
-    set 2, c
-+:  inc hl
-    ld a, (hl)
-    and d
-    jp z, +
-    set 3, c
-+:  ld a, c
-    ld ($C0B2), a
+      call _LABEL_2812_
+      ld a, l
+      ld hl, RAM_TileModificationBuffer
+      push hl
+        and $07
+        ld de, $1EDA
+        ld l, a
+        ld h, $00
+        add hl, de
+        ld d, (hl)
+      pop hl
+      ld c, $00
+      ld a, (hl)
+      and d
+      jp z, +
+      set 0, c
++:    inc hl
+      ld a, (hl)
+      and d
+      jp z, +
+      set 1, c
++:    inc hl
+      ld a, (hl)
+      and d
+      jp z, +
+      set 2, c
++:    inc hl
+      ld a, (hl)
+      and d
+      jp z, +
+      set 3, c
++:    ld a, c
+      ld ($C0B2), a
     pop de
     ret
 
@@ -3962,19 +3990,23 @@ _LABEL_290D_:
     jp nz, _LABEL_2A0B_
     ld hl, $29B3
     push hl
-    ld a, ($C15E)
-    cp (ix+18)
-    jp nc, _LABEL_29A1_
-    add a, (ix+3)
-    cp (ix+18)
-    jp nc, _LABEL_2994_
-    ld a, ($C15E)
-    add a, (ix+3)
-    sub (ix+18)
-    neg
-    add a, (ix+18)
-    ld ($C162), a
-    ret
+      ld a, ($C15E)
+      cp (ix+18)
+      jp nc, _LABEL_29A1_
+      add a, (ix+3)
+      cp (ix+18)
+      jp nc, _LABEL_2994_
+      ld a, ($C15E)
+      add a, (ix+3)
+      sub (ix+18)
+      neg
+      add a, (ix+18)
+      ld ($C162), a
+      ret
+      
+.endasm ; Unmatched push matching
+pop hl
+.asm
 
 _LABEL_2994_:
     ld a, ($C16F)
@@ -4033,6 +4065,10 @@ _LABEL_2A0B_:
       ld (RAM_SplashScreenTimeout), a
       ret
 
+.endasm ; Unmatched push matching
+pop hl
+.asm
+      
 ; Data from 2A52 to 2AB0 (95 bytes)
 .db $F3 $DD $CB $00 $46 $CC $D8 $2B $DD $46 $03 $DD $4E $04 $DD $7E
 .db $01 $E6 $07 $57 $DD $7E $02 $E6 $07 $DD $86 $04 $3D $5F $DD $66
@@ -4286,77 +4322,77 @@ _LABEL_2BD8_:
     push hl
     push de
     push bc
-    ld a, ($C0C4)
-    sub $17
-    ld d, a
-    ld a, ($C0C6)
-    sub $18
-    ld e, a
-    sub d
-    and $F8
-    rrca
-    rrca
-    rrca
-    inc a
-    ld b, a
-    ld a, d
-    and $07
-    jp z, +
-    inc b
-+:  ld a, ($C0C5)
-    sub $28
-    ld e, a
-    ld a, ($C0C7)
-    sub $29
-    ld d, a
-    sub e
-    and $F8
-    rrca
-    rrca
-    rrca
-    inc a
-    ld c, a
-    ld a, e
-    and $07
-    jp z, +
-    inc c
-+:  ld a, (ix+1)
-    and $F8
-    ld d, a
-    ld e, (ix+2)
-    call _LABEL_2B74_
-    ld hl, ($C171)
---: rst $08 ; VDPAddressToDE
-    push bc
-      ld b, $00
-      sla c
-      rl b
-      sla c
-      rl b
-      sla c
-      rl b
-      sla c
-      rl b
-      sla c
-      rl b
-      push hl
--:      in a, (Port_VDPData)
-        ld (hl), a
-        inc hl
-        push af
-        pop af
-        dec bc
-        ld a, b
-        or c
-        jp nz, -
-        ld hl, $02C0
-        add hl, de
-        ex de, hl
-      pop hl
-      ld bc, $01A0
-      add hl, bc
-    pop bc
-    djnz --
+      ld a, ($C0C4)
+      sub $17
+      ld d, a
+      ld a, ($C0C6)
+      sub $18
+      ld e, a
+      sub d
+      and $F8
+      rrca
+      rrca
+      rrca
+      inc a
+      ld b, a
+      ld a, d
+      and $07
+      jp z, +
+      inc b
++:    ld a, ($C0C5)
+      sub $28
+      ld e, a
+      ld a, ($C0C7)
+      sub $29
+      ld d, a
+      sub e
+      and $F8
+      rrca
+      rrca
+      rrca
+      inc a
+      ld c, a
+      ld a, e
+      and $07
+      jp z, +
+      inc c
++:    ld a, (ix+1)
+      and $F8
+      ld d, a
+      ld e, (ix+2)
+      call _LABEL_2B74_
+      ld hl, ($C171)
+--:   rst $08 ; VDPAddressToDE
+      push bc
+        ld b, $00
+        sla c
+        rl b
+        sla c
+        rl b
+        sla c
+        rl b
+        sla c
+        rl b
+        sla c
+        rl b
+        push hl
+-:        in a, (Port_VDPData)
+          ld (hl), a
+          inc hl
+          push af
+          pop af
+          dec bc
+          ld a, b
+          or c
+          jp nz, -
+          ld hl, $02C0
+          add hl, de
+          ex de, hl
+        pop hl
+        ld bc, $01A0
+        add hl, bc
+      pop bc
+      djnz --
     pop bc
     pop de
     pop hl
@@ -4845,6 +4881,10 @@ _LABEL_30F7_:
     ld a, $25
     jp _LABEL_37C7_
 
+.endasm ; Unmatched push matching
+push hl
+.asm
+    
 +:    ld a, $04
       call _LABEL_37C7_
     pop hl
@@ -5366,40 +5406,35 @@ _LABEL_3525_:
 
 _LABEL_3527_:
     push hl
-    ld hl, $3586
-    ld a, ($C0BA)
-    dec a
-    jp nz, _LABEL_3535_
-    ld hl, $357F
-_LABEL_3535_:
-    ld a, b
-    cp (hl)
-    jp nc, _LABEL_353B_
-    ld a, (hl)
-_LABEL_353B_:
-    inc hl
-    cp (hl)
-    jp c, _LABEL_3541_
-    ld a, (hl)
-_LABEL_3541_:
-    ld (RAM_SpriteTable1_Y), a
-    inc hl
-    ld a, (RAM_PenX_Smoothed)
-    cp (hl)
-    jp nc, _LABEL_354D_
-    ld a, (hl)
-_LABEL_354D_:
-    inc hl
-    cp (hl)
-    jp c, _LABEL_3553_
-    ld a, (hl)
-_LABEL_3553_:
-    ld (RAM_SpriteTable1_XN), a
-    inc hl
-    ld a, (hl)
-    inc hl
-    call _LABEL_37C7_
-    ex de, hl
+      ld hl, $3586
+      ld a, ($C0BA)
+      dec a
+      jp nz, +
+      ld hl, Data_357F
++:    ld a, b
+      cp (hl)
+      jp nc, +
+      ld a, (hl)
++:    inc hl
+      cp (hl)
+      jp c, +
+      ld a, (hl)
++:    ld (RAM_SpriteTable1_Y), a
+      inc hl
+      ld a, (RAM_PenX_Smoothed)
+      cp (hl)
+      jp nc, +
+      ld a, (hl)
++:    inc hl
+      cp (hl)
+      jp c, +
+      ld a, (hl)
++:    ld (RAM_SpriteTable1_XN), a
+      inc hl
+      ld a, (hl)
+      inc hl
+      call _LABEL_37C7_
+      ex de, hl
     pop hl
     bit 1, (hl)
     ret z
@@ -5419,6 +5454,7 @@ _LABEL_3553_:
     ret
 
 ; Data from 357F to 358C (14 bytes)
+Data_357F: ; $357F
 .db $10 $40 $2B $CC $06 $07 $04 $1B $9C $20 $70 $07 $03 $08
 
 ; 12th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
@@ -5431,15 +5467,13 @@ _LABEL_358D_:
     ld c, $0F
     ld a, b
     cp c
-    jp nc, _LABEL_35A1_
+    jp nc, +
     ld a, c
-_LABEL_35A1_:
-    ld c, $7F
++:  ld c, $7F
     cp c
-    jp c, _LABEL_35A8_
+    jp c, +
     ld a, c
-_LABEL_35A8_:
-    ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1_Y), a
     add a, $07
     ld ($C0C4), a
     add a, $21
@@ -5447,15 +5481,13 @@ _LABEL_35A8_:
     ld a, (RAM_PenX_Smoothed)
     ld c, $20
     cp c
-    jp nc, _LABEL_35BF_
+    jp nc, +
     ld a, c
-_LABEL_35BF_:
-    ld c, $B0
++:  ld c, $B0
     cp c
-    jp c, _LABEL_35C6_
+    jp c, +
     ld a, c
-_LABEL_35C6_:
-    ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1_XN), a
     add a, $07
     ld ($C0C5), a
     add a, $21
@@ -5487,16 +5519,14 @@ _LABEL_35C6_:
     ld a, (RAM_SpriteTable1_Y)
     sub $17
     cp $40
-    jp nc, _LABEL_361A_
+    jp nc, +
     set 0, c
-_LABEL_361A_:
-    ld a, (RAM_SpriteTable1_XN)
++:  ld a, (RAM_SpriteTable1_XN)
     sub $20
     cp $50
-    jp nc, _LABEL_3626_
+    jp nc, +
     set 1, c
-_LABEL_3626_:
-    ld a, c
++:  ld a, c
     ld ($C172), a
     rlc c
     ld b, $00
@@ -5522,8 +5552,7 @@ _LABEL_363C_:
     ld a, $08
     jp _LABEL_37C7_
 
-+:
-    ld a, ($C089)
++:  ld a, ($C089)
     or $80
     ld ($C089), a
     ret
@@ -5542,12 +5571,10 @@ _LABEL_3666_:
     cp $40
     jp nc, +
     ld a, $40
-+:
-    cp $48
++:  cp $48
     jp c, +
     ld a, $48
-+:
-    ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1_Y), a
     ld b, a
     ld a, $03
     call _LABEL_37C7_
@@ -5559,8 +5586,7 @@ _LABEL_3666_:
     sub $40
     jp z, +
     ld a, $01
-+:
-    ld ($C0BA), a
++:  ld ($C0BA), a
     ld a, (RAM_NonVBlankDynamicFunction)
     set 6, a
     ld (RAM_NonVBlankDynamicFunction), a
@@ -5578,8 +5604,7 @@ _LABEL_36A5_:
     cp b
     jp nc, +
     ld b, a
-+:
-    ld a, b
++:  ld a, b
     ld (RAM_SpriteTable1_XN), a
     sub $28
     rrca
@@ -5621,7 +5646,7 @@ _LABEL_36A5_:
     ld ($C241), a
     ld a, $01
     call _LABEL_37C7_
-    jp _LABEL_18E6_
+    jp _LABEL_18E6_ ; and ret
 
 _LABEL_371E_:
     ld hl, $C086
@@ -5634,8 +5659,7 @@ _LABEL_371E_:
     cp $06
     jp c, +
     xor a
-+:
-    ld (hl), a
++:  ld (hl), a
     ld hl, $3742
     ld d, $00
     ld e, a
@@ -5909,8 +5933,7 @@ _LABEL_3932_:
     cp $0D
     jp c, +
     ld a, $0C
-+:
-    ld ($C0BF), a
++:  ld ($C0BF), a
     ld a, b
     and $07
     ld ($C0C0), a
@@ -5929,8 +5952,7 @@ _LABEL_3932_:
     cp $0D
     jp c, +
     ld a, $0C
-+:
-    ld ($C0C2), a
++:  ld ($C0C2), a
     ld a, c
     and $07
     ld ($C0C3), a
@@ -6047,6 +6069,10 @@ _LABEL_3A5A_:
     djnz -
     ret
 
+.endasm ; Unmatched push matching
+push bc
+.asm
+
 _LABEL_3A6F_:
       ex af, af'
       ld a, (hl)
@@ -6096,6 +6122,9 @@ _LABEL_3AA5_:
     djnz -
     ret
 
+.endasm ; Unmatched push matching
+push bc
+.asm
 _LABEL_3ABA_:
       ld (de), a
       ex af, af'
@@ -6128,8 +6157,7 @@ _LABEL_3ACE_:
     ld hl, $3B21
     jp _LABEL_3A5A_
 
-+:
-    ld a, (RAM_SpriteTable1_XN)
++:  ld a, (RAM_SpriteTable1_XN)
     add a, $08
     ld ($C170), a
     ld c, a
@@ -6162,12 +6190,12 @@ _LABEL_3B2E_:
     ld h, a
     ld ($C00A), a
     push hl
-    add hl, hl
-    add hl, hl
-    push hl
-    add hl, hl
-    pop bc
-    add hl, bc
+      add hl, hl
+      add hl, hl
+      push hl
+        add hl, hl
+      pop bc
+      add hl, bc
     pop bc
     add hl, bc
     ld bc, $3B66 ; table?
