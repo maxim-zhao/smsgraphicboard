@@ -1,14 +1,12 @@
 .memorymap
-slotsize $4000
+slotsize $8000
 slot 0 $0000
-slot 1 $4000
-slot 2 $8000
-defaultslot 2
+defaultslot 0
 .endme
 .rombankmap
-bankstotal 2
-banksize $4000
-banks 2
+bankstotal 1
+banksize $8000
+banks 1
 .endro
 
 ;.define BypassDetection
@@ -134,7 +132,7 @@ Start_AfterRAMClear:
     call DecompressGraphics
 
     LdDETile $1b3 
-    ld b, 13 ; 13 tiles (16 bytes)
+    ld b, 13 ; 13 tiles
     ld hl, $41B2 ; 2bpp tile data - all colour 0
     call FillTiles2bpp
 
@@ -340,10 +338,10 @@ Write1bppToVRAMWithExtensionMask:
     ret
     
 FillTiles2bpp:
-    ; write data from hl to VRAM address de, 2 bytes then 2 zeroes, b*16 times
+    ; write data from hl to VRAM address de, 2 bytes then 2 zeroes, for a total of 32 bytes read, then repeat b times
     rst $08 ; VDPAddressToDE
 FillTiles2bppCurrentAddress:
-    ; write data from hl to VDP, 2 bytes then 2 zeroes, b*16 times
+    ; write data from hl to VDP, 2 bytes then 2 zeroes, for a total of 32 bytes read, then repeat b times
 --: push hl
     push bc
       ld b, 16
@@ -1914,15 +1912,15 @@ _LABEL_1902_:
     inc hl
     jp z, +
     exx
-    ld de, $41B2
+    ld de, $41B2 ; Table
     ld l, a
-    ld h, $00
-    add hl, hl
+    ld h, 0
+    add hl, hl ; offset by 16*a
     add hl, hl
     add hl, hl
     add hl, hl
     add hl, de
-    ld b, $01
+    ld b, 1 ; One tile
     call FillTiles2bppCurrentAddress
     exx
 --: djnz -
@@ -6214,7 +6212,7 @@ _LABEL_3B2E_:
         add hl, hl
         ld bc, $41B2
         add hl, bc
-        ld b, $01
+        ld b, 1 ; Tile count
         call FillTiles2bppCurrentAddress
       pop hl
       inc hl
@@ -6230,16 +6228,16 @@ FontTiles:
 .incbin "Font tiles.pscompr"
 
 .org $3eb2
-.incbin "Sega Graphic Board v2.0 [Proto]_3eb2.inc" ; 334 bytes
-
-; blank to end of slot (somewhat unnecessarily)
-
-.BANK 1 slot 1
-.ORGA $4000
+.incbin "Cursor tiles.4bpp"
+.org $3ff2
+.incbin "Pen tiles.2bpp"    ; Pen widths, E and D, selected or not
+.incbin "Button tiles.2bpp" ; MENU, DO, PEN
+.incbin "Font.2bpp"         ; Includes frames
 
 ; Data from 4000 to 4551 (1362 bytes)
-.incbin "Sega Graphic Board v2.0 [Proto]_4000.inc"
+;.incbin "Sega Graphic Board v2.0 [Proto]_4000.inc"
 
+.orga $4552
 ControlTiles: ; $4552
 .incbin "Control tiles.pscompr"
 
