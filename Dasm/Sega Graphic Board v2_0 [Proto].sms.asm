@@ -56,12 +56,12 @@ VDPRegisterValues: ; $003b
 
 ScreenOff:
     ld a, (RAM_VDPReg1Value)
-    and %10111111 ; unset bit 6 = screen off
+    and (1<<6) ~ $ff  ; unset bit 6 = screen off
     jp +
 
 ScreenOn:
     ld a, (RAM_VDPReg1Value)
-    or %01000000 ; set bit 6 = screen on
+    or 1<<6 ; set bit 6 = screen on
 +:  ld (RAM_VDPReg1Value), a
     ld e, a
     ld d, $81

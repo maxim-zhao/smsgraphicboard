@@ -65,9 +65,9 @@
 ; Sound stuff
 .define PSG_Latch    %10000000
 .define PSG_Data     %00000000
-.define PSG_Channel0 %00000000
-.define PSG_Channel1 %00100000
-.define PSG_Channel2 %01000000
-.define PSG_Channel3 %01100000
+.define PSG_Channel0 0<<5
+.define PSG_Channel1 1<<5
+.define PSG_Channel2 2<<5
+.define PSG_Channel3 3<<5
 .define PSG_Tone     %00000000
 .define PSG_Volume   %00010000
