@@ -14,9 +14,7 @@ banks 1
 .emptyfill $ff
 
 .include "definitions.asm"
-
 .include "ram.asm"
-
 .include "macros.asm"
 
 .bank 0 slot 0
@@ -102,7 +100,7 @@ Start_AfterRAMClear:
     call TitleScreen
     
     ; Zero tiles
-    LdDETile 0
+    LD_DE_TILE 0
     ld bc, 448*SizeOfTile
     ld h, 0
     call FillVRAMWithH
@@ -110,15 +108,15 @@ Start_AfterRAMClear:
     ; Set up screen
 
     ld hl, ControlTiles ; $4552 ; data: tiles for palette, UI controls
-    LdDETile $18d
+    LD_DE_TILE $18d
     call DecompressGraphics
 
-    LdDETile $1b3 
+    LD_DE_TILE $1b3 
     ld b, 13 ; 13 tiles
     ld hl, $41B2 ; 2bpp tile data - all colour 0
     call FillTiles2bpp
 
-    LdDETilemap 0, 0
+    LD_DE_TILEMAP 0, 0
     ld hl, $8D09 ; tile $18d = background, tile palette index 1
     ld bc, 32*28 ; $0380 
     call FillVRAMWithHL
@@ -131,7 +129,7 @@ Start_AfterRAMClear:
     ld bc, 17
     ldir
     ld hl, DrawingPalette
-    LdDEPalette 0
+    LD_DE_PALETTE 0
     ld bc, 32
     call RawDataToVRAM
     ; Blank ???
@@ -207,13 +205,13 @@ InitialiseVDPRegisters:
     jp DisableSprites_RAMAndVRAM
 
 FillNameTableWithTile9:
-    LdDETilemap 0, 0
+    LD_DE_TILEMAP 0, 0
     ld bc, 32*28 ; Entry count
     ld hl, $0009 ; Date to write
     ; fall through
     
 FillVRAMWithHL:
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
 -:  ld a, h
     out (Port_VDPData), a
     push af
@@ -238,14 +236,14 @@ DisableSprites_RAMAndVRAM:
     ld (hl), SpriteTableYTerminator
     ldir
 DisableSprites_VRAM:
-    ldDESpriteTableY 0
+    LD_DE_SPRITE_TABLE_Y 0
     ld h, SpriteTableYTerminator
     ld bc, 64
     ; fall through
 
 FillVRAMWithH:
     ; Write h to VRAM address de, bc times
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
 -:  ld a, h
     out (Port_VDPData), a
     dec bc
@@ -256,7 +254,7 @@ FillVRAMWithH:
 
 RawDataToVRAM:
     ; write bc bytes from hl to VRAM address de
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
     ld a, c
     or a
     jr z, +
@@ -279,7 +277,7 @@ RawDataToVRAM_Interleaved1:
 
 RawDataToVRAM_Interleaved2:
     ; copy b bytes from hl to VRAM address de, interleaving with value in RAM_VRAMFillHighByte
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
     ld c, Port_VDPData
 -:  outi
     push af
@@ -298,7 +296,7 @@ Write1bppToVRAMWithExtensionMask:
     ; hl = source
     ; This acts to take some 1bpp data and extend it up to 4bpp using the supplied bitmask.
     ld ($c005),a ; save the bitmask
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
 --: ld a,(hl) ; Read a byte
     exx
       ld c, Port_VDPData    
@@ -321,7 +319,7 @@ Write1bppToVRAMWithExtensionMask:
     
 FillTiles2bpp:
     ; write data from hl to VRAM address de, 2 bytes then 2 zeroes, for a total of 32 bytes read, then repeat b times
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
 FillTiles2bppCurrentAddress:
     ; write data from hl to VDP, 2 bytes then 2 zeroes, for a total of 32 bytes read, then repeat b times
 --: push hl
@@ -352,7 +350,7 @@ Write2bppToVRAMSlowly:
     ; Writes b tiles
     ; Trashes c, a
     ; 37 cycles between each write so safe for use during active display
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
 --: push bc
       ld b, $10 ; counter: 16 bytes data + 16 bytes zero = 1 tile
       ld c, Port_VDPData
@@ -378,7 +376,7 @@ WriteAreaToTilemap_1byte:
     ; write data from hl to tilemap, with high byte from RAM_VRAMFillHighByte
     ; data is c tiles wide, b tiles tall
 --: push bc
-      rst $08 ; VDPAddressToDE
+      VDP_ADDRESS_TO_DE
       ld b, c
       ld c, Port_VDPData
 -:    outi
@@ -399,7 +397,7 @@ WriteAreaToTilemap:
     ; Write data from hl to VRAM address de, with delays. Write c bytes then skip forward by 64 bytes and repeat b times.
     ; This we fill a tilemap area c bytes x b rows.
 --: push bc
-      rst $08 ; VDPAddressToDE
+      VDP_ADDRESS_TO_DE
       ld b, c
       ld c, Port_VDPData
 -:    outi
@@ -417,7 +415,7 @@ WriteAreaToTilemap:
 CopyVRAMToRAM:
     ; read b*c bytes from VRAM address de and write to hl
     ; if b=0, acts as if b=1
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
     push af ; delay
     pop af
 --: push bc
@@ -445,7 +443,7 @@ SetAreaTileAttributes:
 --: push bc
       ld b, c ; c = width
       push de
--:      rst $08 ; VDPAddressToDE
+-:      VDP_ADDRESS_TO_DE
         ex (sp), hl ; delay
         ex (sp), hl
         in a, (Port_VDPData) ; Read a byte
@@ -503,7 +501,7 @@ Fill1bppWithBitmaskToTilesColumn:
     djnz -
     ret
 
-+:  rst $08 ; VDPAddressToDE
++:  VDP_ADDRESS_TO_DE
 --: push hl
     push bc
       ld b,4      ; Counter
@@ -543,7 +541,7 @@ DecompressBitplane:
     ld b, a
     ld a, c
     and $80
--:  rst $08 ; VDPAddressToDE
+-:  VDP_ADDRESS_TO_DE
     ld a, (hl)
     out (Port_VDPData), a
     push af
@@ -566,14 +564,14 @@ CopySpriteTable2ToVRAM:
     xor a
     ld (RAM_SpriteTable2DirtyFlag), a
     ld a, ($C006) ; ### Immediately discarded...
-    ldDESpriteTableY 0 ; Sprite table: Y
-    rst $08 ; VDPAddressToDE
+    LD_DE_SPRITE_TABLE_Y 0 ; Sprite table: Y
+    VDP_ADDRESS_TO_DE
     ld hl, RAM_SpriteTable2_Y
     ld c, Port_VDPData
     call Outi64
     ld hl, RAM_SpriteTable2_XN
-    ldDESpriteTableX 0 ; Sprite table: XN
-    rst $08 ; VDPAddressToDE
+    LD_DE_SPRITE_TABLE_X 0 ; Sprite table: XN
+    VDP_ADDRESS_TO_DE
     ; fall though
 Outi128:    
 .rept 64
@@ -647,23 +645,23 @@ DelayLoop1:
 
 DrawUIControls:
     ld hl, $0573 ; tilemap data: MENU | DO | PEN bar
-    LdDETilemap 4, 21
-    ld bc, $0330 ; 24x3 tiles
+    LD_DE_TILEMAP 4, 21
+    LD_BC_AREA 24, 3
     call WriteAreaToTilemap
     ld hl, TopBarPaletteTiles
-    LdDETilemap 5, 1
+    LD_DE_TILEMAP 5, 1
     ld bc, 44 ; count
     call RawDataToVRAM
     ld hl, TopBarStatusTiles ; data: top bar status
-    LdDETilemap 22, 2
+    LD_DE_TILEMAP 22, 2
     ld bc, 10 ; count
     jp RawDataToVRAM ; and ret
 
 SetDrawingAreaTilemap:
     ld hl, $0000 ; Tilemap data to write
-    ld bc, $1216 ; 12 rows, 16 columns
-    LdDETilemap 5, 3
---: rst $08 ; VDPAddressToDE
+    LD_BC_AREA 11, 18
+    LD_DE_TILEMAP 5, 3
+--: VDP_ADDRESS_TO_DE
     push bc
       ld b, c
       ld c, Port_VDPData
@@ -778,8 +776,8 @@ InterruptHandlerImpl:
       ld ($C054), a
 
       ld hl, RAM_Palette
-      LdDEPalette 0
-      rst $08 ; VDPAddressToDE
+      LD_DE_PALETTE 0
+      VDP_ADDRESS_TO_DE
       ld b, 17 ; palette entries
 -:    ld a, (hl)
       inc hl
@@ -789,8 +787,8 @@ InterruptHandlerImpl:
       djnz -
 
       ; Skip 3 palette entries
-      LdDEPalette 20
-      rst $08 ; VDPAddressToDE
+      LD_DE_PALETTE 20
+      VDP_ADDRESS_TO_DE
       ld a, ($C053) ; value to write
       ld b, 8       ; 8 palette entries
 -:    out (Port_VDPData), a
@@ -945,16 +943,16 @@ TitleScreen: ; $865
     ld (RAM_SplashScreenTimeout), hl
 
     ld hl, FontTiles ; $3C02 ; compressed tile data: font
-    LdDETile 0
+    LD_DE_TILE 0
     call DecompressGraphics
 
     ld h, $00
-    LdDETile 256
+    LD_DE_TILE 256
     ld bc, 192 * 32 ; $1800 ; 192 tiles (up to name table)
     call FillVRAMWithH
 
     ld hl, Tiles_SegaLogo ; $14CA ; compressed tile date: Sega logo
-    LdDETile 400
+    LD_DE_TILE 400
     call DecompressGraphics
     
     ld hl, Palette_TitleScreen
@@ -1017,14 +1015,14 @@ pop hl
     
 TitleScreen_PostAnimationLoop:
     ld hl, $14A2 ; data: Sega logo tilemap data
-    LdDETilemap 11, 3
+    LD_DE_TILEMAP 11, 3
     ld bc, $040A ; 10x4
     ld a, $01
     ld (RAM_VRAMFillHighByte), a
     call WriteAreaToTilemap_1byte
     
     ld hl, Text_CopyrightSega1987 ; $0A08 ; data: (c) Sega 1987
-    LdDETilemap 10, 22
+    LD_DE_TILEMAP 10, 22
     ld b, $0C
     xor a
     call RawDataToVRAM_Interleaved1
@@ -1043,7 +1041,7 @@ CheckForGraphicsBoard:
 
     ld hl, Text_NotGraphicBoard ; $09E8 ; Data: "NOT GRAPHIC BOARD !!"
     ld (RAM_TitleScreenTextPointer), hl
-    LdDETilemap 6, 16
+    LD_DE_TILEMAP 6, 16
     ld (RAM_TitleScreenTextLocation), de
     ld bc, $0C14 ; area?
     ld (RAM_TitleScreenTextDimensions), bc
@@ -1062,7 +1060,7 @@ CheckForGraphicsBoard:
 GraphicsBoardDetected:
     ld hl, Text_PushButton ; $09FC ; Data: "PUSH  BUTTON"
     ld ($C010), hl
-    LdDETilemap 10, 16
+    LD_DE_TILEMAP 10, 16
     ld (RAM_TitleScreenTextLocation), de
     ld bc, $200C ; area?
     ld (RAM_TitleScreenTextDimensions), bc
@@ -1108,10 +1106,10 @@ TitleScreenButtonPressed:
     call ScreenOff
     call FillNameTableWithTile9
     ld hl, Tiles_Logo ; $0C32 ; Data
-    LdDETile $101
+    LD_DE_TILE $101
     ld b, 135 ; $87 ; 135 tiles
     call Write2bppToVRAMSlowly
-    LdDETilemap 0, 8
+    LD_DE_TILEMAP 0, 8
     ld hl, Tilemap_Logo ; $0B8A
     ld bc, $0520 ; 5 rows, 32 columns
     ld a, $09
@@ -1141,7 +1139,7 @@ TitleScreenTextUpdate:
     jp RawDataToVRAM_Interleaved1
 
 +:  ; If 0, blank the text area
-    LdDETilemap 6, 16 
+    LD_DE_TILEMAP 6, 16 
     ld bc, 20 ; 20 tiles
     ld hl, 9
     jp FillVRAMWithHL ; and ret
@@ -1381,19 +1379,19 @@ TitleScreenAnimation_Part1:
     ld a, $09
     ld (RAM_VRAMFillHighByte), a
     ld hl, Tilemap_Logo + 32 * 0 ; $0B8A
-    LdDETilemap 0, 8
+    LD_DE_TILEMAP 0, 8
     call UpdateTilemap_RightToLeftRow
     ld hl, Tilemap_Logo + 32 * 1 ; $0BAA
-    LdDETilemap 0, 9
+    LD_DE_TILEMAP 0, 9
     call UpdateTilemap_LeftToRightRow
     ld hl, Tilemap_Logo + 32 * 2 ; $0BCA
-    LdDETilemap 0, 10
+    LD_DE_TILEMAP 0, 10
     call UpdateTilemap_RightToLeftRow
     ld hl, Tilemap_Logo + 32 * 3 ; $0BEA
-    LdDETilemap 0, 11
+    LD_DE_TILEMAP 0, 11
     call UpdateTilemap_LeftToRightRow
     ld hl, Tilemap_Logo + 32 * 4 ; $0C0A
-    LdDETilemap 0, 12
+    LD_DE_TILEMAP 0, 12
     jp UpdateTilemap_RightToLeftRow ; and ret
 
 TitleScreenAnimation_Part2:
@@ -1576,7 +1574,7 @@ _LABEL_171E_:
     ret nz
 
     di
-    LdDETile 0
+    LD_DE_TILE 0
     ld h, $00
     ld bc, 396 * 32 ; $3180 ; 396 tiles
     call FillVRAMWithH
@@ -1619,7 +1617,7 @@ _LABEL_1740_:
     di
       call ScreenOff
       call DisableSprites_VRAM
-      LdDETilemap 0, 0
+      LD_DE_TILEMAP 0, 0
       ld hl, $8D09
       ld bc, 32*28
       call FillVRAMWithHL
@@ -1888,7 +1886,7 @@ _LABEL_1902_:
     call _LABEL_19D3_
     ld b, (hl)
     inc hl
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
 -:  ld a, (hl)
     cp $FF
     inc hl
@@ -1913,7 +1911,7 @@ _LABEL_1902_:
       add hl, de
       ex de, hl
     pop hl
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
     jp --
 
 _LABEL_1981_:
@@ -1958,7 +1956,7 @@ _LABEL_198B_:
       ld hl, RAM_GraphicsDataBuffer ; Data source
 --:   push bc
         ld bc, ($C0BB)        ; Byte count
-        rst $08 ; VDPAddressToDE
+        VDP_ADDRESS_TO_DE
 -:      ld a, (hl)            ; Read a byte
         out (Port_VDPData), a ; Write to VRAM
         inc hl
@@ -1997,7 +1995,7 @@ _LABEL_19D3_:
       ld hl, RAM_GraphicsDataBuffer
 --:   push bc
         ld bc, ($C0BB)
-        rst $08 ; VDPAddressToDE
+        VDP_ADDRESS_TO_DE
         push af
         pop af
 -:      push af
@@ -2441,7 +2439,7 @@ _LABEL_1EE2_:
     ld hl, $0405
     call _LABEL_1902_
     ld hl, $1BE7
-    LdDETilemap 14, 8
+    LD_DE_TILEMAP 14, 8
     ld bc, $030E
     call WriteAreaToTilemap
     xor a
@@ -2467,7 +2465,7 @@ _LABEL_1F0F_:
       ld c, a
       ld b, $00
       add hl, bc
-      rst $08 ; VDPAddressToDE
+      VDP_ADDRESS_TO_DE
       ld a, (hl)
       call +
       inc hl
@@ -4104,7 +4102,7 @@ _LABEL_2ADC_:
       ex de, hl
       call _LABEL_2B74_
       ld hl, $C16B
-      rst $08 ; VDPAddressToDE
+      VDP_ADDRESS_TO_DE
       push af
       pop af
       push de
@@ -4342,7 +4340,7 @@ _LABEL_2BD8_:
       ld e, (ix+2)
       call _LABEL_2B74_
       ld hl, ($C171)
---:   rst $08 ; VDPAddressToDE
+--:   VDP_ADDRESS_TO_DE
       push bc
         ld b, $00
         sla c
@@ -5645,7 +5643,7 @@ _LABEL_371E_:
     ld e, a
     add hl, de
     ld de, $C01F
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
     ld b, $00
     djnz -3
     ld a, (hl)
@@ -5684,7 +5682,7 @@ _LABEL_376B_:
     ld de, $7520
 +:
     ld hl, ($C084)
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
     ld c, Port_VDPData
 .rept 32
     outi
@@ -6181,7 +6179,7 @@ _LABEL_3B2E_:
     ld bc, $3B66 ; table?
     add hl, bc
     ld de, $7660 ; tile $1B3
-    rst $08 ; VDPAddressToDE
+    VDP_ADDRESS_TO_DE
     ld b, $0D
 -:  push bc
       ld a, (hl)
