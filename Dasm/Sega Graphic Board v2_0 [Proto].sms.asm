@@ -79,7 +79,7 @@ Start:
     ld hl, $C000
     ld de, $C001
     ld bc, $1FFF
-    ld (hl), $00
+    ld (hl), 0
     ldir
 
 Start_AfterRAMClear:
@@ -89,7 +89,7 @@ Start_AfterRAMClear:
     call InitialiseVDPRegisters
     call FillNameTableWithTile9
 
-    ld a, IO_TR1_IN | IO_TH1_IN | IO_TR2_IN | IO_TH2_IN; $FF ; all inputs
+    ld a, IO_TR1_IN | IO_TH1_IN | IO_TR2_IN | IO_TH2_IN ; $FF ; all inputs
     out (Port_IOPortControl), a
 
     ei
@@ -107,13 +107,13 @@ Start_AfterRAMClear:
 
     ; Set up screen
 
-    ld hl, ControlTiles ; $4552 ; data: tiles for palette, UI controls
+    ld hl, ControlTiles ; data: tiles for palette, UI controls
     LD_DE_TILE $18d
     call DecompressGraphics
 
     LD_DE_TILE $1b3 
     ld b, 13 ; 13 tiles
-    ld hl, $41B2 ; 2bpp tile data - all colour 0
+    ld hl, Font2bpp ; Will only use the first tile, which is blank
     call FillTiles2bpp
 
     LD_DE_TILEMAP 0, 0
@@ -942,7 +942,7 @@ TitleScreen: ; $865
     ld hl, $0200 ; 8533ms
     ld (RAM_SplashScreenTimeout), hl
 
-    ld hl, FontTiles ; $3C02 ; compressed tile data: font
+    ld hl, TitleScreenFont ; $3C02 ; compressed tile data: font
     LD_DE_TILE 0
     call DecompressGraphics
 
@@ -6176,21 +6176,21 @@ _LABEL_3B2E_:
       add hl, bc
     pop bc
     add hl, bc
-    ld bc, $3B66 ; table?
+    ld bc, StatusBarText ;$3B66
     add hl, bc
     ld de, $7660 ; tile $1B3
     VDP_ADDRESS_TO_DE
-    ld b, $0D
+    ld b, 13 ; String lengths
 -:  push bc
-      ld a, (hl)
+      ld a, (hl) ; Get character
       push hl
-        ld h, $00
+        ld h, 0 ; Convert to address of letter in font
         ld l, a
+        add hl, hl ; x16
         add hl, hl
         add hl, hl
         add hl, hl
-        add hl, hl
-        ld bc, $41B2
+        ld bc, Font2bpp
         add hl, bc
         ld b, 1 ; Tile count
         call FillTiles2bppCurrentAddress
@@ -6201,10 +6201,30 @@ _LABEL_3B2E_:
     ret
     
 .org $3b66
-.db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $03 $0f $0c $0f $12 $00 $0d $0f $04 $05 $00 $00 $00 $05 $12 $01 $13 $05 $00 $0d $0f $04 $05 $00 $00 $00 $13 $11 $15 $01 $12 $05 $00 $0d $0f $04 $05 $00 $00 $03 $09 $12 $03 $0c $05 $00 $0d $0f $04 $05 $00 $00 $05 $0c $0c $09 $10 $13 $05 $00 $0d $0f $04 $05 $00 $10 $01 $09 $0e $14 $00 $0d $0f $04 $05 $00 $00 $00 $03 $0f $10 $19 $00 $0d $0f $04 $05 $00 $00 $00 $00 $0d $09 $12 $12 $0f $12 $00 $0d $0f $04 $05 $00 $00 $0d $01 $07 $0e $09 $06 $19 $00 $0d $0f $04 $05 $00 $04 $09 $13 $10 $0c $01 $19 $00 $0d $0f $04 $05 $00 $00 $00 $14 $08 $05 $00 $05 $0e $04 $00 $00 $00
+StatusBarText:
+.asciitable
+map ' ' = 0
+map 'A' to 'Z' = 1
+map '!' = 27
+map '.' = 28
+map '?' = 29
+map '-' = 30
+.enda
+.asc "             "
+.asc " COLOR MODE  "
+.asc " ERASE MODE  "
+.asc " SQUARE MODE "
+.asc " CIRCLE MODE "
+.asc " ELLIPSE MODE"
+.asc " PAINT MODE  "
+.asc " COPY MODE   "
+.asc " MIRROR MODE "
+.asc " MAGNIFY MODE"
+.asc " DISPLAY MODE"
+.asc "   THE END   "
 
 .org $3c02
-FontTiles:
+TitleScreenFont:
 .incbin "Graphics/Font tiles.pscompr"
 
 .org $3eb2
@@ -6212,9 +6232,8 @@ FontTiles:
 .org $3ff2
 .incbin "Graphics/Pen tiles.2bpp"    ; Pen widths, E and D, selected or not
 .incbin "Graphics/Button tiles.2bpp" ; MENU, DO, PEN
+Font2bpp:     ; $41b2
 .incbin "Graphics/Font.2bpp"         ; Includes frames
-
-.orga $4552
 ControlTiles: ; $4552
 .incbin "Graphics/Control tiles.pscompr"
 
