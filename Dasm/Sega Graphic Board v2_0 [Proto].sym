@@ -233,7 +233,7 @@
 0000:3aba _LABEL_3ABA_
 0000:3ace _LABEL_3ACE_
 0000:3b13 _LABEL_3B13_
-0000:3b2e _LABEL_3B2E_
+0000:3b2e UpdateStatusBarText
 0000:3b66 StatusBarText
 0000:3c02 TitleScreenFont
 0000:41b2 Font2bpp

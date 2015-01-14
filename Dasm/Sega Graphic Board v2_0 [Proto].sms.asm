@@ -801,7 +801,7 @@ InterruptHandlerImpl:
 
 +:    ld hl, $C006
       inc (hl)
-      call _LABEL_3B2E_
+      call UpdateStatusBarText
       ld a, (RAM_VBlankFunctionControl)
       bit 1, a
       jp z, +
@@ -6151,23 +6151,24 @@ _LABEL_3B13_:
     ld hl, $C203
     ld de, $C204
     ld bc, $003C
-    ld (hl), $E0
+    ld (hl), SpriteTableYTerminator
     ldir
     ret
 
 ; Data from 3B21 to 3B2D (13 bytes)
 .db $00 $08 $10 $18 $20 $28 $30 $38 $40 $48 $50 $58 $60
 
-_LABEL_3B2E_:
+UpdateStatusBarText:
     ld a, ($C00A)
     or a
     ret z
     dec a
-    ld l, a
+    ld l, a ; hl = a
     xor a
     ld h, a
     ld ($C00A), a
-    push hl
+    ; Look up text from index
+    push hl ; hl *= 13
       add hl, hl
       add hl, hl
       push hl
