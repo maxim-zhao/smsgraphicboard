@@ -1454,13 +1454,13 @@ TitleScreenAnimation_Part2:
 
 ;.orga $b8a
 Tilemap_Logo:
-.incbin "Logo tilemap.bin"
+.incbin "Graphics/Logo tilemap.bin"
 ;.orga $c2a
 Palette_Logo:
 .db $10 $3f $15 $2a $00 $00 $00 $00
 ;.orga $c32
 Tiles_Logo:
-.incbin "Logo tiles.2bpp"
+.incbin "Graphics/Logo tiles.2bpp"
 ;.orga $14a2
 Tilemap_SegaLogo:
 .db $90 $91 $92 $93 $94 $95 $96 $97 $98 $99 
@@ -1469,7 +1469,7 @@ Tilemap_SegaLogo:
 .db $ae $af $b0 $ae $b1 $b2 $ae $ae $ae $b3
 ;.orga $14ca
 Tiles_SegaLogo:
-.incbin "Sega logo.pscompr"
+.incbin "Graphics/Sega logo.pscompr"
 
 CallNonVBlankDynamicFunction:
     ld hl, RAM_NonVBlankDynamicFunction
@@ -6225,21 +6225,20 @@ _LABEL_3B2E_:
 
 .org $3c02
 FontTiles:
-.incbin "Font tiles.pscompr"
+.incbin "Graphics/Font tiles.pscompr"
 
 .org $3eb2
-.incbin "Cursor tiles.4bpp"
+.incbin "Graphics/Cursor tiles.4bpp"
 .org $3ff2
-.incbin "Pen tiles.2bpp"    ; Pen widths, E and D, selected or not
-.incbin "Button tiles.2bpp" ; MENU, DO, PEN
-.incbin "Font.2bpp"         ; Includes frames
-
-; Data from 4000 to 4551 (1362 bytes)
-;.incbin "Sega Graphic Board v2.0 [Proto]_4000.inc"
+.incbin "Graphics/Pen tiles.2bpp"    ; Pen widths, E and D, selected or not
+.incbin "Graphics/Button tiles.2bpp" ; MENU, DO, PEN
+.incbin "Graphics/Font.2bpp"         ; Includes frames
 
 .orga $4552
 ControlTiles: ; $4552
-.incbin "Control tiles.pscompr"
+.incbin "Graphics/Control tiles.pscompr"
+
+; Lots of unused space (14615 bytes)
 
 ; Header
 .smstag ; TMR SEGA, checksum
