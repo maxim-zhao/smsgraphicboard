@@ -1144,6 +1144,7 @@ TitleScreenTextUpdate:
     ld hl, 9
     jp FillVRAMWithHL ; and ret
 
+; This mapping only applies to the title screen font.    
 .asciitable
 map ' ' = 0
 map '0' to '9' = 1
@@ -1496,9 +1497,9 @@ _LABEL_1680_:
       call _LABEL_3B13_
       call SetDrawingAreaTilemap
       ld bc, $0E0C
-      ld de, $1A10
+      ld de, MenuText
       ld hl, $0405
-      call _LABEL_1902_
+      call DrawMenuText
       ld hl, (RAM_PenY_Smoothed)
       ld ($C08D), hl
       ld hl, ($C031)
@@ -1521,7 +1522,7 @@ _LABEL_16C0_:
     jp c, +
     ld hl, $4858
 +:  ld ($C03E), hl
-    call _LABEL_198B_
+    call RestoreTileData
     ld hl, ($C08D)
     ld (RAM_PenY_Smoothed), hl
     ld hl, ($C08F)
@@ -1638,7 +1639,7 @@ _LABEL_1790_:
     ret z
     di
     exx
-    call _LABEL_198B_
+    call RestoreTileData
     ld hl, ($C08D)
     ld (RAM_PenY_Smoothed), hl
     ld hl, ($C08F)
@@ -1655,9 +1656,9 @@ _LABEL_1790_:
 +:  set 7, (hl)
     di
     ld bc, $040A
-    ld de, $1AC7
+    ld de, ModeMenuText
     ld hl, $0405
-    call _LABEL_1902_
+    call DrawMenuText
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1680,7 +1681,7 @@ _LABEL_17DE_:
     ret z
     di
     exx
-    call _LABEL_198B_
+    call RestoreTileData
     ld hl, ($C08D)
     ld (RAM_PenY_Smoothed), hl
     ld hl, ($C08F)
@@ -1697,9 +1698,9 @@ _LABEL_17DE_:
 +:  set 7, (hl)
     di
     ld bc, $0410
-    ld de, $1AF4
+    ld de, ColorMenuText
     ld hl, $0405
-    call _LABEL_1902_
+    call DrawMenuText
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1722,7 +1723,7 @@ _LABEL_182C_:
     ret z
     di
     exx
-    call _LABEL_198B_
+    call RestoreTileData
     ld hl, ($C08D)
     ld (RAM_PenY_Smoothed), hl
     ld hl, ($C08F)
@@ -1739,9 +1740,9 @@ _LABEL_182C_:
 +:  set 7, (hl)
     di
     ld bc, $040E
-    ld de, $1B39
+    ld de, MirrorMenuText
     ld hl, $0405
-    call _LABEL_1902_
+    call DrawMenuText
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1764,7 +1765,7 @@ _LABEL_187A_:
     ret z
     di
     exx
-    call _LABEL_198B_
+    call RestoreTileData
     ld hl, ($C08D)
     ld (RAM_PenY_Smoothed), hl
     ld hl, ($C08F)
@@ -1781,9 +1782,9 @@ _LABEL_187A_:
 +:  set 7, (hl)
     di
     ld bc, $040D
-    ld de, $1C11
+    ld de, EraseMenuText
     ld hl, $0405
-    call _LABEL_1902_
+    call DrawMenuText
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1829,16 +1830,19 @@ _LABEL_18E6_:
     ld (RAM_NonVBlankDynamicFunction), a
     ret
 
-_LABEL_1902_:
+DrawMenuText:
+; h = y offset (within drawing area)?
+; l = x offset (within drawing area)?
     ld a, ($C082)
     or a
-    call nz, _LABEL_1981_
+    call nz, RestoreTileData_SaveRegisters
     ld a, $80
     ld ($C082), a
     ld ($C01A), bc
     push de
+      ; Set the tile attribute
       push hl
-        ; caculate de = (h+3) * 64
+        ; calculate de = (h+3) * 64
         push hl
           ld a, h
           add a, 3
@@ -1852,27 +1856,33 @@ _LABEL_1902_:
           add hl, hl
           ex de, hl
         pop hl
-        ld a, l
+        ld a, l ; calculate hl = (l + 5) * 2 + 1
         add a, 5
         add a, a
-        ld h, $00
+        ld h, 0
         ld l, a
         inc l
+        ; Add them together and that's a tilemap address
         add hl, de
-        ld de, $3800
+        ld de, TileMapAddress
         add hl, de
-        ld ($C018), hl
+        
+        ld ($C018), hl ; Save that
+        
+        ; Set the tile attributes for the second palette
         ex de, hl
         ld h, TileAttribute_Palette2
         call SetAreaTileAttributes
       pop hl
+
+      ; Calculate the VRAM address for the tile to draw over
       push hl
         ld a, h
-        ld de, $02C0
+        ld de, 22*SizeOfTile ; TODO: 22 = drawing area width
         call Multiply_a_de_ahl
         ex de, hl
       pop hl
-      ld h, $00
+      ld h, 0 ; hl = l * 32
       add hl, hl
       add hl, hl
       add hl, hl
@@ -1880,52 +1890,61 @@ _LABEL_1902_:
       add hl, hl
       add hl, de
       ex de, hl
-      set 6, d
+      set 6, d ; Set write bit
     pop hl
+    
+    ; Save the VRAM address
     ld ($C016), de
+    
+    ; Backup the tile
     call _LABEL_19D3_
+    
+    ; Get the character count
     ld b, (hl)
     inc hl
+    
+    ; Start drawing
     VDP_ADDRESS_TO_DE
--:  ld a, (hl)
-    cp $FF
+-:  ld a, (hl) ; Get the character
+    cp $FF ; Indicates end of line
     inc hl
     jp z, +
     exx
-    ld de, $41B2 ; Table
-    ld l, a
-    ld h, 0
-    add hl, hl ; offset by 16*a
-    add hl, hl
-    add hl, hl
-    add hl, hl
-    add hl, de
-    ld b, 1 ; One tile
-    call FillTiles2bppCurrentAddress
+      ld de, Font2bpp
+      ld l, a
+      ld h, 0
+      add hl, hl ; offset by 16*a
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      add hl, de
+      ld b, 1 ; One tile
+      call FillTiles2bppCurrentAddress
     exx
 --: djnz -
     ret
 
-+:  push hl
-      ld hl, $02C0
++:  ; Move VRAM address on by a row
+    push hl
+      ld hl, 22*SizeOfTile
       add hl, de
       ex de, hl
     pop hl
     VDP_ADDRESS_TO_DE
     jp --
 
-_LABEL_1981_:
+RestoreTileData_SaveRegisters:
     ; Register-protecting version of the below
     push bc
     push de
     push hl
-      call _LABEL_198B_
+      call RestoreTileData
     pop hl
     pop de
     pop bc
     ret
 
-_LABEL_198B_:
+RestoreTileData:
     ; Restore tile data?
     ; Parameters:
     ; $c016 = VRAM address of area to write to
@@ -2019,48 +2038,121 @@ _LABEL_19D3_:
     pop bc
     ret
 
-; Data from 1A10 to 1C49 (570 bytes)
-.db $B6 $1F $20 $20 
-.db $00 $0D $05 $0E 
-.db $15 $00 $20 $20 
-.db $21 $FF $26 $00
-.db $00 $05 $18 $09 
+; This is the ASCII mapping for the regular font (outside the title screen).
+.asciitable
+map ' ' = 0
+map 'A' to 'Z' = 1
+map '!' = 27
+map '.' = 28
+map '?' = 29
+map '-' = 30
+; Menu borders
+map '/' = 31      ; /^^^^^,
+map '^' = 32      ; [     ]
+map ',' = 33      ; `_____'
+map ']' = 34
+map ''' = 35
+map '_' = 36
+map '`' = 37
+map '[' = 38
+.enda
 
-.db $14 $00 $00 $00 $00 $22 $FF $26 $00 $00 $03 $0F
-.db $0C $0F $12 $00 $00 $00 $22 $FF $26 $00 $00 $05 $12 $01 $13 $05
-.db $00 $00 $00 $22 $FF $26 $00 $00 $13 $11 $15 $01 $12 $05 $00 $00
-.db $22 $FF $26 $00 $00 $03 $09 $12 $03 $0C $05 $00 $00 $22 $FF $26
-.db $00 $00 $05 $0C $0C $09 $10 $13 $05 $00 $22 $FF $26 $00 $00 $10
-.db $01 $09 $0E $14 $00 $00 $00 $22 $FF $26 $00 $00 $03 $0F $10 $19
-.db $00 $00 $00 $00 $22 $FF $26 $00 $00 $0D $09 $12 $12 $0F $12 $00
-.db $00 $22 $FF $26 $00 $00 $0D $01 $07 $0E $09 $06 $19 $00 $22 $FF
-.db $26 $00 $00 $04 $09 $13 $10 $0C $01 $19 $00 $22 $FF $26 $00 $00
-.db $05 $0E $04 $00 $00 $00 $00 $00 $22 $FF $25 $24 $24 $24 $24 $24
-.db $24 $24 $24 $24 $24 $23 $FF $2C $1F $20 $00 $0D $0F $04 $05 $00
-.db $20 $21 $FF $26 $00 $00 $0C $09 $0E $05 $00 $00 $22 $FF $26 $00
-.db $00 $10 $01 $09 $0E $14 $00 $22 $FF $25 $24 $24 $24 $24 $24 $24
-.db $24 $24 $23 $FF $44 $1F $20 $00 $03 $0F $0C $0F $12 $00 $0D $05
-.db $0E $15 $00 $20 $21 $FF $26 $00 $00 $03 $0F $0C $0F $12 $00 $13
-.db $05 $14 $00 $00 $00 $22 $FF $26 $00 $00 $02 $01 $03 $0B $00 $03
-.db $0F $0C $0F $12 $00 $00 $22 $FF $25 $24 $24 $24 $24 $24 $24 $24
-.db $24 $24 $24 $24 $24 $24 $24 $23 $FF $3C $1F $20 $00 $0D $0F $04
-.db $05 $00 $13 $05 $14 $00 $20 $21 $FF $26 $00 $00 $16 $1E $12 $05
-.db $16 $05 $12 $13 $05 $00 $22 $FF $26 $00 $00 $08 $1E $12 $05 $16
-.db $05 $12 $13 $05 $00 $22 $FF $25 $24 $24 $24 $24 $24 $24 $24 $24
-.db $24 $24 $24 $24 $23 $FF $70 $1F $20 $20 $00 $03 $0F $0C $0F $12
-.db $00 $20 $20 $21 $FF $26 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
-.db $00 $22 $FF $26 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $22
-.db $FF $26 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $22 $FF $26
-.db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $22 $FF $26 $00 $00
-.db $10 $01 $07 $05 $00 $15 $10 $00 $00 $22 $FF $26 $00 $00 $10 $01
-.db $07 $05 $00 $04 $0F $17 $0E $22 $FF $25 $24 $24 $24 $24 $24 $24
-.db $24 $24 $24 $24 $24 $23 $FF $91 $09 $8E $09 $92 $09 $8E $09 $93
-.db $09 $8E $09 $94 $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E
-.db $09 $8E $09 $95 $09 $8E $09 $96 $09 $8E $09 $97 $09 $8E $09 $98
-.db $09 $38 $1F $20 $00 $05 $12 $01 $13 $05 $00 $1D $00 $20 $21 $FF
-.db $26 $00 $00 $0E $0F $00 $00 $00 $00 $00 $00 $00 $22 $FF $26 $00
-.db $00 $19 $05 $13 $00 $00 $00 $00 $00 $00 $22 $FF $25 $24 $24 $24
-.db $24 $24 $24 $24 $24 $24 $24 $24 $23 $FF
+MenuText: ; $1a10
+.db $B6 
+.asc "/^^ MENU ^^,"
+.db $FF 
+.asc "[  EXIT    ]"
+.db $FF 
+.asc "[  COLOR   ]"
+.db $FF 
+.asc "[  ERASE   ]"
+.db $FF 
+.asc "[  SQUARE  ]"
+.db $FF 
+.asc "[  CIRCLE  ]"
+.db $FF 
+.asc "[  ELLIPSE ]"
+.db $FF 
+.asc "[  PAINT   ]"
+.db $FF 
+.asc "[  COPY    ]"
+.db $FF 
+.asc "[  MIRROR  ]"
+.db $FF 
+.asc "[  MAGNIFY ]"
+.db $FF 
+.asc "[  DISPLAY ]"
+.db $FF 
+.asc "[  END     ]"
+.db $FF 
+.asc "`__________'"
+.db $FF 
+
+ModeMenuText: ; $1ac7
+.db $2C
+.asc "/^ MODE ^,"
+.db $FF
+.asc "[  LINE  ]"
+.db $FF
+.asc "[  PAINT ]"
+.db $FF
+.asc "`________'"
+.db $FF
+
+ColorMenuText: ; $1af4
+.db $44
+.asc "/^ COLOR MENU ^,"
+.db $FF
+.asc "[  COLOR SET   ]"
+.db $FF
+.asc "[  BACK COLOR  ]"
+.db $FF
+.asc "`______________'"
+.db $FF
+
+MirrorMenuText: ; $1b39
+.db $3C
+.asc "/^ MODE SET ^,"
+.db $FF
+.asc "[  V-REVERSE ]"
+.db $FF
+.asc "[  H-REVERSE ]"
+.db $FF
+.asc "`____________'"
+.db $FF
+
+ColorPageMenuText: ; $1b76
+.db $70
+.asc "/^^ COLOR ^^,"
+.db $FF
+.asc "[           ]"
+.db $FF
+.asc "[           ]"
+.db $FF
+.asc "[           ]"
+.db $FF
+.asc "[           ]"
+.db $FF
+.asc "[  PAGE UP  ]"
+.db $FF
+.asc "[  PAGE DOWN]"
+.db $FF
+.asc "`___________'"
+.db $FF
+
+; $1be7
+.db $91 $09 $8E $09 $92 $09 $8E $09 $93 $09 $8E $09 $94 $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E $09 $95 $09 $8E $09 $96 $09 $8E $09 $97 $09 $8E $09 $98 $09 
+
+EraseMenuText: ; $1c11
+.db $38
+.asc "/^ ERASE ? ^,"
+.db $FF
+.asc "[  NO       ]"
+.db $FF
+.asc "[  YES      ]"
+.db $FF
+.asc "`___________'"
+.db $FF
 
 ; 1st entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_1C4A_:
@@ -2434,10 +2526,10 @@ _LABEL_1EE2_:
     ret
 +:  set 7, (hl)
     di
-    ld de, $1B76
+    ld de, ColorPageMenuText
     ld bc, $080D
     ld hl, $0405
-    call _LABEL_1902_
+    call DrawMenuText
     ld hl, $1BE7
     LD_DE_TILEMAP 14, 8
     ld bc, $030E
@@ -4460,7 +4552,7 @@ _LABEL_2CF6_:
     di
     push hl
       call _LABEL_3B13_
-      call _LABEL_198B_
+      call RestoreTileData
     pop hl
     ei
     ld a, $01
@@ -4516,7 +4608,7 @@ _LABEL_2D0D_:
       ld h, (hl)
       ld l, a
       ld bc, $0909
-      call _LABEL_1902_
+      call DrawMenuText
     pop de
     ld h, TileAttribute_None
     ld bc, $0808
@@ -6203,14 +6295,6 @@ UpdateStatusBarText:
     
 .org $3b66
 StatusBarText:
-.asciitable
-map ' ' = 0
-map 'A' to 'Z' = 1
-map '!' = 27
-map '.' = 28
-map '?' = 29
-map '-' = 30
-.enda
 .asc "             "
 .asc " COLOR MODE  "
 .asc " ERASE MODE  "
