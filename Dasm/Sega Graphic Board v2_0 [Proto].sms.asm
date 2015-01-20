@@ -1224,10 +1224,9 @@ UpdateSplashScreenAnimationTilesLine:
     ; get b
     ld a, b
     ; get high 5 bits
-    and $F8
+    and %11111000
     ; multiply by 108
-    ld l, a     ; x1
-    ld h, $00
+    LD_HL_A
     add hl, hl  ; x2
     add hl, hl  ; x4
     push hl
@@ -1247,7 +1246,7 @@ UpdateSplashScreenAnimationTilesLine:
     ; re-get b
     ld a, b
     ; get low 3 bits
-    and $07
+    and %00000111
     add a, a ; x2
     add a, a ; x4
     ld e, a
@@ -1259,8 +1258,7 @@ UpdateSplashScreenAnimationTilesLine:
       ld a, c ; high 5 bits of c
       and $F8
       ; Multiply by 54
-      ld l, a
-      ld h, $00
+      LD_HL_A
       add hl, hl ; x2
       push hl
         add hl, hl  ; x4
@@ -1318,8 +1316,7 @@ UpdateSplashScreenAnimationTilesLine:
 _LABEL_ACC_:
     ld a, b
     and $F8
-    ld l, a
-    ld h, $00
+    LD_HL_A
     add hl, hl ; x2
     add hl, hl ; x4
     push hl
@@ -1577,7 +1574,7 @@ _LABEL_171E_:
     di
     LD_DE_TILE 0
     ld h, $00
-    ld bc, 396 * 32 ; $3180 ; 396 tiles
+    ld bc, 396 * SizeOfTile ; $3180 ; 396 tiles
     call FillVRAMWithH
     ei
     ; fall through
@@ -2452,8 +2449,7 @@ _LABEL_1E57_:
     ex de, hl
     ld a, c
     and $F8
-    ld l, a ; hl = a * 4 + de
-    ld h, $00
+    LD_HL_A ; hl = a * 4 + de
     add hl, hl
     add hl, hl
     add hl, de
@@ -2673,8 +2669,7 @@ _LABEL_1F66_:
 -:    push bc
         ld a, (iy+12)
         and $F8
-        ld l, a
-        ld h, $00
+        LD_HL_A
         add hl, hl
         add hl, hl
         add hl, hl
@@ -2690,8 +2685,7 @@ _LABEL_1F66_:
         push hl
           ld a, (iy+13)
           and $F8
-          ld l, a
-          ld h, $00
+          LD_HL_A
           add hl, hl
           add hl, hl
         pop de
@@ -3782,8 +3776,7 @@ _LABEL_2792_:
       push hl
         and $07
         ld de, $1EDA
-        ld l, a
-        ld h, $00
+        LD_HL_A
         add hl, de
         ld d, (hl)
       pop hl
@@ -3882,8 +3875,7 @@ _LABEL_2812_:
     push hl
       ld a, e
       and $F8
-      ld l, a
-      ld h, $00
+      LD_HL_A
       add hl, hl
       add hl, hl
     pop bc
@@ -4300,8 +4292,7 @@ _LABEL_2B74_:
     push bc
       ld a, d
       and $F8
-      ld l, a
-      ld h, $00
+      LD_HL_A
       add hl, hl
       add hl, hl
       add hl, hl
@@ -4317,8 +4308,7 @@ _LABEL_2B74_:
       push hl
         ld a, e
         and $F8
-        ld l, a
-        ld h, $00
+        LD_HL_A
         add hl, hl
         add hl, hl
       pop bc
@@ -4340,8 +4330,7 @@ _LABEL_2BA0_:
     push hl
       ld a, d
       and $F8
-      ld l, a
-      ld h, $00
+      LD_HL_A
       add hl, hl
       add hl, hl
       push hl
@@ -4356,8 +4345,7 @@ _LABEL_2BA0_:
       push hl
         ld a, e
         and $F8
-        ld l, a
-        ld h, $00
+        LD_HL_A
         add hl, hl
         add hl, hl
       pop bc
@@ -6277,8 +6265,8 @@ UpdateStatusBarText:
 -:  push bc
       ld a, (hl) ; Get character
       push hl
-        ld h, 0 ; Convert to address of letter in font
-        ld l, a
+        ld h,0
+        ld l,a ; Convert to address of letter in font
         add hl, hl ; x16
         add hl, hl
         add hl, hl
@@ -6293,7 +6281,6 @@ UpdateStatusBarText:
     djnz -
     ret
     
-.org $3b66
 StatusBarText:
 ; All must be 13 characters long
 ;     1234567890123
