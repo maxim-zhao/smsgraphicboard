@@ -764,7 +764,7 @@ InterruptHandlerImpl:
       
       ; Regular VBlank
       call CopySpriteTable2ToVRAM
-      call _LABEL_376B_
+      call UpdateCursorGraphics
       call _LABEL_371E_
       ld a, (RAM_NonVBlankDynamicFunction)
       cp $83
@@ -810,7 +810,7 @@ InterruptHandlerImpl:
       pop af
 +:    bit 0, a
       jp z, +
-      call _LABEL_37EE_
+      call UpdateButtonGraphics
       call _LABEL_386B_
 +:    call Beep
       ; fall through
@@ -4775,7 +4775,7 @@ _LABEL_2FF4_:
     ld a, b
     ld (RAM_SpriteTable1_Y), a
     xor a
-    jp _LABEL_37C7_
+    jp SetCursorIndex
 
 ; 2nd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3006_:
@@ -4808,7 +4808,7 @@ _LABEL_3006_:
     dec a
     ld ($C00A), a
 ++: ld a, $03
-    jp _LABEL_37C7_
+    jp SetCursorIndex
 
 ; 4th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3044_:
@@ -4836,7 +4836,7 @@ _LABEL_3044_:
 +:  ld (RAM_SpriteTable1_XN), a
     ld c, a
     ld a, $02
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -4891,7 +4891,7 @@ _LABEL_30B9_:
     ld a, $58
     ld (RAM_SpriteTable1_XN), a
     ld a, $03
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ex af, af'
@@ -4925,7 +4925,7 @@ _LABEL_30F7_:
       bit 0, d
       jp nz, +
       ld a, $05
-      call _LABEL_37C7_
+      call SetCursorIndex
     pop hl
     bit 1, (hl)
     ret z
@@ -4949,14 +4949,14 @@ _LABEL_30F7_:
     set 0, a
     ld ($C089), a
     ld a, $25
-    jp _LABEL_37C7_
+    jp SetCursorIndex
 
 .endasm ; Unmatched push matching
 push hl
 .asm
     
 +:    ld a, $04
-      call _LABEL_37C7_
+      call SetCursorIndex
     pop hl
     bit 1, (hl)
     ret z
@@ -5019,7 +5019,7 @@ _LABEL_31B6_:
     ex af, af'
 +:  call _LABEL_18E6_
     ld a, $09
-    call _LABEL_37C7_
+    call SetCursorIndex
     ld hl, $C089
     bit 0, (hl)
     jp z, _LABEL_3206_
@@ -5074,7 +5074,7 @@ _LABEL_3206_:
     ld de, (RAM_PenY_Smoothed)
     ld ($C0AA), de
     ld a, $29
-    call _LABEL_37C7_
+    call SetCursorIndex
     exx
     set 0, (hl)
     ret
@@ -5117,7 +5117,7 @@ _LABEL_3264_:
     ld a, (RAM_PenX_Smoothed)
     ld (RAM_SpriteTable1_XN), a
     ld a, $04
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5163,7 +5163,7 @@ _LABEL_3294_:
     ld a, c
 +:  ld (RAM_SpriteTable1_XN), a
     ld a, $05
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5188,7 +5188,7 @@ _LABEL_3294_:
     xor a
     ld ($C15D), a
     ld a, $25
-    jp _LABEL_37C7_
+    jp SetCursorIndex
 
 _LABEL_3311_:
     ld a, ($C0C4)
@@ -5237,7 +5237,7 @@ _LABEL_332A_:
 +:  ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
     ld a, $04
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5273,7 +5273,7 @@ _LABEL_3385_:
     ld a, c
 +:  ld (RAM_SpriteTable1_XN), a
     ld a, $05
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5351,7 +5351,7 @@ _LABEL_33D1_:
     ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
     ld a, $04
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5391,7 +5391,7 @@ _LABEL_3469_:
     call z, _LABEL_3513_
     ld (RAM_SpriteTable1_XN), a
     ld a, $05
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5416,7 +5416,7 @@ _LABEL_3469_:
     xor a
     ld ($C15D), a
     ld a, $25
-    jp _LABEL_37C7_
+    jp SetCursorIndex
 
 _LABEL_34E0_:
     ld c, a
@@ -5503,7 +5503,7 @@ _LABEL_3527_:
       inc hl
       ld a, (hl)
       inc hl
-      call _LABEL_37C7_
+      call SetCursorIndex
       ex de, hl
     pop hl
     bit 1, (hl)
@@ -5563,7 +5563,7 @@ _LABEL_358D_:
     add a, $21
     ld ($C0C7), a
     ld a, $05
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5584,7 +5584,7 @@ _LABEL_358D_:
     xor a
     ld ($C15D), a
     ld a, $25
-    call _LABEL_37C7_
+    call SetCursorIndex
     ld c, $00
     ld a, (RAM_SpriteTable1_Y)
     sub $17
@@ -5620,7 +5620,7 @@ _LABEL_363C_:
     and $FE
     ld (RAM_SpriteTable1_Y), a
     ld a, $08
-    jp _LABEL_37C7_
+    jp SetCursorIndex
 
 +:  ld a, ($C089)
     or $80
@@ -5647,7 +5647,7 @@ _LABEL_3666_:
 +:  ld (RAM_SpriteTable1_Y), a
     ld b, a
     ld a, $03
-    call _LABEL_37C7_
+    call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
@@ -5715,7 +5715,7 @@ _LABEL_36A5_:
 ++: ld a, $A8
     ld ($C241), a
     ld a, $01
-    call _LABEL_37C7_
+    call SetCursorIndex
     jp _LABEL_18E6_ ; and ret
 
 _LABEL_371E_:
@@ -5756,124 +5756,130 @@ InitialiseCursorSprites:
     ldir
     ret
 
-; Data from 375F to 376A (12 bytes)
 InitialiseCursorSprites_Y:
-.db $40 $00 $E0 $E0 
+.db $40 $00 $E0 $E0 ; Second two are hidden
 InitialiseCursorSprites_XN:
 .db $40 $A8 $28 $A7 $00 $A7 $00 $A9
 
-_LABEL_376B_:
-    ld hl, $C083
-    bit 7, (hl)
+UpdateCursorGraphics:
+    ld hl, RAM_CurrentCursorIndex
+    bit 7, (hl) ; Bit 7 unset -> nothing to do
     ret z
-    res 7, (hl)
-    set 6, (hl)
-    ld de, $7500
+    res 7, (hl) ; Clear it
+    set 6, (hl) ; Set bit 6 (?)
+    LD_DE_TILE $1a8 ; Bit 5 determines which sprite to write
     bit 5, (hl)
     jp z, +
-    ld de, $7520
-+:
-    ld hl, ($C084)
+    LD_DE_TILE $1a9
++:  ld hl, (RAM_CurrentCursorDataAddress)
     VDP_ADDRESS_TO_DE
     ld c, Port_VDPData
-.rept 32
+.rept SizeOfTile
     outi
 .endr
     ret
 
-_LABEL_37C7_:
+SetCursorIndex:
+    ; Arguments:
+    ; a = cursor index, with bit 5 set if the second cursor is to be changed
     push bc
     push hl
-      ld b, a
-      ld hl, $C083
+      ld b, a ; Check if the argument matches the current value
+      ld hl, RAM_CurrentCursorIndex
       ld a, (hl)
       and $3F
       cp b
-      jp z, +
+      jp z, + ; If so, there's nothing to do
+
       ld a, b
-      ld (hl), a
-      res 5, a
+      ld (hl), a ; Store the new value
+      
+      res 5, a ; Might be set, determines which sprite to set
       push hl
-        ld l, a
-        ld h, $00
+        ; Calculate de + a * 32
+        LD_HL_A
         add hl, hl
         add hl, hl
         add hl, hl
         add hl, hl
         add hl, hl
-        ld de, $3EB2
+        ld de, CursorTiles
         add hl, de
-        ld ($C084), hl
+        ; Store it
+        ld (RAM_CurrentCursorDataAddress), hl
       pop hl
-      set 7, (hl)
-+:
-    pop hl
+      set 7, (hl) ; Mark it as needing to be written to VRAM
++:  pop hl
     pop bc
     ret
 
-_LABEL_37EE_:
-    ld hl, $C088
+UpdateButtonGraphics:
+    ld hl, RAM_ButtonStateShownOnScreen
     ld a, (RAM_ButtonsPressed)
     ld c, a
-    ld b, $03
-    ld de, $7540
-    bit 0, c
-    jp nz, _LABEL_383C_
+
+    ld b, 3 ; Tile count
+    LD_DE_TILE $1aa
+    bit 0, c ; Menu button
+    jp nz, MenuPressed
     bit 0, (hl)
-    jp z, _LABEL_380E_
+    jp z, MenuNothingToUpdate
     res 0, (hl)
     push hl
-      ld hl, $4092
+      ld hl, ButtonTiles + SizeOfTile/2 * 3 * 0 ; Menu not pressed
       call Write2bppToVRAMSlowly
     pop hl
-_LABEL_380E_:
-    ld b, $03
-    ld de, $75A0
-    bit 1, c
-    jp nz, _LABEL_384E_
+MenuNothingToUpdate:
+
+    ld b, 3
+    LD_DE_TILE $1ad
+    bit 1, c ; Do button
+    jp nz, DoPressed
     bit 1, (hl)
-    jp z, _LABEL_3827_
+    jp z, DoNothingToUpdate
     res 1, (hl)
     push hl
-      ld hl, $40F2
+      ld hl, ButtonTiles + SizeOfTile/2 * 3 * 2 ; Do not pressed
       call Write2bppToVRAMSlowly
     pop hl
-_LABEL_3827_:
-    ld b, $03
-    ld de, $7600
-    bit 2, c
-    jp nz, _LABEL_3860_
-    bit 2, (hl)
-    ret z
-    res 2, (hl)
-    ld hl, $4152
-    jp Write2bppToVRAMSlowly
+DoNothingToUpdate:
 
-_LABEL_383C_:
+    ld b, 3
+    LD_DE_TILE $1b0
+    bit 2, c ; Pen button
+    jp nz, PenPressed
+    bit 2, (hl)
+    ret z ; Nothing to update
+    res 2, (hl)
+    ld hl, ButtonTiles + SizeOfTile/2 * 3 * 4 ; Pen not pressed
+    jp Write2bppToVRAMSlowly ; and ret
+
+    
+MenuPressed:
     bit 0, (hl)
-    jp nz, _LABEL_380E_
+    jp nz, MenuNothingToUpdate
     set 0, (hl)
     push hl
-      ld hl, $40C2
+      ld hl, ButtonTiles + SizeOfTile/2 * 3 * 1 ; Menu pressed
       call Write2bppToVRAMSlowly
     pop hl
-    jp _LABEL_380E_
+    jp MenuNothingToUpdate
 
-_LABEL_384E_:
+DoPressed:
     bit 1, (hl)
-    jp nz, _LABEL_3827_
+    jp nz, DoNothingToUpdate
     set 1, (hl)
     push hl
-      ld hl, $4122
+      ld hl, ButtonTiles + SizeOfTile/2 * 3 * 3 ; Do pressed
       call Write2bppToVRAMSlowly
     pop hl
-    jp _LABEL_3827_
+    jp DoNothingToUpdate
 
-_LABEL_3860_:
+PenPressed:
     bit 2, (hl)
-    ret nz
+    ret nz ; Nothing to update
     set 2, (hl)
-    ld hl, $4182
+    ld hl, ButtonTiles + SizeOfTile/2 * 3 * 5 ; Pen pressed
     jp Write2bppToVRAMSlowly
 
 _LABEL_386B_:
@@ -5886,85 +5892,79 @@ _LABEL_386B_:
       call nz, _LABEL_38C8_
     pop af
     ld (ix+1), a
-    ld b, $01
-    ld hl, JumpTable_388C
+    ld b, 1 ; Tile count
+    ld hl, +
     jp JumpToFunction
 
-; Jump Table from 388C to 3893 (4 entries, indexed by $C08A)
-JumpTable_388C:
-.dw JumpTable_388C_0
-.dw JumpTable_388C_1
-.dw JumpTable_388C_2
-.dw JumpTable_388C_3
++:
+.dw DrawThinPenOn
+.dw DrawMediumPenOn
+.dw DrawThickPenOn
+.dw DrawEraserOn
 
 ; 1st entry of Jump Table from 388C (indexed by $C08A)
-JumpTable_388C_0:
+DrawThinPenOn:
     set 0, (ix+0)
-    ld de, $73A0
-    ld hl, $4002
+    LD_DE_TILE $19d
+    ld hl, PenTiles + SizeOfTile/2 * 1
     jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 388C (indexed by $C08A)
-JumpTable_388C_1:
+DrawMediumPenOn:
     set 0, (ix+0)
-    ld de, $73C0
-    ld hl, $4022
+    LD_DE_TILE $19e
+    ld hl, PenTiles + SizeOfTile/2 * 3
     jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 388C (indexed by $C08A)
-JumpTable_388C_2:
+DrawThickPenOn:
     set 0, (ix+0)
-    ld de, $73E0
-    ld hl, $4042
+    LD_DE_TILE $19f
+    ld hl, PenTiles + SizeOfTile/2 * 5
     jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 388C (indexed by $C08A)
-JumpTable_388C_3:
+DrawEraserOn:
     set 0, (ix+0)
-    ld de, $7400
-    ld hl, $4062
+    LD_DE_TILE $1a0
+    ld hl, PenTiles + SizeOfTile/2 * 7
     jp FillTiles2bpp
 
 _LABEL_38C8_:
-    ld b, $01
+    ld b, 1 ; Tile count
     ld a, (ix+1)
-    ld hl, JumpTable_38D3
+    ld hl, +
     jp JumpToFunction
 
-; Jump Table from 38D3 to 38DA (4 entries, indexed by $C00C)
-JumpTable_38D3:
-.dw JumpTable_38D3_0 
-.dw JumpTable_38D3_1 
-.dw JumpTable_38D3_2 
-.dw JumpTable_38D3_3
++:
+.dw DrawThinPenOff 
+.dw DrawMediumPenOff 
+.dw DrawThickPenOff 
+.dw DrawEraserOff
 
-; 1st entry of Jump Table from 38D3 (indexed by $C00C)
-JumpTable_38D3_0:
+DrawThinPenOff:
     res 0, (ix+0)
-    ld de, $73A0
-    ld hl, $3FF2
-    jp FillTiles2bpp
+    LD_DE_TILE $19d
+    ld hl, PenTiles + SizeOfTile/2 * 0
+    jp FillTiles2bpp ; and ret
 
-; 2nd entry of Jump Table from 38D3 (indexed by $C00C)
-JumpTable_38D3_1:
+DrawMediumPenOff:
     res 0, (ix+0)
-    ld de, $73C0
-    ld hl, $4012
-    jp FillTiles2bpp
+    LD_DE_TILE $19e
+    ld hl, PenTiles + SizeOfTile/2 * 2
+    jp FillTiles2bpp ; and ret
 
-; 3rd entry of Jump Table from 38D3 (indexed by $C00C)
-JumpTable_38D3_2:
+DrawThickPenOff:
     res 0, (ix+0)
-    ld de, $73E0
-    ld hl, $4032
-    jp FillTiles2bpp
+    LD_DE_TILE $19f
+    ld hl, PenTiles + SizeOfTile/2 * 4
+    jp FillTiles2bpp ; and ret
 
-; 4th entry of Jump Table from 38D3 (indexed by $C00C)
-JumpTable_38D3_3:
+DrawEraserOff:
     res 0, (ix+0)
-    ld de, $7400
-    ld hl, $4052
-    jp FillTiles2bpp
+    LD_DE_TILE $1a0
+    ld hl, PenTiles + SizeOfTile/2 * 6
+    jp FillTiles2bpp ; and ret
 
 _LABEL_390F_:
     ld a, ($C062)
@@ -6271,7 +6271,7 @@ UpdateStatusBarText:
     add hl, bc
     ld bc, StatusBarText ;$3B66
     add hl, bc
-    ld de, $7660 ; tile $1B3
+    LD_DE_TILE $1B3
     VDP_ADDRESS_TO_DE
     ld b, 13 ; String lengths
 -:  push bc
@@ -6295,6 +6295,8 @@ UpdateStatusBarText:
     
 .org $3b66
 StatusBarText:
+; All must be 13 characters long
+;     1234567890123
 .asc "             "
 .asc " COLOR MODE  "
 .asc " ERASE MODE  "
@@ -6308,14 +6310,14 @@ StatusBarText:
 .asc " DISPLAY MODE"
 .asc "   THE END   "
 
-.org $3c02
 TitleScreenFont:
 .incbin "Graphics/Font tiles.pscompr"
 
-.org $3eb2
+CursorTiles: ; $3eb2
 .incbin "Graphics/Cursor tiles.4bpp"
-.org $3ff2
+PenTiles: ; $3ff2
 .incbin "Graphics/Pen tiles.2bpp"    ; Pen widths, E and D, selected or not
+ButtonTiles: ; $4092
 .incbin "Graphics/Button tiles.2bpp" ; MENU, DO, PEN
 Font2bpp:     ; $41b2
 .incbin "Graphics/Font.2bpp"         ; Includes frames
@@ -6325,10 +6327,10 @@ ControlTiles: ; $4552
 ; Lots of unused space (14615 bytes)
 
 ; Header
-.smstag ; TMR SEGA, checksum
+.smstag ; TMR SEGA, checksum, region, size
 .orga $7ff8
 .db "WK"
 .orga $7ffc
 .dw $4009 ; product code - not valid?
 .db $02 ; version 2
-.db $4c ; 32KB, SMS export
+

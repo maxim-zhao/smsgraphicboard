@@ -25,3 +25,8 @@
 .macro VDP_ADDRESS_TO_DE
   rst $08
 .endm
+
+.macro LD_HL_A
+  ld l,a
+  ld h,0
+.endm

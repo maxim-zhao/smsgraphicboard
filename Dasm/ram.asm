@@ -31,6 +31,11 @@
 ;---
 .define RAM_TileModificationBuffer $C073 ; 4b+?
 ;---
+.define RAM_CurrentCursorIndex $C083 ; 1b Low bits are the cursor index, high bits are ??? TODO
+.define RAM_CurrentCursorDataAddress $C084 ; 2b Pointer to cursor tile data
+;---
+.define RAM_ButtonStateShownOnScreen $C088 ; Holds the button bits as last drawn to the screen
+;---
 .define RAM_SplashScreenTimeout $C163 ; 2b
 ;---
 .define RAM_UnknownWriteOnlyC182 $C182 ; 1b
