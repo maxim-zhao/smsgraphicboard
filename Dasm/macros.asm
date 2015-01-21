@@ -30,3 +30,12 @@
   ld l,a
   ld h,0
 .endm
+
+.macro LD_DE_A
+  ld e,a
+  ld d,0
+.endm
+
+.macro COLOUR args red,green,blue
+.db (red & %11) | ((green & %11) << 2) | ((blue & %11) << 4)
+.endm

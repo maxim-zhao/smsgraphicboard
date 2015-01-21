@@ -34,6 +34,9 @@
 .define RAM_CurrentCursorIndex $C083 ; 1b Low bits are the cursor index, high bits are ??? TODO
 .define RAM_CurrentCursorDataAddress $C084 ; 2b Pointer to cursor tile data
 ;---
+.define RAM_CursorColourCycle_Delay $C086 ; 1b Counter for frame between colour changes
+.define RAM_CursorColourCycle_Index $C087 ; 1b Current colour index, must be following previous
+;---
 .define RAM_ButtonStateShownOnScreen $C088 ; Holds the button bits as last drawn to the screen
 ;---
 .define RAM_SplashScreenTimeout $C163 ; 2b

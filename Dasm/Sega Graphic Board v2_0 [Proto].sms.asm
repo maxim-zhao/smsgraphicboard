@@ -35,8 +35,7 @@ VDPAddressToDE:
 JumpToFunction:
     ; Look up a'th entry in table at hl, and jump to it
     add a, a
-    ld e, a
-    ld d, $00
+    LD_DE_A
     add hl, de
     ld a, (hl)
     inc hl
@@ -765,7 +764,7 @@ InterruptHandlerImpl:
       ; Regular VBlank
       call CopySpriteTable2ToVRAM
       call UpdateCursorGraphics
-      call _LABEL_371E_
+      call UpdateCursorColourCycling
       ld a, (RAM_NonVBlankDynamicFunction)
       cp $83
       jp nz, +
@@ -880,7 +879,7 @@ HandleReset:
     ld hl, $C002
     ld de, $C003
     ld bc, $1FFD
-    ld (hl), $00
+    ld (hl), 0
     ldir
     ; Then go to the usual startup code
     jp Start_AfterRAMClear
@@ -935,7 +934,7 @@ TitleScreen: ; $865
     ld hl, $C15D
     ld de, $C15E
     ld bc, 8
-    ld (hl), $00
+    ld (hl), 0
     ldir
 
     ; Initialise timeout counter
@@ -946,7 +945,7 @@ TitleScreen: ; $865
     LD_DE_TILE 0
     call DecompressGraphics
 
-    ld h, $00
+    ld h, 0
     LD_DE_TILE 256
     ld bc, 192 * 32 ; $1800 ; 192 tiles (up to name table)
     call FillVRAMWithH
@@ -956,13 +955,13 @@ TitleScreen: ; $865
     call DecompressGraphics
     
     ld hl, Palette_TitleScreen
-    ld de, $C000 ; Tile palette
-    ld bc, 7
+    LD_DE_PALETTE 0 ; Tile palette
+    ld bc, 7 ; Count
     call RawDataToVRAM
     
     ld hl, Palette_Logo ; $0C2A
-    ld de, $C010 ; Sprite palette
-    ld bc, $0008
+    LD_DE_PALETTE 16 ; Sprite palette
+    ld bc, 8 ; Count
     call RawDataToVRAM
 
     in a, (Port_IOPort1)
@@ -1249,8 +1248,7 @@ UpdateSplashScreenAnimationTilesLine:
     and %00000111
     add a, a ; x2
     add a, a ; x4
-    ld e, a
-    ld d, $00
+    LD_DE_A
     add hl, de ; x8
     ld de, $6020 ; magic? Tile 257
     add hl, de
@@ -1277,8 +1275,7 @@ UpdateSplashScreenAnimationTilesLine:
       ld a, c ; low 3 bits of c
       and $07
       add a, a ; x2
-      ld e, a
-      ld d, $00
+      LD_DE_A
       add hl, de ; x4
       ld de, Tiles_Logo ; $0C32
       add hl, de
@@ -1336,8 +1333,7 @@ _LABEL_ACC_:
     and $07
     add a, a
     add a, a
-    ld e, a
-    ld d, $00
+    LD_DE_A
     add hl, de
     ld de, $6020
     add hl, de
@@ -2457,8 +2453,7 @@ _LABEL_1E57_:
     and $07
     add a, a
     add a, a
-    ld e, a
-    ld d, $00
+    LD_DE_A
     add hl, de
     ex de, hl
     push bc
@@ -2470,8 +2465,7 @@ _LABEL_1E57_:
     and $07
     push de
       ld hl, $1EDA
-      ld e, a
-      ld d, $00
+      LD_DE_A
       add hl, de
       ld a, (hl)
       ld hl, RAM_TileModificationBuffer
@@ -2694,8 +2688,7 @@ _LABEL_1F66_:
         and $07
         add a, a
         add a, a
-        ld e, a
-        ld d, $00
+        LD_DE_A
         add hl, de
         ex de, hl
         call _LABEL_20AA_
@@ -2747,8 +2740,7 @@ _LABEL_20AA_:
     jp z, +
     push de
       ld hl, $219A
-      ld e, a
-      ld d, $00
+      LD_DE_A
       add hl, de
       ld a, (hl)
     pop de
@@ -2781,8 +2773,7 @@ _LABEL_20AA_:
     ret z
     push de
       ld hl, $219A
-      ld e, a
-      ld d, $00
+      LD_DE_A
       add hl, de
     pop de
     ld a, (hl)
@@ -2915,7 +2906,7 @@ _LABEL_21A2_:
       ld e, a
       or a
       jp z, +
-      ld d, $00
+      ld d, 0
 +:    ld a, d
       ld ($C06B), a
       ld a, e
@@ -4850,8 +4841,7 @@ _LABEL_3044_:
     or a
     jp nz, _LABEL_30AF_
     ld a, ($C06C)
-    ld e, a
-    ld d, $00
+    LD_DE_A
     ld hl, RAM_Palette
     add hl, de
     ld (hl), c
@@ -5706,33 +5696,42 @@ _LABEL_36A5_:
     call SetCursorIndex
     jp _LABEL_18E6_ ; and ret
 
-_LABEL_371E_:
-    ld hl, $C086
+UpdateCursorColourCycling:
+    ld hl, RAM_CursorColourCycle_Delay
     dec (hl)
     ret p
-    ld (hl), $04
-    inc hl
+    ld (hl), 4 ; Frame count between changes
+    inc hl ; RAM_CursorColourCycle_Index
     ld a, (hl)
     inc a
-    cp $06
+    cp CursorColourCycleEnd-CursorColourCycle
     jp c, +
     xor a
 +:  ld (hl), a
-    ld hl, $3742
-    ld d, $00
+    ld hl, CursorColourCycle
+    ld d, 0
     ld e, a
     add hl, de
-    ld de, $C01F
+    LD_DE_PALETTE 31
     VDP_ADDRESS_TO_DE
-    ld b, $00
-    djnz -3
+
+    ; Delay: 4350 cycles
+    ld b, 0
+    djnz -3 ; This actually jumps to the 0 parameter of the preceding opcode, which decodes as "nop".
+    
     ld a, (hl)
     out (Port_VDPData), a
     ret
 
-; Data from 3742 to 3747 (6 bytes)
-.db $00 $03 $0C $0F $30 $3F
-
+CursorColourCycle:    
+    COLOUR 0,0,0 ; Black
+    COLOUR 3,0,0 ; Red
+    COLOUR 0,3,0 ; Green
+    COLOUR 3,3,0 ; Yellow
+    COLOUR 0,0,3 ; Blue
+    COLOUR 3,3,3 ; White
+CursorColourCycleEnd:
+    
 InitialiseCursorSprites:
     ld hl, InitialiseCursorSprites_Y
     ld de, RAM_SpriteTable1_Y

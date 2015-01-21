@@ -204,7 +204,9 @@
 0000:363c _LABEL_363C_
 0000:3666 _LABEL_3666_
 0000:36a5 _LABEL_36A5_
-0000:371e _LABEL_371E_
+0000:371e UpdateCursorColourCycling
+0000:3742 CursorColourCycle
+0000:3748 CursorColourCycleEnd
 0000:3748 InitialiseCursorSprites
 0000:375f InitialiseCursorSprites_Y
 0000:3763 InitialiseCursorSprites_XN
