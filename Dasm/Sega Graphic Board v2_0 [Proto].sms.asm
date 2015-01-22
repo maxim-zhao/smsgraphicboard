@@ -18,6 +18,7 @@ banks 1
 .include "macros.asm"
 
 ; Early definitions of some stuff needed later...
+
 .define SetCursorIndex_Second 1<<5 ; Bitmask on cursor index to indicate to set the 2nd cursor
 ; Cursor indices. WLA gets confused if we don;t define them now, if they're used in arithmetic (with the above) later.
 .enum 0
@@ -32,6 +33,27 @@ CursorTile_ArrowRight:        db ; Used for defining V-flip axis
 CursorTile_ZoomedPixel:       db ; Used to show snapped pixel when in Zoom mode
 CursorTile_X:                 db ; Used for defining points for circles/ellipses
 .ende
+
+; TODO
+; WLA fails here, it can't handle .defines using labels?!?
+; label: .db 0
+; .define fail label+1
+; TODO: File a bug
+.enum 0
+PenTile_Thin_Off      db
+PenTile_Thin_On       db
+PenTile_Medium_Off    db
+PenTile_Medium_On     db
+PenTile_Thick_Off     db
+PenTile_Thick_On      db
+PenTile_Erase_Off     db
+PenTile_Erase_On      db
+PenTile_DotMode_Off   db
+PenTile_DotMode_On    db
+.ende
+.macro LD_HL_PEN_TILE_GRAPHICS args tileIndex
+  ld hl, PenTiles + SizeOfTile/2 * \1 ; args fail
+.endm
 
 .bank 0 slot 0
 .org $0000
@@ -185,8 +207,9 @@ Start_AfterRAMClear:
     call ScreenOn
     ld hl, $4858
     ld ($C03E), hl
-    ld a, $01
-    ld ($C00B), a
+
+    ld a, 1
+    ld (RAM_PenMode_IsSet), a
 
     ; Main loop
 -:  ei
@@ -827,7 +850,7 @@ InterruptHandlerImpl:
 +:    bit 0, a
       jp z, +
       call UpdateButtonGraphics
-      call _LABEL_386B_
+      call UpdatePenGraphics
 +:    call Beep
       ; fall through
 VBlank_CheckResetAndExit:
@@ -5900,16 +5923,20 @@ PenPressed:
     ld hl, ButtonTiles + SizeOfTile/2 * 3 * 5 ; Pen pressed
     jp Write2bppToVRAMSlowly
 
-_LABEL_386B_:
-    ld ix, $C00B
-    ld a, ($C08A)
-    cp (ix+1)
-    jp z, _LABEL_390F_
-    bit 0, (ix+0)
+UpdatePenGraphics:
+    ld ix, RAM_PenMode_Base
+    ld a, ($C08A) ; Desired new pen mode
+    cp (ix+RAM_PenMode_Current-RAM_PenMode_Base)
+    jp z, PenModeNotChanged
+
+    ; Check if we need to unset the old mode
+    bit 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     push af
-      call nz, _LABEL_38C8_
+      call nz, TurnOffCurrentPenIcon
     pop af
-    ld (ix+1), a
+    
+    ; Draw current pen mode icon in red
+    ld (ix+RAM_PenMode_Current-RAM_PenMode_Base), a ; Set pen mode
     ld b, 1 ; Tile count
     ld hl, +
     jp JumpToFunction
@@ -5922,35 +5949,35 @@ _LABEL_386B_:
 
 ; 1st entry of Jump Table from 388C (indexed by $C08A)
 DrawThinPenOn:
-    set 0, (ix+0)
+    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $19d
-    ld hl, PenTiles + SizeOfTile/2 * 1
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Thin_On
     jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 388C (indexed by $C08A)
 DrawMediumPenOn:
-    set 0, (ix+0)
+    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $19e
-    ld hl, PenTiles + SizeOfTile/2 * 3
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Medium_On
     jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 388C (indexed by $C08A)
 DrawThickPenOn:
-    set 0, (ix+0)
+    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $19f
-    ld hl, PenTiles + SizeOfTile/2 * 5
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Thick_On
     jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 388C (indexed by $C08A)
 DrawEraserOn:
-    set 0, (ix+0)
+    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $1a0
-    ld hl, PenTiles + SizeOfTile/2 * 7
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Erase_On
     jp FillTiles2bpp
 
-_LABEL_38C8_:
+TurnOffCurrentPenIcon:
     ld b, 1 ; Tile count
-    ld a, (ix+1)
+    ld a, (ix+RAM_PenMode_Current-RAM_PenMode_Base)
     ld hl, +
     jp JumpToFunction
 
@@ -5961,44 +5988,50 @@ _LABEL_38C8_:
 .dw DrawEraserOff
 
 DrawThinPenOff:
-    res 0, (ix+0)
+    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $19d
-    ld hl, PenTiles + SizeOfTile/2 * 0
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Thin_Off
     jp FillTiles2bpp ; and ret
 
 DrawMediumPenOff:
-    res 0, (ix+0)
+    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $19e
-    ld hl, PenTiles + SizeOfTile/2 * 2
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Medium_Off
     jp FillTiles2bpp ; and ret
 
 DrawThickPenOff:
-    res 0, (ix+0)
+    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $19f
-    ld hl, PenTiles + SizeOfTile/2 * 4
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Thick_Off
     jp FillTiles2bpp ; and ret
 
 DrawEraserOff:
-    res 0, (ix+0)
+    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
     LD_DE_TILE $1a0
-    ld hl, PenTiles + SizeOfTile/2 * 6
+    LD_HL_PEN_TILE_GRAPHICS PenTile_Erase_Off
     jp FillTiles2bpp ; and ret
 
-_LABEL_390F_:
-    ld a, ($C062)
-    cp (ix+2)
+PenModeNotChanged:
+    ; Check something else...
+    ld a, ($C062) ; desired new dot mode?
+    cp (ix+RAM_PenMode_Dots-RAM_PenMode_Base)
     ret z
-    ld (ix+2), a
-    ld b, $01
+    
+    ld (ix+RAM_PenMode_Dots-RAM_PenMode_Base), a
+    ld b, 1 ; Tile count
+
     bit 0, a
     jp z, +
-    ld de, $7420
-    ld hl, $4082
-    jp FillTiles2bpp
+    
+    ; Dots mode
+    LD_DE_TILE $1a1
+    LD_HL_PEN_TILE_GRAPHICS PenTile_DotMode_On
+    jp FillTiles2bpp ; and ret
 
-+:  ld de, $7420
-    ld hl, $4072
-    jp FillTiles2bpp
++:  ; Line mode
+    LD_DE_TILE $1a1
+    LD_HL_PEN_TILE_GRAPHICS PenTile_DotMode_Off
+    jp FillTiles2bpp ; and ret
 
 _LABEL_3932_:
     ld a, ($C089)
@@ -6337,6 +6370,7 @@ CursorTiles: ; $3eb2
 
 PenTiles: ; $3ff2
 .incbin "Graphics/Pen tiles.2bpp"    ; Pen widths, E and D, selected or not
+
 ButtonTiles: ; $4092
 .incbin "Graphics/Button tiles.2bpp" ; MENU, DO, PEN
 Font2bpp:     ; $41b2

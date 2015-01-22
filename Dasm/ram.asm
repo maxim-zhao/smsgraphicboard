@@ -5,13 +5,18 @@
 .define RAM_ResetButton2 $C001 ; 1b Positive edge signal
 .define RAM_VDPReg1Value $C003 ; 1b
 .define RAM_VRAMFillHighByte $C004 ; 1b
-.define RAM_Write1bppToVRAMWithExtensionMask_Mask $C005 ; 1b Work RAM for unused function Write1bppToVRAMWithExtensionMask
+.define RAM_Write1bppToVRAMWithExtensionMask_Mask $C005 ; 1b Work RAM for unused function Write1bppToVRAMWithExtensionMask ###
 .define RAM_FrameCounter $c006 ; 1b Counter incremented on every frame. Used for detecting even/odd frame and not much else.
 .define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphic board in the VBlank
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
 .define RAM_Beep $C009 ;  1b ???
 .define RAM_StatusBarTextIndex $C00A ; 1b Index of mode text to draw in status bar. Zero when no change is necessary.
-;---
+;
+.define RAM_PenMode_Base $C00B ; TODO: make a struct?
+.define RAM_PenMode_IsSet $C00B ; 1b 1 when the current pen mode icon is red
+.define RAM_PenMode_Current $C00C ; 1b Current pen mode index - must follow preceding
+.define RAM_PenMode_Dots $C00D ; 1b 1 when drawing in dots, 0 when drawing in lines
+;
 .define RAM_TitleScreenTextFlashCounter $C00E ; 1b Counter for title screen text flashing
 .define RAM_TitleScreenTextFlashState   $C00F ; 1b 1 or 0 for title screen text state. Assumed to follow previous byte.
 .define RAM_TitleScreenTextPointer      $C010 ; 2b Pointer to text for title screen to show
