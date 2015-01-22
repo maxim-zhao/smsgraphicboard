@@ -1525,52 +1525,55 @@ _LABEL_1680_:
 ; 3rd entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_16C0_:
     di
-    call SetDrawingAreaTilemap
-    ld hl, (RAM_PenY_Smoothed)
-    ld a, $48
-    cp l
-    jp c, +
-    ld hl, $4858
-+:  ld ($C03E), hl
-    call RestoreTileData
-    ld hl, ($C08D)
-    ld (RAM_PenY_Smoothed), hl
-    ld hl, ($C08F)
-    ld ($C031), hl
-    exx
-    inc hl
-    ld a, (hl)
-    ld (hl), $00
-    cp $03
-    jp nz, +
-    ld (hl), a
-    ld a, $0F
-    jp _LABEL_1715_
+      call SetDrawingAreaTilemap
+      ld hl, (RAM_PenY_Smoothed)
+      ld a, $48
+      cp l
+      jp c, +
+      ld hl, $4858
++:    ld ($C03E), hl
+      call RestoreTileData
+      ld hl, ($C08D)
+      ld (RAM_PenY_Smoothed), hl
+      ld hl, ($C08F)
+      ld ($C031), hl
+      exx
+      inc hl
+      ld a, (hl)
+      ld (hl), $00
+      cp $03
+      jp nz, +
+      
+      ; 3
+      ld (hl), a
+      ld a, $0F
+      jp ++
 
-+:  cp $04
-    jp nz, +
-    ld (hl), a
-    ld a, $11
-    jp _LABEL_1715_
++:    cp $04
+      jp nz, +
+      
+      ; 4
+      ld (hl), a
+      ld a, $11
+      jp ++
 
-+:  cp $05
-    jp c, +
-    cp $08
-    jp nc, +
-    ld (hl), a
-    ld a, $0E
-    jp _LABEL_1715_
++:    cp $05
+      jp c, +
+      cp $08
+      jp nc, +
+      ld (hl), a
+      ld a, $0E
+      jp ++
 
-+:  cp $0A
-    jp nz, _LABEL_1715_
-    ld (hl), a
-    ld a, $10
++:    cp $0A
+      jp nz, ++
+      ld (hl), a
+      ld a, $10
 
-_LABEL_1715_:
-    dec hl
-    ld (hl), a
-    ld a, $01
-    ld (RAM_Beep), a
+++:   dec hl
+      ld (hl), a
+      ld a, $01
+      ld (RAM_Beep), a
     ei
     ret
 
@@ -1648,18 +1651,18 @@ _LABEL_1790_:
     bit 6, (hl)
     ret z
     di
-    exx
-    call RestoreTileData
-    ld hl, ($C08D)
-    ld (RAM_PenY_Smoothed), hl
-    ld hl, ($C08F)
-    ld ($C031), hl
-    exx
-    inc hl
-    ld a, (hl)
-    ld (hl), $00
-    dec hl
-    ld (hl), a
+      exx
+        call RestoreTileData
+        ld hl, ($C08D)
+        ld (RAM_PenY_Smoothed), hl
+        ld hl, ($C08F)
+        ld ($C031), hl
+      exx
+      inc hl
+      ld a, (hl)
+      ld (hl), $00
+      dec hl
+      ld (hl), a
     ei
     ret
 
@@ -1691,18 +1694,18 @@ _LABEL_17DE_:
     bit 6, (hl)
     ret z
     di
-    exx
-    call RestoreTileData
-    ld hl, ($C08D)
-    ld (RAM_PenY_Smoothed), hl
-    ld hl, ($C08F)
-    ld ($C031), hl
-    exx
-    inc hl
-    ld a, (hl)
-    ld (hl), $00
-    dec hl
-    ld (hl), a
+      exx
+        call RestoreTileData
+        ld hl, ($C08D)
+        ld (RAM_PenY_Smoothed), hl
+        ld hl, ($C08F)
+        ld ($C031), hl
+      exx
+      inc hl
+      ld a, (hl)
+      ld (hl), $00
+      dec hl
+      ld (hl), a
     ei
     ret
 
@@ -1733,18 +1736,18 @@ _LABEL_182C_:
     bit 6, (hl)
     ret z
     di
-    exx
-    call RestoreTileData
-    ld hl, ($C08D)
-    ld (RAM_PenY_Smoothed), hl
-    ld hl, ($C08F)
-    ld ($C031), hl
-    exx
-    inc hl
-    ld a, (hl)
-    ld (hl), $00
-    dec hl
-    ld (hl), a
+      exx
+        call RestoreTileData
+        ld hl, ($C08D)
+        ld (RAM_PenY_Smoothed), hl
+        ld hl, ($C08F)
+        ld ($C031), hl
+      exx
+      inc hl
+      ld a, (hl)
+      ld (hl), $00
+      dec hl
+      ld (hl), a
     ei
     ret
 
@@ -1775,18 +1778,18 @@ _LABEL_187A_:
     bit 6, (hl)
     ret z
     di
-    exx
-    call RestoreTileData
-    ld hl, ($C08D)
-    ld (RAM_PenY_Smoothed), hl
-    ld hl, ($C08F)
-    ld ($C031), hl
-    exx
-    inc hl
-    ld a, (hl)
-    ld (hl), $00
-    dec hl
-    ld (hl), a
+      exx
+        call RestoreTileData
+        ld hl, ($C08D)
+        ld (RAM_PenY_Smoothed), hl
+        ld hl, ($C08F)
+        ld ($C031), hl
+      exx
+      inc hl
+      ld a, (hl)
+      ld (hl), $00
+      dec hl
+      ld (hl), a
     ei
     ret
 
@@ -1957,7 +1960,6 @@ RestoreTileData_SaveRegisters:
     ret
 
 RestoreTileData:
-    ; Restore tile data?
     ; Parameters:
     ; RAM_GraphicsDataBuffer_VRAMAddress_Tiles = VRAM address of area to write to (in tiles)
     ; RAM_GraphicsDataBuffer_VRAMAddress_Tilemap = VRAM address of area to unset tile attributes
@@ -2245,7 +2247,7 @@ _LABEL_1CA1_:
     add a, d
     ld h, a
     exx
-    inc l
+      inc l
     exx
     jp -
 
@@ -2257,7 +2259,7 @@ _LABEL_1CA1_:
     dec l
     ret z
     exx
-    inc l
+      inc l
     exx
     ld a, h
     sub d
@@ -2289,7 +2291,7 @@ _LABEL_1CF4_:
     add a, d
     ld h, a
     exx
-    dec l
+      dec l
     exx
     jp -
 
@@ -2301,7 +2303,7 @@ _LABEL_1CF4_:
     dec l
     ret z
     exx
-    dec l
+      dec l
     exx
     ld a, h
     sub d
@@ -5116,21 +5118,21 @@ _LABEL_3264_:
     or a
     ret nz
     exx
-    ld a, b
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
-    ld (RAM_SpriteTable1_XN), a
-    ld a, CursorTile_ArrowTopLeft
-    call SetCursorIndex
-    bit 1, (hl)
-    ret z
-    ld a, $01
-    ld (RAM_Beep), a
-    ld a, (RAM_PenX_Smoothed)
-    ld h, a
-    ld a, (RAM_PenY_Smoothed)
-    ld l, a
-    ld ($C091), hl
+      ld a, b
+      ld (RAM_SpriteTable1_Y), a
+      ld a, (RAM_PenX_Smoothed)
+      ld (RAM_SpriteTable1_XN), a
+      ld a, CursorTile_ArrowTopLeft
+      call SetCursorIndex
+      bit 1, (hl)
+      ret z
+      ld a, $01
+      ld (RAM_Beep), a
+      ld a, (RAM_PenX_Smoothed)
+      ld h, a
+      ld a, (RAM_PenY_Smoothed)
+      ld l, a
+      ld ($C091), hl
     exx
     ld (hl), $FF
     ret
@@ -6048,10 +6050,10 @@ _LABEL_3932_:
     ld a, ($C0C4)
     call _LABEL_3A83_
     exx
-    ld a, ($C0C4)
-    ld b, a
-    ld a, ($C0BE)
-    add a, b
+      ld a, ($C0C4)
+      ld b, a
+      ld a, ($C0BE)
+      add a, b
     exx
     call _LABEL_3A83_
     ld a, ($C0C4)
@@ -6061,10 +6063,10 @@ _LABEL_3932_:
     ld a, ($C0C5)
     call _LABEL_3A35_
     exx
-    ld a, ($C0C5)
-    ld b, a
-    ld a, ($C0C1)
-    add a, b
+      ld a, ($C0C5)
+      ld b, a
+      ld a, ($C0C1)
+      add a, b
     exx
     call _LABEL_3A35_
 _LABEL_39C0_:

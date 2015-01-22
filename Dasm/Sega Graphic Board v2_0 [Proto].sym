@@ -86,7 +86,6 @@
 0000:165c JumpTable_NonVBlankDynamicFunction
 0000:1680 _LABEL_1680_
 0000:16c0 _LABEL_16C0_
-0000:1715 _LABEL_1715_
 0000:171e _LABEL_171E_
 0000:1740 _LABEL_1740_
 0000:1790 _LABEL_1790_
@@ -95,7 +94,7 @@
 0000:187a _LABEL_187A_
 0000:18c8 _LABEL_18C8_
 0000:18e6 _LABEL_18E6_
-0000:1902 DrawMenuText
+0000:1902 DrawTextToTilesWithBackup
 0000:1981 RestoreTileData_SaveRegisters
 0000:198b RestoreTileData
 0000:19d3 BackupTilesToGraphicsDataBuffer
