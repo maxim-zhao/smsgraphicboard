@@ -17,6 +17,22 @@ banks 1
 .include "ram.asm"
 .include "macros.asm"
 
+; Early definitions of some stuff needed later...
+.define SetCursorIndex_Second 1<<5 ; Bitmask on cursor index to indicate to set the 2nd cursor
+; Cursor indices. WLA gets confused if we don;t define them now, if they're used in arithmetic (with the above) later.
+.enum 0
+CursorTile_Crosshair:         db ; Drawing cursor
+CursorTile_PaletteSelect:     db ; Used when selecting stuff up top
+CursorTile_Square:            db ; Unused?
+CursorTile_MenuArrowRight:    db ; Used in menu
+CursorTile_ArrowTopLeft:      db ; Used for defining one corner of something rectangular
+CursorTile_ArrowBottomRight:  db ; Used for defining opposite corner of something rectangular
+CursorTile_ArrowDown:         db ; Used for defining H-flip axis
+CursorTile_ArrowRight:        db ; Used for defining V-flip axis
+CursorTile_ZoomedPixel:       db ; Used to show snapped pixel when in Zoom mode
+CursorTile_X:                 db ; Used for defining points for circles/ellipses
+.ende
+
 .bank 0 slot 0
 .org $0000
 FullReset:
@@ -4758,8 +4774,8 @@ _LABEL_2FF4_:
     ld (RAM_SpriteTable1_XN), a
     ld a, b
     ld (RAM_SpriteTable1_Y), a
-    xor a
-    jp SetCursorIndex
+    xor a ; CursorTile_Crosshair
+    jp SetCursorIndex ; and ret
 
 ; 2nd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3006_:
@@ -4791,8 +4807,8 @@ _LABEL_3006_:
     ld a, b
     dec a
     ld ($C00A), a
-++: ld a, $03
-    jp SetCursorIndex
+++: ld a, CursorTile_MenuArrowRight
+    jp SetCursorIndex ; and ret
 
 ; 4th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_3044_:
@@ -4819,7 +4835,7 @@ _LABEL_3044_:
     ld a, $A0
 +:  ld (RAM_SpriteTable1_XN), a
     ld c, a
-    ld a, $02
+    ld a, CursorTile_Square
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -4873,7 +4889,7 @@ _LABEL_30B9_:
     ex af, af'
     ld a, $58
     ld (RAM_SpriteTable1_XN), a
-    ld a, $03
+    ld a, CursorTile_MenuArrowRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -4907,7 +4923,7 @@ _LABEL_30F7_:
     push hl
       bit 0, d
       jp nz, +
-      ld a, $05
+      ld a, CursorTile_ArrowBottomRight
       call SetCursorIndex
     pop hl
     bit 1, (hl)
@@ -4931,8 +4947,8 @@ _LABEL_30F7_:
     ld a, ($C089)
     set 0, a
     ld ($C089), a
-    ld a, $25
-    jp SetCursorIndex
+    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
+    jp SetCursorIndex ; and ret
 
 .endasm ; Unmatched push matching
 push hl
@@ -5001,7 +5017,7 @@ _LABEL_31B6_:
     xor a
     ex af, af'
 +:  call _LABEL_18E6_
-    ld a, $09
+    ld a, CursorTile_X
     call SetCursorIndex
     ld hl, $C089
     bit 0, (hl)
@@ -5056,7 +5072,7 @@ _LABEL_3206_:
     ld ($C247), a
     ld de, (RAM_PenY_Smoothed)
     ld ($C0AA), de
-    ld a, $29
+    ld a, SetCursorIndex_Second | CursorTile_X
     call SetCursorIndex
     exx
     set 0, (hl)
@@ -5099,7 +5115,7 @@ _LABEL_3264_:
     ld (RAM_SpriteTable1_Y), a
     ld a, (RAM_PenX_Smoothed)
     ld (RAM_SpriteTable1_XN), a
-    ld a, $04
+    ld a, CursorTile_ArrowTopLeft
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5145,7 +5161,7 @@ _LABEL_3294_:
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1_XN), a
-    ld a, $05
+    ld a, CursorTile_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5170,8 +5186,8 @@ _LABEL_3294_:
     ld ($C247), a
     xor a
     ld ($C15D), a
-    ld a, $25
-    jp SetCursorIndex
+    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
+    jp SetCursorIndex ; and ret
 
 _LABEL_3311_:
     ld a, ($C0C4)
@@ -5219,7 +5235,7 @@ _LABEL_332A_:
     ld a, c
 +:  ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
-    ld a, $04
+    ld a, CursorTile_ArrowTopLeft
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5255,7 +5271,7 @@ _LABEL_3385_:
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1_XN), a
-    ld a, $05
+    ld a, CursorTile_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5333,7 +5349,7 @@ _LABEL_33D1_:
     call z, _LABEL_3501_
     ld (RAM_SpriteTable1_XN), a
     ld ($C0C7), a
-    ld a, $04
+    ld a, CursorTile_ArrowTopLeft
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5373,7 +5389,7 @@ _LABEL_3469_:
 +:  bit 0, (iy+0)
     call z, _LABEL_3513_
     ld (RAM_SpriteTable1_XN), a
-    ld a, $05
+    ld a, CursorTile_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5398,8 +5414,8 @@ _LABEL_3469_:
     ld ($C247), a
     xor a
     ld ($C15D), a
-    ld a, $25
-    jp SetCursorIndex
+    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
+    jp SetCursorIndex ; and ret
 
 _LABEL_34E0_:
     ld c, a
@@ -5545,7 +5561,7 @@ _LABEL_358D_:
     ld ($C0C5), a
     add a, $21
     ld ($C0C7), a
-    ld a, $05
+    ld a, CursorTile_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5566,7 +5582,7 @@ _LABEL_358D_:
     ld ($C247), a
     xor a
     ld ($C15D), a
-    ld a, $25
+    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
     call SetCursorIndex
     ld c, $00
     ld a, (RAM_SpriteTable1_Y)
@@ -5602,8 +5618,8 @@ _LABEL_363C_:
     ld a, b
     and $FE
     ld (RAM_SpriteTable1_Y), a
-    ld a, $08
-    jp SetCursorIndex
+    ld a, CursorTile_ZoomedPixel
+    jp SetCursorIndex ; and ret
 
 +:  ld a, ($C089)
     or $80
@@ -5629,7 +5645,7 @@ _LABEL_3666_:
     ld a, $48
 +:  ld (RAM_SpriteTable1_Y), a
     ld b, a
-    ld a, $03
+    ld a, CursorTile_MenuArrowRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5697,7 +5713,7 @@ _LABEL_36A5_:
     ld ($C08A), a
 ++: ld a, $A8
     ld ($C241), a
-    ld a, $01
+    ld a, CursorTile_PaletteSelect
     call SetCursorIndex
     jp _LABEL_18E6_ ; and ret
 
@@ -5779,7 +5795,7 @@ SetCursorIndex:
       ld b, a ; Check if the argument matches the current value
       ld hl, RAM_CurrentCursorIndex
       ld a, (hl)
-      and $3F
+      and %00111111 ; Mask off unused high bits
       cp b
       jp z, + ; If so, there's nothing to do
 
@@ -6307,6 +6323,7 @@ TitleScreenFont:
 
 CursorTiles: ; $3eb2
 .incbin "Graphics/Cursor tiles.4bpp"
+
 PenTiles: ; $3ff2
 .incbin "Graphics/Pen tiles.2bpp"    ; Pen widths, E and D, selected or not
 ButtonTiles: ; $4092
