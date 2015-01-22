@@ -5,6 +5,7 @@
 .define RAM_ResetButton2 $C001 ; 1b Positive edge signal
 .define RAM_VDPReg1Value $C003 ; 1b
 .define RAM_VRAMFillHighByte $C004 ; 1b
+.define RAM_Write1bppToVRAMWithExtensionMask_Mask $C005 ; 1b Work RAM for unused function Write1bppToVRAMWithExtensionMask
 ;---
 .define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphic board in the VBlank
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank

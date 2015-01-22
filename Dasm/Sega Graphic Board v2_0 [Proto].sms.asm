@@ -294,14 +294,14 @@ Write1bppToVRAMWithExtensionMask:
     ; de = dest VRAM address
     ; hl = source
     ; This acts to take some 1bpp data and extend it up to 4bpp using the supplied bitmask.
-    ld ($c005),a ; save the bitmask
+    ld (RAM_Write1bppToVRAMWithExtensionMask_Mask),a ; save the bitmask
     VDP_ADDRESS_TO_DE
 --: ld a,(hl) ; Read a byte
     exx
       ld c, Port_VDPData    
       ld b, 4 ; Counter
       ld h, a ; Hold read byte
-      ld a, ($c005)
+      ld a, (RAM_Write1bppToVRAMWithExtensionMask_Mask)
 -:    rra
       ld d,h
       jr c,+
