@@ -5715,7 +5715,7 @@ UpdateCursorColourCycling:
     LD_DE_PALETTE 31
     VDP_ADDRESS_TO_DE
 
-    ; Delay: 4350 cycles
+    ; Delay: 4350 cycles - seems unnecessary?
     ld b, 0
     djnz -3 ; This actually jumps to the 0 parameter of the preceding opcode, which decodes as "nop".
     
@@ -5744,9 +5744,9 @@ InitialiseCursorSprites:
     ret
 
 InitialiseCursorSprites_Y:
-.db $40 $00 $E0 $E0 ; Second two are hidden
+.db 64, 0, SpriteTableYTerminator, SpriteTableYTerminator
 InitialiseCursorSprites_XN:
-.db $40 $A8 $28 $A7 $00 $A7 $00 $A9
+.db 64 $A8, 40 $A7, 0 $A7, 0 $A9 ; TODO: enum or something for tile indices
 
 UpdateCursorGraphics:
     ld hl, RAM_CurrentCursorIndex
