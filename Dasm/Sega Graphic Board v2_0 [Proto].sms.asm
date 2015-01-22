@@ -672,7 +672,7 @@ DrawUIControls:
     jp RawDataToVRAM ; and ret
 
 SetDrawingAreaTilemap:
-    ld hl, $0000 ; Tilemap data to write
+    ld hl, 0 ; Tilemap data to write - start at index 0 and increment
     LD_BC_TILEMAP_AREA 11, 18
     LD_DE_TILEMAP 5, 3
 --: VDP_ADDRESS_TO_DE
@@ -1506,10 +1506,12 @@ _LABEL_1680_:
       ld (RAM_StatusBarTextIndex), a ; Set it to blank
       call EnableOnlyThreeSprites
       call SetDrawingAreaTilemap
+
       LD_BC_AREA 12, 14
       ld de, MenuText
       LD_HL_LOCATION 5, 4
       call DrawTextToTilesWithBackup
+
       ld hl, (RAM_PenY_Smoothed)
       ld ($C08D), hl
       ld hl, ($C031)
@@ -1587,16 +1589,17 @@ _LABEL_171E_:
     or a
     ret nz
 
+    ; Zero all tiles
     di
-    LD_DE_TILE 0
-    ld h, $00
-    ld bc, 396 * SizeOfTile ; $3180 ; 396 tiles
-    call FillVRAMWithH
+      LD_DE_TILE 0
+      ld h, 0
+      ld bc, 18 * 22 * SizeOfTile ; All tiles
+      call FillVRAMWithH
     ei
     ; fall through
 +:  exx
     ld (hl), $00
-    ld a, $01
+    ld a, $01 ; Blank
     ld (RAM_StatusBarTextIndex), a
     ret
 
@@ -6267,6 +6270,7 @@ EnableOnlyThreeSprites:
 .db $00 $08 $10 $18 $20 $28 $30 $38 $40 $48 $50 $58 $60
 
 UpdateStatusBarText:
+    ; Called in VBlank
     ld a, (RAM_StatusBarTextIndex)
     or a
     ret z
