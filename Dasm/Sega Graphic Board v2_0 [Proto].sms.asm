@@ -561,7 +561,7 @@ CopySpriteTable2ToVRAM:
     ret z ; Do nothing if not dirty
     xor a
     ld (RAM_SpriteTable2DirtyFlag), a
-    ld a, ($C006) ; ### Immediately discarded...
+    ld a, (RAM_FrameCounter) ; ### Immediately discarded...
     LD_DE_SPRITE_TABLE_Y 0 ; Sprite table: Y
     VDP_ADDRESS_TO_DE
     ld hl, RAM_SpriteTable2_Y
@@ -586,7 +586,7 @@ SpriteTable1to2:
     and $3F
     cp $0C ; ???
     ret z
-    ld a, ($C006)
+    ld a, (RAM_FrameCounter)
     rrca ; Check low bit
     jp c, +
     ; Even: straight copy
@@ -779,7 +779,7 @@ InterruptHandlerImpl:
       ld b, 17 ; palette entries
 -:    ld a, (hl)
       inc hl
-      push af
+      push af ; Delay
       pop af
       out (Port_VDPData), a
       djnz -
@@ -791,14 +791,16 @@ InterruptHandlerImpl:
       ld b, 8       ; 8 palette entries
 -:    out (Port_VDPData), a
       inc a ; Write incrementing values..?
-      push af
+      push af ; Delay
       pop af
       djnz -
 
       call _LABEL_1F0F_
 
-+:    ld hl, $C006
++:    ; Increment the frame counter
+      ld hl, RAM_FrameCounter
       inc (hl)
+
       call UpdateStatusBarText
       ld a, (RAM_VBlankFunctionControl)
       bit 1, a
