@@ -1503,7 +1503,7 @@ _LABEL_1680_:
       xor a
       ld ($C089), a
       inc a
-      ld ($C00A), a
+      ld (RAM_StatusBarTextIndex), a ; Set it to blank
       call EnableOnlyThreeSprites
       call SetDrawingAreaTilemap
       LD_BC_AREA 12, 14
@@ -1597,7 +1597,7 @@ _LABEL_171E_:
 +:  exx
     ld (hl), $00
     ld a, $01
-    ld ($C00A), a
+    ld (RAM_StatusBarTextIndex), a
     ret
 
 ; 13th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
@@ -4813,7 +4813,7 @@ _LABEL_3006_:
 +:  ld (RAM_NonVBlankDynamicFunction), a
     ld a, b
     dec a
-    ld ($C00A), a
+    ld (RAM_StatusBarTextIndex), a
 ++: ld a, CursorTile_MenuArrowRight
     jp SetCursorIndex ; and ret
 
@@ -6267,14 +6267,14 @@ EnableOnlyThreeSprites:
 .db $00 $08 $10 $18 $20 $28 $30 $38 $40 $48 $50 $58 $60
 
 UpdateStatusBarText:
-    ld a, ($C00A)
+    ld a, (RAM_StatusBarTextIndex)
     or a
     ret z
     dec a
     ld l, a ; hl = a
     xor a
     ld h, a
-    ld ($C00A), a
+    ld (RAM_StatusBarTextIndex), a ; Unset it
     ; Look up text from index
     push hl ; hl *= 13
       add hl, hl

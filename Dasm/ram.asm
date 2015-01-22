@@ -10,6 +10,7 @@
 .define RAM_VBlankFunctionControl $C007 ; 1b - bit 1 set means read the graphic board in the VBlank
 .define RAM_SpriteTable2DirtyFlag $C008 ; 1b - non-zero if sprite table should be copied to VRAM in VBlank
 .define RAM_Beep $C009 ;  1b ???
+.define RAM_StatusBarTextIndex $c00a ; 1b Index of mode text to draw in status bar. Zero when no change is necessary.
 ;---
 .define RAM_TitleScreenTextFlashCounter $C00E ; 1b Counter for title screen text flashing
 .define RAM_TitleScreenTextFlashState   $C00F ; 1b 1 or 0 for title screen text state. Assumed to follow previous byte.
