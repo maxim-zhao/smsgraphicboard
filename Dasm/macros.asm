@@ -18,8 +18,19 @@
   ld de, VDPAddressMask_Write | SpriteTableAddress | (index*2 + 128)
 .endm
 
-.macro LD_BC_AREA args columns, rows
+; For tilemap operations
+.macro LD_BC_TILEMAP_AREA args columns, rows
   ld bc, (columns*2) | (rows << 8)
+.endm
+
+; For tile operations
+.macro LD_BC_AREA args columns, rows
+  ld bc, columns | (rows << 8)
+.endm
+
+; For tile operations
+.macro LD_HL_LOCATION args x, y
+  ld hl, x | (y << 8)
 .endm
 
 .macro VDP_ADDRESS_TO_DE

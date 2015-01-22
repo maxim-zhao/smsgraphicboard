@@ -660,7 +660,7 @@ DelayLoop1:
 DrawUIControls:
     ld hl, $0573 ; tilemap data: MENU | DO | PEN bar
     LD_DE_TILEMAP 4, 21
-    LD_BC_AREA 24, 3
+    LD_BC_TILEMAP_AREA 24, 3
     call WriteAreaToTilemap
     ld hl, TopBarPaletteTiles
     LD_DE_TILEMAP 5, 1
@@ -673,7 +673,7 @@ DrawUIControls:
 
 SetDrawingAreaTilemap:
     ld hl, $0000 ; Tilemap data to write
-    LD_BC_AREA 11, 18
+    LD_BC_TILEMAP_AREA 11, 18
     LD_DE_TILEMAP 5, 3
 --: VDP_ADDRESS_TO_DE
     push bc
@@ -1506,10 +1506,10 @@ _LABEL_1680_:
       ld ($C00A), a
       call EnableOnlyThreeSprites
       call SetDrawingAreaTilemap
-      ld bc, $0E0C
+      LD_BC_AREA 12, 14
       ld de, MenuText
-      ld hl, $0405
-      call DrawMenuText
+      LD_HL_LOCATION 5, 4
+      call DrawTextToTilesWithBackup
       ld hl, (RAM_PenY_Smoothed)
       ld ($C08D), hl
       ld hl, ($C031)
@@ -1665,10 +1665,11 @@ _LABEL_1790_:
 
 +:  set 7, (hl)
     di
-    ld bc, $040A
+    LD_BC_AREA 10, 4
     ld de, ModeMenuText
-    ld hl, $0405
-    call DrawMenuText
+    LD_HL_LOCATION 5, 4
+    call DrawTextToTilesWithBackup
+
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1707,10 +1708,10 @@ _LABEL_17DE_:
 
 +:  set 7, (hl)
     di
-    ld bc, $0410
+    LD_BC_AREA 16, 4
     ld de, ColorMenuText
-    ld hl, $0405
-    call DrawMenuText
+    LD_HL_LOCATION 5, 4
+    call DrawTextToTilesWithBackup
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1749,10 +1750,10 @@ _LABEL_182C_:
 
 +:  set 7, (hl)
     di
-    ld bc, $040E
+    LD_BC_AREA 14, 4
     ld de, MirrorMenuText
-    ld hl, $0405
-    call DrawMenuText
+    LD_HL_LOCATION 5, 4
+    call DrawTextToTilesWithBackup
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1791,10 +1792,10 @@ _LABEL_187A_:
 
 +:  set 7, (hl)
     di
-    ld bc, $040D
+    LD_BC_AREA 13, 4
     ld de, EraseMenuText
-    ld hl, $0405
-    call DrawMenuText
+    LD_HL_LOCATION 5, 4
+    call DrawTextToTilesWithBackup
     ld hl, (RAM_PenY_Smoothed)
     ld ($C08D), hl
     ld hl, ($C031)
@@ -1840,9 +1841,9 @@ _LABEL_18E6_:
     ld (RAM_NonVBlankDynamicFunction), a
     ret
 
-DrawMenuText:
-; h = y offset (within drawing area)?
-; l = x offset (within drawing area)?
+DrawTextToTilesWithBackup:
+; h = y offset (within drawing area)
+; l = x offset (within drawing area)
 ; b = rows
 ; c = columns
 
@@ -2537,10 +2538,12 @@ _LABEL_1EE2_:
     ret
 +:  set 7, (hl)
     di
+
     ld de, ColorPageMenuText
-    ld bc, $080D
-    ld hl, $0405
-    call DrawMenuText
+    LD_BC_AREA 13, 8
+    LD_HL_LOCATION 5, 4
+    call DrawTextToTilesWithBackup
+
     ld hl, $1BE7
     LD_DE_TILEMAP 14, 8
     ld bc, $030E
@@ -4563,7 +4566,7 @@ _LABEL_2D05_:
     ld ($C089), a
     ret
 
-_LABEL_2D0D_:
+_LABEL_2D0D_: ; magnify mode?
     ex af, af'
     ld a, (RAM_Beep)
     or a
@@ -4599,19 +4602,21 @@ _LABEL_2D0D_:
     ld d, (hl)
     inc hl
     push de
+      ; Pointer to text
       ld e, (hl)
       inc hl
       ld d, (hl)
       inc hl
+      ; Location to draw it 
       ld a, (hl)
       inc hl
       ld h, (hl)
       ld l, a
-      ld bc, $0909
-      call DrawMenuText
+      LD_BC_AREA 9, 9
+      call DrawTextToTilesWithBackup
     pop de
     ld h, TileAttribute_None
-    ld bc, $0808
+    LD_BC_AREA 8, 8
     call SetAreaTileAttributes
     ld a, ($C0C4)
     sub $16
