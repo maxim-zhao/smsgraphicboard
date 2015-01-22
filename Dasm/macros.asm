@@ -31,6 +31,11 @@
   ld h,0
 .endm
 
+.macro LD_HL_C
+  ld l,c
+  ld h,0
+.endm
+
 .macro LD_DE_A
   ld e,a
   ld d,0

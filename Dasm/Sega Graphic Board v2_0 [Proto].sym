@@ -98,7 +98,7 @@
 0000:1902 DrawMenuText
 0000:1981 RestoreTileData_SaveRegisters
 0000:198b RestoreTileData
-0000:19d3 _LABEL_19D3_
+0000:19d3 BackupTilesToGraphicsDataBuffer
 0000:1a10 MenuText
 0000:1ac7 ModeMenuText
 0000:1af4 ColorMenuText
@@ -238,7 +238,7 @@
 0000:3aa5 _LABEL_3AA5_
 0000:3aba _LABEL_3ABA_
 0000:3ace _LABEL_3ACE_
-0000:3b13 _LABEL_3B13_
+0000:3b13 EnableOnlyThreeSprites
 0000:3b2e UpdateStatusBarText
 0000:3b66 StatusBarText
 0000:3c02 TitleScreenFont

@@ -482,8 +482,7 @@ Fill1bppWithBitmaskToTilesColumn:
     ; l = data to write for selected bitplanes
 -:  push bc
     push hl
-      ld l,c
-      ld h,0      ; bc = c * 8
+      LD_HL_C      ; bc = c * 8
       add hl,hl
       add hl,hl
       add hl,hl
@@ -1487,7 +1486,7 @@ _LABEL_1680_:
       ld ($C089), a
       inc a
       ld ($C00A), a
-      call _LABEL_3B13_
+      call EnableOnlyThreeSprites
       call SetDrawingAreaTilemap
       ld bc, $0E0C
       ld de, MenuText
@@ -1826,12 +1825,15 @@ _LABEL_18E6_:
 DrawMenuText:
 ; h = y offset (within drawing area)?
 ; l = x offset (within drawing area)?
+; b = rows
+; c = columns
+
     ld a, ($C082)
     or a
     call nz, RestoreTileData_SaveRegisters
     ld a, $80
     ld ($C082), a
-    ld ($C01A), bc
+    ld (RAM_GraphicsDataBuffer_Dimensions), bc
     push de
       ; Set the tile attribute
       push hl
@@ -1860,7 +1862,7 @@ DrawMenuText:
         ld de, TileMapAddress
         add hl, de
         
-        ld ($C018), hl ; Save that
+        ld (RAM_GraphicsDataBuffer_VRAMAddress_Tilemap), hl ; Save that
         
         ; Set the tile attributes for the second palette
         ex de, hl
@@ -1886,11 +1888,9 @@ DrawMenuText:
       set 6, d ; Set write bit
     pop hl
     
-    ; Save the VRAM address
-    ld ($C016), de
-    
     ; Backup the tile
-    call _LABEL_19D3_
+    ld (RAM_GraphicsDataBuffer_VRAMAddress_Tiles), de
+    call BackupTilesToGraphicsDataBuffer
     
     ; Get the character count
     ld b, (hl)
@@ -1940,34 +1940,33 @@ RestoreTileData_SaveRegisters:
 RestoreTileData:
     ; Restore tile data?
     ; Parameters:
-    ; $c016 = VRAM address of area to write to
-    ; $c018 = VRAM address of area to unset tile attributes
-    ; $c01a = column count
-    ; $c01b = row count
+    ; RAM_GraphicsDataBuffer_VRAMAddress_Tiles = VRAM address of area to write to (in tiles)
+    ; RAM_GraphicsDataBuffer_VRAMAddress_Tilemap = VRAM address of area to unset tile attributes
+    ; RAM_GraphicsDataBuffer_Dimensions = row, column count
+    ; Uses RAM_BytesPerRow
     ; Data comes from RAM_GraphicsDataBuffer
     xor a                     ; Zero ???
     ld ($C082), a
-    ld de, ($C018)            ; VRAM address
-    ld bc, ($C01A)            ; rows, columns
+    ld de, (RAM_GraphicsDataBuffer_VRAMAddress_Tilemap)
+    ld bc, (RAM_GraphicsDataBuffer_Dimensions)
     ld h, TileAttribute_None  ; attributes
     call SetAreaTileAttributes
     push bc
     push de
     push hl
-      ld de, ($C016)          ; VRAM address
-      ld bc, ($C01A)          ; rows, columns
-      ld l, c                 ; Calculate hl = c * 32 = byte count
-      ld h, 0
+      ld de, (RAM_GraphicsDataBuffer_VRAMAddress_Tiles)
+      ld bc, (RAM_GraphicsDataBuffer_Dimensions)
+      LD_HL_C                 ; Calculate hl = columns * 32 = byte count
       add hl, hl
       add hl, hl
       add hl, hl
       add hl, hl
       add hl, hl
-      ld ($C0BB), hl
+      ld (RAM_BytesPerRow), hl
 
       ld hl, RAM_GraphicsDataBuffer ; Data source
 --:   push bc
-        ld bc, ($C0BB)        ; Byte count
+        ld bc, (RAM_BytesPerRow)
         VDP_ADDRESS_TO_DE
 -:      ld a, (hl)            ; Read a byte
         out (Port_VDPData), a ; Write to VRAM
@@ -1989,38 +1988,42 @@ RestoreTileData:
     pop bc
     ret
 
-_LABEL_19D3_:
+BackupTilesToGraphicsDataBuffer:
+    ; Args:
+    ; RAM_GraphicsDataBuffer_VRAMAddress_Tiles = VRAM address to start at
+    ; RAM_GraphicsDataBuffer_Dimensions = row, column count
+    ; Uses RAM_BytesPerRow
+    ; Saves data to RAM_GraphicsDataBuffer
     push bc
     push de
     push hl
-      ld de, ($C016)
-      res 6, d
-      ld bc, ($C01A)
-      ld l, c
-      ld h, $00
+      ld de, (RAM_GraphicsDataBuffer_VRAMAddress_Tiles)
+      res 6, d        ; Make it a read address
+      ld bc, (RAM_GraphicsDataBuffer_Dimensions)
+      LD_HL_C         ; Calculate columns * 32 = number of bytes per row
       add hl, hl
       add hl, hl
       add hl, hl
       add hl, hl
       add hl, hl
-      ld ($C0BB), hl
+      ld (RAM_BytesPerRow), hl
       ld hl, RAM_GraphicsDataBuffer
 --:   push bc
-        ld bc, ($C0BB)
+        ld bc, (RAM_BytesPerRow)
         VDP_ADDRESS_TO_DE
-        push af
+        push af               ; Delay: 63 cycles from out to in
         pop af
--:      push af
+-:      push af               ; Delay: 69 cycles between ins
         pop af
-        in a, (Port_VDPData)
-        ld (hl), a
+        in a, (Port_VDPData)  ; Read
+        ld (hl), a            ; save to RAM
         inc hl
         dec bc
-        ld a, b
+        ld a, b               ; Loop bc times
         or c
         jp nz, -
         push hl
-          ld hl, $02C0
+          ld hl, 22 * SizeOfTile ; Move on one row
           add hl, de
           ex de, hl
         pop hl
@@ -4530,7 +4533,7 @@ _LABEL_2C5A_:
 _LABEL_2CF6_:
     di
     push hl
-      call _LABEL_3B13_
+      call EnableOnlyThreeSprites
       call RestoreTileData
     pop hl
     ei
@@ -6226,10 +6229,11 @@ _LABEL_3ACE_:
     ld hl, $3B21
     jp _LABEL_3AA5_
 
-_LABEL_3B13_:
-    ld hl, $C203
-    ld de, $C204
-    ld bc, $003C
+EnableOnlyThreeSprites:
+    ; Could only set the terminator once?
+    ld hl, RAM_SpriteTable1_Y + 3
+    ld de, RAM_SpriteTable1_Y + 4
+    ld bc, 64 - 3 - 1
     ld (hl), SpriteTableYTerminator
     ldir
     ret

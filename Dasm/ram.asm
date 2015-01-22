@@ -16,7 +16,11 @@
 .define RAM_TitleScreenTextLocation     $C012 ; 2b VRAM write address for text for title screen to show
 .define RAM_TitleScreenTextDimensions   $C014 ; 2b Dimensions for text for title screen to show
 .define RAM_TitleScreenTextFlashSpeed   $C015 ; 1b Number of frames between flashes
-;---
+;
+.define RAM_GraphicsDataBuffer_VRAMAddress_Tiles $C016 ; 2b VRAM (write) address to use for GraphicsDataBuffer tile read/write. Argument to functions.
+.define RAM_GraphicsDataBuffer_VRAMAddress_Tilemap $C018 ; 2b VRAM (write) address to use for GraphicsDataBuffer tilemap read/write. Argument to functions.
+.define RAM_GraphicsDataBuffer_Dimensions $C01A ; 2b Row, column dimensions of area for GraphicsDataBuffer operations. Argument to functions.
+;
 .define RAM_ButtonsPressed $C02C ; 1b: buttons pressed last time we looked
 .define RAM_ButtonsNewlyPressed $C02D ; 1b: buttons pressed last time we looked which were'nt pressed in the previous frame
 .define RAM_PenY_Smoothed $C02E ; 1b: average of itself and the last raw value
@@ -37,7 +41,9 @@
 .define RAM_CursorColourCycle_Delay $C086 ; 1b Counter for frame between colour changes
 .define RAM_CursorColourCycle_Index $C087 ; 1b Current colour index, must be following previous
 ;---
-.define RAM_ButtonStateShownOnScreen $C088 ; Holds the button bits as last drawn to the screen
+.define RAM_ButtonStateShownOnScreen $C088 ; 1b Holds the button bits as last drawn to the screen
+;---
+.define RAM_BytesPerRow $c0bb ; 2b Used during RAM<->VRAM tile copies
 ;---
 .define RAM_SplashScreenTimeout $C163 ; 2b
 ;---
