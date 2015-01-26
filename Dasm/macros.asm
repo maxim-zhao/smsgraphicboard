@@ -28,7 +28,7 @@
   ld bc, columns | (rows << 8)
 .endm
 
-; For tile operations
+; For tile operations and cursor movement
 .macro LD_HL_LOCATION args x, y
   ld hl, x | (y << 8)
 .endm

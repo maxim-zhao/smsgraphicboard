@@ -681,17 +681,17 @@ DelayLoop1:
     ret
 
 DrawUIControls:
-    ld hl, $0573 ; tilemap data: MENU | DO | PEN bar
+    ld hl, BottomStatusBarTiles ; tilemap data: MENU | DO | PEN | mode text bar
     LD_DE_TILEMAP 4, 21
     LD_BC_TILEMAP_AREA 24, 3
     call WriteAreaToTilemap
-    ld hl, TopBarPaletteTiles
+    ld hl, TopBarPaletteTiles ; tilemap data: palette and pen mode controls
     LD_DE_TILEMAP 5, 1
-    ld bc, 44 ; count
+    ld bc, 22*SizeOfNameTableEntry ; count
     call RawDataToVRAM
-    ld hl, TopBarStatusTiles ; data: top bar status
+    ld hl, PenControlsBottomLineTilemapData ; tilemap data: top bar status (apparently unused)
     LD_DE_TILEMAP 22, 2
-    ld bc, 10 ; count
+    ld bc, 5*SizeOfNameTableEntry ; count
     jp RawDataToVRAM ; and ret
 
 SetDrawingAreaTilemap:
@@ -750,31 +750,62 @@ SilencePSG:
     ret
 
 ; Data from 4FD to 602 (262 bytes)
-; Unused palette? Black with two white
+; Unused palette? Black with blue and white
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
-.db $30 $00 $3F $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
+  COLOUR 0,0,3
+  COLOUR 0,0,0
+  COLOUR 3,3,3
+.db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
 
 ;.org $051d
 DrawingPalette:
-.db $3F $00 $01 $02 $03 $04 $08 $0C $10 $20 $30 $38 $07 $0F $1F $2F
-.db $00 $00 $3F $03 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $03
+  COLOUR 3,3,3 ; White
+  COLOUR 0,0,0 ; Black
+  COLOUR 1,0,0 ; Reds
+  COLOUR 2,0,0
+  COLOUR 3,0,0
+  COLOUR 0,1,0 ; Greens
+  COLOUR 0,2,0
+  COLOUR 0,3,0
+  COLOUR 0,0,1 ; Blues
+  COLOUR 0,0,2
+  COLOUR 0,0,3
+  COLOUR 0,2,3 ; Sky blue
+  COLOUR 3,1,0 ; Orange
+  COLOUR 3,3,0 ; Yellows
+  COLOUR 3,3,1
+  COLOUR 3,3,2
+  ; Sprites
+  COLOUR 0,0,0 ; Tranparent/black
+  COLOUR 0,0,0 ; Black for sprites
+  COLOUR 3,3,3 ; White
+  COLOUR 3,0,0 ; Red
+  COLOUR 0,0,0 ; Unused blacks
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 0,0,0
+  COLOUR 3,0,0 ; Cycling colour
 
 ;.org $053d
-TopBarPaletteTiles:
-.dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c
-.dw $098D, $099D, $099E, $099F, $09A0, $09A1
+TopBarPaletteTiles: ; 22x1
+.dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c ; Palette colours
+.dw TileAttribute_Palette2<<8 | $018D ; Unused
+.dw TileAttribute_Palette2<<8 | $019D, TileAttribute_Palette2<<8 | $019E, TileAttribute_Palette2<<8 | $019F, TileAttribute_Palette2<<8 | $01A0, TileAttribute_Palette2<<8 | $01A1 ; Pen controls using sprite palette
 
-TopBarStatusTiles:
-.dw $09A4, $09A4, $09A4, $09A4, $09A4, $09A2, $0DA4, $0DA4, $0DA4, $0DA4
-.dw $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4
-.dw $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4
-.dw $0DA4, $0DA4, $0BA2, $0BA3, $09AA, $09AB, $09AC, $09AD
-.dw $09AE, $09AF, $09B0, $09B1, $09B2, $09B3, $09B4, $09B5
-.dw $09B6, $09B7, $09B8, $09B9, $09BA, $09BB, $09BC, $09BD
-.dw $09BE, $09BF, $09A3, $0DA2, $09A4, $09A4, $09A4, $09A4
-.dw $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4
-.dw $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4
-.dw $09A4, $09A4, $0FA2
+PenControlsBottomLineTilemapData: ; 5x1 
+.dw $09A4, $09A4, $09A4, $09A4, $09A4 ; Draw bottom line for buttons
+
+BottomStatusBarTiles: ; 24x3
+.dw $09A2, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0BA2 ; .______________________.
+.dw $0BA3, $09AA, $09AB, $09AC, $09AD, $09AE, $09AF, $09B0, $09B1, $09B2, $09B3, $09B4, $09B5, $09B6, $09B7, $09B8, $09B9, $09BA, $09BB, $09BC, $09BD, $09BE, $09BF, $09A3 ; |                      | <-- with stuff in it
+.dw $0DA2, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $0FA2 ; '^^^^^^^^^^^^^^^^^^^^^^'
 
 InterruptHandlerImpl:
     di
@@ -1703,8 +1734,8 @@ _LABEL_1790_:
     ld ($C08D), hl
     ld hl, ($C031)
     ld ($C08F), hl
-    ld hl, $4858
-    ld (RAM_PenY_Smoothed), hl
+    LD_HL_LOCATION 88,72
+    ld (RAM_PenY_Smoothed), hl ; and x
     ld ($C031), hl
     ei
     ret
@@ -1745,8 +1776,8 @@ _LABEL_17DE_:
     ld ($C08D), hl
     ld hl, ($C031)
     ld ($C08F), hl
-    ld hl, $4858
-    ld (RAM_PenY_Smoothed), hl
+    LD_HL_LOCATION 88,72
+    ld (RAM_PenY_Smoothed), hl ; and x
     ld ($C031), hl
     ei
     ret
@@ -1787,8 +1818,9 @@ _LABEL_182C_:
     ld ($C08D), hl
     ld hl, ($C031)
     ld ($C08F), hl
-    ld hl, $4858
-    ld (RAM_PenY_Smoothed), hl
+
+    LD_HL_LOCATION 88,72
+    ld (RAM_PenY_Smoothed), hl ; and x
     ld ($C031), hl
     ei
     ret
@@ -1829,8 +1861,8 @@ _LABEL_187A_:
     ld ($C08D), hl
     ld hl, ($C031)
     ld ($C08F), hl
-    ld hl, $4858
-    ld (RAM_PenY_Smoothed), hl
+    LD_HL_LOCATION 88,72
+    ld (RAM_PenY_Smoothed), hl ; and x
     ld ($C031), hl
     ei
     ret

@@ -27,7 +27,9 @@
 .define RAM_GraphicsDataBuffer_VRAMAddress_Tiles $C016 ; 2b VRAM (write) address to use for GraphicsDataBuffer tile read/write. Argument to functions.
 .define RAM_GraphicsDataBuffer_VRAMAddress_Tilemap $C018 ; 2b VRAM (write) address to use for GraphicsDataBuffer tilemap read/write. Argument to functions.
 .define RAM_GraphicsDataBuffer_Dimensions $C01A ; 2b Row, column dimensions of area for GraphicsDataBuffer operations. Argument to functions.
-;
+;---
+; Apparently unused space here
+;---
 .define RAM_ButtonsPressed $C02C ; 1b: buttons pressed last time we looked
 .define RAM_ButtonsNewlyPressed $C02D ; 1b: buttons pressed last time we looked which were'nt pressed in the previous frame
 .define RAM_PenY_Smoothed $C02E ; 1b: average of itself and the last raw value

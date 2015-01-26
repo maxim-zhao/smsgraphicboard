@@ -41,7 +41,8 @@
 0000:04e8 SilencePSG
 0000:051d DrawingPalette
 0000:053d TopBarPaletteTiles
-0000:0569 TopBarStatusTiles
+0000:0569 PenControlsBottomLineTilemapData
+0000:0573 BottomStatusBarTiles
 0000:0603 InterruptHandlerImpl
 0000:0686 VBlank_CheckResetAndExit
 0000:06ad VBlank_HandleReset
