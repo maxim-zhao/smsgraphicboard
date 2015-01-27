@@ -20,7 +20,7 @@ banks 1
 ; Early definitions of some stuff needed later...
 
 .define SetCursorIndex_Second 1<<5 ; Bitmask on cursor index to indicate to set the 2nd cursor
-; Cursor indices. WLA gets confused if we don;t define them now, if they're used in arithmetic (with the above) later.
+; Cursor indices. WLA gets confused if we don't define them now, if they're used in arithmetic later.
 .enum 0
 CursorTile_Crosshair:         db ; Drawing cursor
 CursorTile_PaletteSelect:     db ; Used when selecting stuff up top
@@ -1508,10 +1508,7 @@ Tiles_Logo:
 .incbin "Graphics/Logo tiles.2bpp"
 ;.orga $14a2
 Tilemap_SegaLogo:
-.db $90 $91 $92 $93 $94 $95 $96 $97 $98 $99 
-.db $9a $9b $9c $9d $9e $9f $a0 $a1 $a2 $a3 
-.db $a4 $a5 $a6 $a7 $a8 $a9 $aa $ab $ac $ad 
-.db $ae $af $b0 $ae $b1 $b2 $ae $ae $ae $b3
+.incbin "Graphics/Sega logo.lsbtilemap"
 ;.orga $14ca
 Tiles_SegaLogo:
 .incbin "Graphics/Sega logo.pscompr"

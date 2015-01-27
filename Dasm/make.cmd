@@ -6,7 +6,7 @@ rem Graphics
 rem We don't build the pscompr because the BMP2Tile compressor is better than the one Sega used...
 rem "%BMP2TILE%" "Graphics\PNG\Control tiles.pscompr.png" -noremovedupes -savetiles "Graphics\Control tiles.pscompr" -exit
 rem "%BMP2TILE%" "Graphics\PNG\Font tiles.pscompr.png"    -noremovedupes -savetiles "Graphics\Font tiles.pscompr"    -exit
-rem "%BMP2TILE%" "Graphics\PNG\Sega logo.pscompr.png"       -removedupes -savetiles "Graphics\Sega logo.pscompr"     -exit
+rem "%BMP2TILE%" "Graphics\PNG\Sega logo.pscompr.png"       -removedupes -savetiles "Graphics\Sega logo.pscompr"     -tileoffset 144 -savetilemap "Graphics\Sega logo.lsbtilemap" -exit
 
 rem 4bpp graphics. We want a .4bpp extension for clarity.
 "%BMP2TILE%" "Graphics\PNG\Cursor tiles.4bpp.png"     -noremovedupes -savetiles "Graphics\Cursor tiles.bin"      -exit

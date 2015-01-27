@@ -35,7 +35,7 @@
 .define RAM_PenY_Smoothed $C02E ; 1b: average of itself and the last raw value
 .define RAM_PenX_Smoothed $C02F ; 1b: average of itself and the last raw value
 .define RAM_PenX $C030 ; 1b
-;---
+; Another X and Y here, not sure what they are for? Backups perhaps? Not sure how that makes sense, as the pen position is unchanged.
 .define RAM_PenY $C033 ; 1b
 .define RAM_Pressure $C034 ; 1b - never used
 .define RAM_NonVBlankDynamicFunction $C03C ; 1b Index into function pointer tables - low 6 bits only. High bits are ???
