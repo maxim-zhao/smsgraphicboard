@@ -47,7 +47,7 @@ RAM_Pen_Backup                              instanceof XY ; $c031 A backup? Not 
 RAM_PenY                                    db ; $C033
 RAM_Pressure                                db ; $C034 - never used
 RAM_unusedC035                              dsb 7
-RAM_NonVBlankDynamicFunction                db ; $C03C Index into function pointer tables - low 6 bits only. High bits are ???
+RAM_CurrentMode                             db ; $C03C Index into function pointer tables - low 6 bits only. High bits are ??? Signifies the current mode?
 RAM_c03d                                    db
 RAM_c03e                                    dw
 RAM_unusedC040                              dsb 2

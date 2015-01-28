@@ -55,6 +55,29 @@ PenTile_DotMode_On    db
   ld hl, PenTiles + SizeOfTile/2 * \1 ; args fail
 .endm
 
+.enum 0
+Mode0 db ; Drawing
+Mode1_Menu db
+Mode2 db ; Process menu selection?
+Mode3 db ; Color set
+Mode4_Erase db
+Mode5_Square db
+Mode6_Circle db
+Mode7_Ellipse db
+Mode8_Paint db
+Mode9_Copy db
+Mode10_Mirror db
+Mode11_Magnify db
+Mode12_Display db
+Mode13_End db
+Mode14 db ; Line/paint menu
+Mode15 db ; Color menu
+Mode16 db
+Mode17 db
+.ende
+
+.define ModeHighBit 1<<7
+
 .bank 0 slot 0
 .org $0000
 FullReset:
@@ -215,10 +238,12 @@ Start_AfterRAMClear:
 -:  ei
     ld a, $03
     call SetVBlankFunctionAndWait
-    call _LABEL_2F92_
-    call CallNonVBlankDynamicFunction
+    call CallNonVBlankModeSpritesHandler
+    call CallNonVBlankModeFunction
     call SpriteTable1to2
     jp -
+    
+; Various functions for manipulating graphics
 
 InitialiseVDPRegisters:
     ld hl, VDPRegisterValues ; VDP register data
@@ -621,9 +646,9 @@ Outi64:
     ret
 
 SpriteTable1to2:
-    ld a, (RAM_NonVBlankDynamicFunction)
-    and $3F
-    cp $0C ; ???
+    ld a, (RAM_CurrentMode)
+    and %00111111
+    cp Mode12_Display ; Don't do it in this mode
     ret z
     ld a, (RAM_FrameCounter)
     rrca ; Check low bit
@@ -834,8 +859,8 @@ InterruptHandlerImpl:
       call CopySpriteTable2ToVRAM
       call UpdateCursorGraphics
       call UpdateCursorColourCycling
-      ld a, (RAM_NonVBlankDynamicFunction)
-      cp $83
+      ld a, (RAM_CurrentMode)
+      cp ModeHighBit | Mode3
       jp nz, +
       ld a, ($C054)
       or a
@@ -1513,37 +1538,37 @@ Tilemap_SegaLogo:
 Tiles_SegaLogo:
 .incbin "Graphics/Sega logo.pscompr"
 
-CallNonVBlankDynamicFunction:
-    ld hl, RAM_NonVBlankDynamicFunction
+CallNonVBlankModeFunction:
+    ld hl, RAM_CurrentMode
     ld a, (hl)
-    and $3F
+    and %00111111
     exx
-    ld hl, JumpTable_NonVBlankDynamicFunction
-    jp JumpToFunction
+      ld hl, JumpTable_NonVBlankDynamicFunction
+      jp JumpToFunction
 
-; Jump Table from 165C to 167F (18 entries, indexed by RAM_NonVBlankDynamicFunction)
+; Jump Table from 165C to 167F (18 entries, indexed by RAM_CurrentMode)
 JumpTable_NonVBlankDynamicFunction:
-.dw _LABEL_1C4A_ 
-.dw _LABEL_1680_ 
-.dw _LABEL_16C0_
-.dw _LABEL_1EE2_
-.dw _LABEL_171E_
-.dw _LABEL_1F66_
-.dw _LABEL_21A2_
-.dw _LABEL_21A2_
-.dw _LABEL_2605_
-.dw _LABEL_2862_
-.dw _LABEL_290D_
-.dw _LABEL_2C5A_
-.dw _LABEL_1740_
-.dw _LABEL_18C8_
-.dw _LABEL_1790_
-.dw _LABEL_17DE_
-.dw _LABEL_182C_
-.dw _LABEL_187A_
+.dw NonVBlankMode0Function 
+.dw NonVBlankMode1_MenuFunction 
+.dw NonVBlankMode2Function
+.dw NonVBlankMode3Function
+.dw NonVBlankMode4_EraseFunction
+.dw NonVBlankMode5_SquareFunction
+.dw NonVBlankMode6_CircleAnd7Function
+.dw NonVBlankMode6_CircleAnd7Function
+.dw NonVBlankMode8_PaintFunction
+.dw NonVBlankMode9_CopyFunction
+.dw NonVBlankMode10_MirrorFunction
+.dw NonVBlankMode11_MagnifyFunction
+.dw NonVBlankMode12_DisplayFunction
+.dw NonVBlankMode13_EndFunction
+.dw NonVBlankMode14Function
+.dw NonVBlankMode15Function
+.dw NonVBlankMode16Function
+.dw NonVBlankMode17Function
 
-; 2nd entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_1680_:
+; 2nd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode1_MenuFunction:
     exx
     bit 7, (hl)
     ret nz
@@ -1575,8 +1600,8 @@ _LABEL_1680_:
     ei
     ret
 
-; 3rd entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_16C0_:
+; 3rd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode2Function:
     di
       call SetDrawingAreaTilemap
       ld hl, (RAM_Pen_Smoothed)
@@ -1630,8 +1655,8 @@ _LABEL_16C0_:
     ei
     ret
 
-; 5th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_171E_:
+; 5th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode4_EraseFunction:
     ld a, ($C0BA)
     or a
     jp z, +
@@ -1654,11 +1679,11 @@ _LABEL_171E_:
     ld (RAM_StatusBarTextIndex), a
     ret
 
-; 13th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_1740_:
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+; 13th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode12_DisplayFunction:
+      ld a, (RAM_Beep)
+      or a
+      ret nz
     exx
     bit 7, (hl)
     jp z, +
@@ -1672,8 +1697,8 @@ _LABEL_1740_:
       ld (RAM_Pen_Smoothed), hl
       ld hl, ($C08F)
       ld (RAM_Pen_Backup), hl
-      ld a, $01
-      ld (RAM_NonVBlankDynamicFunction), a
+      ld a, Mode1_Menu
+      ld (RAM_CurrentMode), a
     ei
     ret
 
@@ -1693,11 +1718,11 @@ _LABEL_1740_:
     ei
     jp ScreenOn
 
-; 15th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_1790_:
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+; 15th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode14Function:
+      ld a, (RAM_Beep)
+      or a
+      ret nz
     exx
     bit 7, (hl)
     jp z, +
@@ -1737,11 +1762,11 @@ _LABEL_1790_:
     ei
     ret
 
-; 16th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_17DE_:
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+; 16th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode15Function:
+      ld a, (RAM_Beep)
+      or a
+      ret nz
     exx
     bit 7, (hl)
     jp z, +
@@ -1779,11 +1804,11 @@ _LABEL_17DE_:
     ei
     ret
 
-; 17th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_182C_:
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+; 17th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode16Function:
+      ld a, (RAM_Beep)
+      or a
+      ret nz
     exx
     bit 7, (hl)
     jp z, +
@@ -1822,11 +1847,11 @@ _LABEL_182C_:
     ei
     ret
 
-; 18th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_187A_:
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+; 18th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode17Function:
+      ld a, (RAM_Beep)
+      or a
+      ret nz
     exx
     bit 7, (hl)
     jp z, +
@@ -1864,8 +1889,8 @@ _LABEL_187A_:
     ei
     ret
 
-; 14th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_18C8_:
+; 14th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode13_EndFunction:
     exx
     bit 7, (hl)
     jp z, +
@@ -1889,14 +1914,14 @@ _LABEL_18E6_:
     ld a, (RAM_Beep)
     or a
     ret nz
-    ld a, (RAM_NonVBlankDynamicFunction)
-    and $3F
-    cp 1
+    ld a, (RAM_CurrentMode)
+    and %00111111
+    cp Mode1_Menu
     ret z
-    cp 2
+    cp Mode2
     ret z
-    ld a, 1
-    ld (RAM_NonVBlankDynamicFunction), a
+    ld a, Mode1_Menu
+    ld (RAM_CurrentMode), a
     ret
 
 DrawTextToTilesWithBackup:
@@ -2226,8 +2251,8 @@ EraseMenuText: ; $1c11
 .asc "`___________'"
 .db $FF
 
-; 1st entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_1C4A_:
+; 1st entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode0Function:
     exx
     ld a, (RAM_ButtonsNewlyPressed)
     and $03
@@ -2587,8 +2612,8 @@ __:   rrc c
 .db %00000010
 .db %00000001
 
-; 4th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_1EE2_:
+; 4th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode3Function:
     exx
     bit 7, (hl)
     jp z, + ; could ret nz
@@ -2651,8 +2676,8 @@ _LABEL_1F0F_:
 .db $00 $20 $00 $30 $00 $40 $00 $50 $00 $60 $00 $70 $00 $80 $00 $90
 .db $00 $A0 $20 $10 $20 $20 $20 $30 $20 $40 $20 $50 $20 $60 $20 $70
 
-; 6th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_1F66_:
+; 6th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode5_SquareFunction:
     ld a, ($C089)
     cp $03
     ret nz
@@ -2967,8 +2992,8 @@ _LABEL_213E_:
 .db %00000011
 .db %00000001
 
-; 7th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_21A2_:
+; 7th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode6_CircleAnd7Function:
     ld a, (RAM_Beep)
     or a
     ret nz
@@ -3612,8 +3637,8 @@ _LABEL_25F2_:
 +:  djnz -
     ret
 
-; 9th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_2605_:
+; 9th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode8_PaintFunction:
     ld a, (RAM_Beep)
     or a
     ret nz
@@ -3990,8 +4015,8 @@ _LABEL_2850_:
     pop de
     ret
 
-; 10th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_2862_:
+; 10th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode9_CopyFunction:
     exx
     ld a, ($C089)
     bit 3, a
@@ -4077,8 +4102,8 @@ _LABEL_2862_:
     ld ($C089), a
     ret
 
-; 11th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_290D_:
+; 11th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode10_MirrorFunction:
     exx
     xor a
     ld a, ($C089)
@@ -4528,8 +4553,8 @@ _LABEL_2BD8_:
     pop hl
     ret
 
-; 12th entry of Jump Table from 165C (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_2C5A_:
+; 12th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
+NonVBlankMode11_MagnifyFunction:
     exx
     bit 7, (hl)
     jp z, _LABEL_2D05_
@@ -4789,19 +4814,19 @@ _LABEL_2DED_:
 .db $18 $57 $98 $D7 $E7 $38 $B4 $2E $0D $00 $68 $A7 $98 $D7 $67 $3B
 .db $0F $2F $0D $09
 
-_LABEL_2F92_:
-    ld hl, RAM_ButtonsNewlyPressed ; Unused?
+CallNonVBlankModeSpritesHandler:
+    ld hl, RAM_ButtonsNewlyPressed ; used in functions later
     ld a, (RAM_Pen_Smoothed.y)
     ld b, a
-    ld a, (RAM_NonVBlankDynamicFunction)
-    and $3F
-    cp 12
+    ld a, (RAM_CurrentMode)
+    and %00111111
+    cp Mode12_Display
     ret z ; Do nothing
-    cp 9
+    cp Mode9_Copy
     jp c, +
-    cp 11
+    cp Mode11_Magnify
     jp c, ++
-    cp 13
+    cp Mode13_End
     jp z, ++
 +:  ; Function 0-8 or 14+ only
     ld a, b ; Pen Y
@@ -4815,70 +4840,92 @@ _LABEL_2F92_:
     ld a, $A8
     ld ($C241), a ; Write only?
 
-    ld a, (RAM_NonVBlankDynamicFunction)
-    and $3F
+    ld a, (RAM_CurrentMode)
+    and %00111111
     exx
       ; shadow regs
-      ld hl, JumpTable_2FD0
+      ld hl, ModeSpritesHandlerJumpTable
       jp JumpToFunction
 
-; 3rd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
+; 3rd entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 DoNothing:
     ret
 
-JumpTable_2FD0:
-; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_NonVBlankDynamicFunction)
-.dw _LABEL_2FF4_ _LABEL_3006_ DoNothing _LABEL_3044_ DoNothing _LABEL_30F7_ _LABEL_31B6_ _LABEL_31AF_
-.dw _LABEL_3264_ _LABEL_3294_ _LABEL_33D1_ _LABEL_358D_ DoNothing DoNothing _LABEL_3666_ _LABEL_3666_
-.dw _LABEL_3666_ _LABEL_3666_
+ModeSpritesHandlerJumpTable:
+; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_CurrentMode)
+; Called inside shadow registers
+; Non-shadow regs have b = pen Y, (hl) = buttons newly pressed, a = mode
+.dw Mode0SpritesHandler
+.dw Mode1_MenuSpritesHandler 
+.dw DoNothing 
+.dw Mode4_EraseSpritesHandler 
+.dw DoNothing 
+.dw Mode6_CircleSpritesHandler 
+.dw Mode7_EllipseSpritesHandler 
+.dw Mode8_PaintSpritesHandler
+.dw Mode9_CopySpritesHandler 
+.dw Mode10_MirrorSpritesHandler 
+.dw Mode11_MagnifySpritesHandler 
+.dw Mode12_DisplaySpritesHandler 
+.dw DoNothing 
+.dw DoNothing 
+.dw Mode15PlusSpritesHandler 
+.dw Mode15PlusSpritesHandler
+.dw Mode15PlusSpritesHandler 
+.dw Mode15PlusSpritesHandler
 
-; 1st entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_2FF4_:
+; 1st entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode0SpritesHandler:
       ; shadow regs
       call _LABEL_18E6_
     exx
+    ; Set sprite 0 to the pen location
     ld a, (RAM_Pen_Smoothed.x)
-    ld (RAM_SpriteTable1.xn), a
+    ld (RAM_SpriteTable1.xn + 0), a
     ld a, b
-    ld (RAM_SpriteTable1.y), a
+    ld (RAM_SpriteTable1.y + 0), a
     xor a ; CursorTile_Crosshair
     jp SetCursorIndex ; and ret
 
-; 2nd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_3006_:
+; 2nd entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode1_MenuSpritesHandler:
     exx
-    ld a, $58
+    ; Set sprite 0 to x = 88...
+    ld a, 88
     ld (RAM_SpriteTable1.xn), a
+    ; ...y  = pen Y rounded to 8px, in the range 64..152 (menu area)
     ld a, b
-    and $F8
-    cp $40
+    and %11111000 ; Round to 8px
+    cp 64         ; If <64, set to 64
     jp nc, +
-    ld a, $40
-+:  cp $98
+    ld a, 64
++:  cp 152
     jp c, +
-    ld a, $98
+    ld a, 152
 +:  ld (RAM_SpriteTable1.y), a
-    sub $40
-    bit 1, (hl)
+    sub 64 ; Now it's relative to the menu area
+    bit 1, (hl) ; Check for DO button
     jp z, ++
+
+    rrca ; Divide by 8 and add 2
     rrca
     rrca
-    rrca
-    add a, $02
-    cp $02
+    add a, 2
+    cp Mode2
     ld b, a
     jp z, +
-    ld ($C03D), a
-    ld a, $02
-+:  ld (RAM_NonVBlankDynamicFunction), a
+    ld ($C03D), a ; For everything except mode 2, set this with what was selected and then go to mode 2
+    ld a, Mode2
++:  ld (RAM_CurrentMode), a ; Change mode based on pen location when DO is pressed
     ld a, b
-    dec a
+    dec a ; Text index is mode - 1
     ld (RAM_StatusBarTextIndex), a
+
 ++: ld a, CursorTile_MenuArrowRight
     jp SetCursorIndex ; and ret
 
-; 4th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_3044_:
+; 4th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode4_EraseSpritesHandler:
     call _LABEL_18E6_
     exx
     ld a, b
@@ -4975,8 +5022,8 @@ _LABEL_30B9_:
     ld (RAM_Beep), a
     ret
 
-; 6th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_30F7_:
+; 6th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode6_CircleSpritesHandler:
     call _LABEL_18E6_
     exx
     ld a, ($C089)
@@ -5072,15 +5119,15 @@ push hl
     ld ($C089), a
     ret
 
-; 8th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_31AF_:
+; 8th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode8_PaintSpritesHandler:
     ld a, $01
     and a
     ex af, af'
     jp +
 
-; 7th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_31B6_:
+; 7th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode7_EllipseSpritesHandler:
     xor a
     ex af, af'
 +:  call _LABEL_18E6_
@@ -5170,8 +5217,8 @@ _LABEL_323B_:
     ld ($C0A8), hl
     ret
 
-; 9th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_3264_:
+; 9th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode9_CopySpritesHandler:
     call _LABEL_18E6_
     ld hl, $C089
     ld a, (hl)
@@ -5197,8 +5244,8 @@ _LABEL_3264_:
     ld (hl), $FF
     ret
 
-; 10th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_3294_:
+; 10th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode10_MirrorSpritesHandler:
     call _LABEL_18E6_
     exx
     ld a, ($C089)
@@ -5355,8 +5402,8 @@ _LABEL_3385_:
     ld ($C089), a
     ret
 
-; 11th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_33D1_:
+; 11th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode11_MagnifySpritesHandler:
     call _LABEL_18E6_
     exx
     ld a, ($C089)
@@ -5593,8 +5640,8 @@ _LABEL_3527_:
 Data_357F: ; $357F
 .db $10 $40 $2B $CC $06 $07 $04 $1B $9C $20 $70 $07 $03 $08
 
-; 12th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_358D_:
+; 12th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode12_DisplaySpritesHandler:
     call _LABEL_18E6_
     exx
     ld a, ($C089)
@@ -5696,8 +5743,8 @@ _LABEL_363C_:
 ; Data from 365E to 3665 (8 bytes)
 .db $00 $00 $50 $00 $00 $70 $50 $70
 
-; 15th entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
-_LABEL_3666_:
+; 15th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
+Mode15PlusSpritesHandler:
     call _LABEL_18E6_
     exx
     ld a, $58
@@ -5723,9 +5770,9 @@ _LABEL_3666_:
     jp z, +
     ld a, $01
 +:  ld ($C0BA), a
-    ld a, (RAM_NonVBlankDynamicFunction)
+    ld a, (RAM_CurrentMode)
     set 6, a
-    ld (RAM_NonVBlankDynamicFunction), a
+    ld (RAM_CurrentMode), a
     ret
 
 _LABEL_36A5_:
