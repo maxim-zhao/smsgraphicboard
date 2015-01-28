@@ -171,41 +171,41 @@ ReadGraphicBoard:
 
     ld a, (RAM_PenX)
     ld c, a
-    ld a, (RAM_PenX_Smoothed)
+    ld a, (RAM_Pen_Smoothed.x)
     or a
     jp z, +
 
-    ; RAM_PenX_Smoothed = (RAM_PenX_Smoothed + RAM_PenX) / 2
+    ; RAM_Pen_Smoothed.x = (RAM_Pen_Smoothed.x + RAM_PenX) / 2
     ld b, 0
     ld h, 0
     ld l, a
     add hl, bc ; add together
     ld e, 2
     call DivMod_hl_e_a_e ; very slow way to do this
-    ld (RAM_PenX_Smoothed), a
+    ld (RAM_Pen_Smoothed.x), a
     jp ++
 
 +:  ld a, c
-    ld (RAM_PenX_Smoothed), a
+    ld (RAM_Pen_Smoothed.x), a
 
 ++: ld a, (RAM_PenY)
     ld c, a
-    ld a, (RAM_PenY_Smoothed)
+    ld a, (RAM_Pen_Smoothed.y)
     or a
     jp z, +
 
-    ; RAM_PenY_Smoothed = (RAM_PenY_Smoothed + RAM_PenY) / 2
+    ; RAM_Pen_Smoothed.y = (RAM_Pen_Smoothed.y + RAM_PenY) / 2
     ld b, 0
     ld h, 0
     ld l, a
     add hl, bc
     ld e, 2
     call DivMod_hl_e_a_e ; very slow way to do this
-    ld (RAM_PenY_Smoothed), a
+    ld (RAM_Pen_Smoothed.y), a
     ret
 
 +:  ld a, c
-    ld (RAM_PenY_Smoothed), a
+    ld (RAM_Pen_Smoothed.y), a
     ret
 
 PressureTooLow:

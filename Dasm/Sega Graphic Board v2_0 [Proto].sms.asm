@@ -209,7 +209,7 @@ Start_AfterRAMClear:
     ld ($C03E), hl
 
     ld a, 1
-    ld (RAM_PenMode_IsSet), a
+    ld (RAM_PenMode.IsSet), a
 
     ; Main loop
 -:  ei
@@ -263,13 +263,13 @@ FillVRAMWithHL:
     ret
 
 DisableSprites_RAMAndVRAM:
-    ld hl, RAM_SpriteTable1_Y
-    ld de, RAM_SpriteTable1_Y+1
+    ld hl, RAM_SpriteTable1.y
+    ld de, RAM_SpriteTable1.y + 1
     ld bc, 64-1
     ld (hl), SpriteTableYTerminator
     ldir
-    ld hl, RAM_SpriteTable2_Y
-    ld de, RAM_SpriteTable2_Y+1
+    ld hl, RAM_SpriteTable2.y
+    ld de, RAM_SpriteTable2.y + 1
     ld bc, 64-1
     ld (hl), SpriteTableYTerminator
     ldir
@@ -558,7 +558,7 @@ Fill1bppWithBitmaskToTilesColumn:
     ret
 
 DecompressGraphics:
-    ld b, $04 ; bitplane count
+    ld b, 4 ; bitplane count
 -:  push bc
       push de
         call DecompressBitplane
@@ -603,10 +603,10 @@ CopySpriteTable2ToVRAM:
     ld a, (RAM_FrameCounter) ; ### Immediately discarded...
     LD_DE_SPRITE_TABLE_Y 0 ; Sprite table: Y
     VDP_ADDRESS_TO_DE
-    ld hl, RAM_SpriteTable2_Y
+    ld hl, RAM_SpriteTable2.y
     ld c, Port_VDPData
     call Outi64
-    ld hl, RAM_SpriteTable2_XN
+    ld hl, RAM_SpriteTable2.xn
     LD_DE_SPRITE_TABLE_X 0 ; Sprite table: XN
     VDP_ADDRESS_TO_DE
     ; fall though
@@ -629,12 +629,12 @@ SpriteTable1to2:
     rrca ; Check low bit
     jp c, +
     ; Even: straight copy
-    ld hl, RAM_SpriteTable1_Y
-    ld de, RAM_SpriteTable2_Y
+    ld hl, RAM_SpriteTable1.y
+    ld de, RAM_SpriteTable2.y
     ld bc, 64
     ldir
-    ld hl, RAM_SpriteTable1_XN
-    ld de, RAM_SpriteTable2_XN
+    ld hl, RAM_SpriteTable1.xn
+    ld de, RAM_SpriteTable2.xn
     ld bc, 64*2
     ldir
     ld a, 1
@@ -642,16 +642,16 @@ SpriteTable1to2:
     ret
 
 +:  ; Odd: reverse order
-    ld hl, RAM_SpriteTable1_Y + 63
-    ld de, RAM_SpriteTable2_Y
+    ld hl, RAM_SpriteTable1.y + 63
+    ld de, RAM_SpriteTable2.y
     ld b, 64
 -:  ld a, (hl)
     ld (de), a
     dec hl
     inc de
     djnz -
-    ld hl, RAM_SpriteTable1_XN + 63 * 2
-    ld de, RAM_SpriteTable2_XN
+    ld hl, RAM_SpriteTable1.xn + 63 * 2
+    ld de, RAM_SpriteTable2.xn
     ld b, 64
 -:  ld a, (hl)
     ld (de), a
@@ -1113,8 +1113,8 @@ CheckForGraphicsBoard:
     ld (RAM_TitleScreenTextPointer), hl
     LD_DE_TILEMAP 6, 16
     ld (RAM_TitleScreenTextLocation), de
-    ld bc, $0C14 ; area?
-    ld (RAM_TitleScreenTextDimensions), bc
+    ld bc, 20 | (12<<8)
+    ld (RAM_TitleScreenTextLength), bc ; also sets RAM_TitleScreenTextFlashSpeed
     ld a, $84
     call SetVBlankFunctionAndWait
 
@@ -1129,11 +1129,11 @@ CheckForGraphicsBoard:
 
 GraphicsBoardDetected:
     ld hl, Text_PushButton ; $09FC ; Data: "PUSH  BUTTON"
-    ld ($C010), hl
+    ld (RAM_TitleScreenTextPointer), hl
     LD_DE_TILEMAP 10, 16
     ld (RAM_TitleScreenTextLocation), de
-    ld bc, $200C ; area?
-    ld (RAM_TitleScreenTextDimensions), bc
+    ld bc, 12 | (32 << 8)
+    ld (RAM_TitleScreenTextLength), bc ; also sets RAM_TitleScreenTextFlashSpeed
 -:  ld a, $86
     call SetVBlankFunctionAndWait
 
@@ -1202,7 +1202,7 @@ TitleScreenTextUpdate:
 
     ; If 1, draw the text
     ld de, (RAM_TitleScreenTextLocation)
-    ld a, (RAM_TitleScreenTextDimensions) ; ignore row count?
+    ld a, (RAM_TitleScreenTextLength)
     ld b, a
     ld hl, (RAM_TitleScreenTextPointer)
     xor a ; high byte
@@ -1563,13 +1563,13 @@ _LABEL_1680_:
       LD_HL_LOCATION 5, 4
       call DrawTextToTilesWithBackup
 
-      ld hl, (RAM_PenY_Smoothed)
+      ld hl, (RAM_Pen_Smoothed)
       ld ($C08D), hl
-      ld hl, ($C031)
+      ld hl, (RAM_Pen_Backup)
       ld ($C08F), hl
       ld hl, ($C03E)
-      ld (RAM_PenY_Smoothed), hl
-      ld ($C031), hl
+      ld (RAM_Pen_Smoothed), hl
+      ld (RAM_Pen_Backup), hl
       ld a, $01
       ld (RAM_Beep), a
     ei
@@ -1579,7 +1579,7 @@ _LABEL_1680_:
 _LABEL_16C0_:
     di
       call SetDrawingAreaTilemap
-      ld hl, (RAM_PenY_Smoothed)
+      ld hl, (RAM_Pen_Smoothed)
       ld a, $48
       cp l
       jp c, +
@@ -1587,9 +1587,9 @@ _LABEL_16C0_:
 +:    ld ($C03E), hl
       call RestoreTileData
       ld hl, ($C08D)
-      ld (RAM_PenY_Smoothed), hl
+      ld (RAM_Pen_Smoothed), hl
       ld hl, ($C08F)
-      ld ($C031), hl
+      ld (RAM_Pen_Backup), hl
       exx
       inc hl
       ld a, (hl)
@@ -1669,18 +1669,18 @@ _LABEL_1740_:
     di
       call DrawUIControls
       ld hl, ($C08D)
-      ld (RAM_PenY_Smoothed), hl
+      ld (RAM_Pen_Smoothed), hl
       ld hl, ($C08F)
-      ld ($C031), hl
+      ld (RAM_Pen_Backup), hl
       ld a, $01
       ld (RAM_NonVBlankDynamicFunction), a
     ei
     ret
 
 +:  set 7, (hl)
-    ld hl, (RAM_PenY_Smoothed)
+    ld hl, (RAM_Pen_Smoothed)
     ld ($C08D), hl
-    ld hl, ($C031)
+    ld hl, (RAM_Pen_Backup)
     ld ($C08F), hl
     di
       call ScreenOff
@@ -1708,9 +1708,9 @@ _LABEL_1790_:
       exx
         call RestoreTileData
         ld hl, ($C08D)
-        ld (RAM_PenY_Smoothed), hl
+        ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
-        ld ($C031), hl
+        ld (RAM_Pen_Backup), hl
       exx
       inc hl
       ld a, (hl)
@@ -1727,13 +1727,13 @@ _LABEL_1790_:
     LD_HL_LOCATION 5, 4
     call DrawTextToTilesWithBackup
 
-    ld hl, (RAM_PenY_Smoothed)
+    ld hl, (RAM_Pen_Smoothed)
     ld ($C08D), hl
-    ld hl, ($C031)
+    ld hl, (RAM_Pen_Backup)
     ld ($C08F), hl
     LD_HL_LOCATION 88,72
-    ld (RAM_PenY_Smoothed), hl ; and x
-    ld ($C031), hl
+    ld (RAM_Pen_Smoothed), hl
+    ld (RAM_Pen_Backup), hl
     ei
     ret
 
@@ -1751,9 +1751,9 @@ _LABEL_17DE_:
       exx
         call RestoreTileData
         ld hl, ($C08D)
-        ld (RAM_PenY_Smoothed), hl
+        ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
-        ld ($C031), hl
+        ld (RAM_Pen_Backup), hl
       exx
       inc hl
       ld a, (hl)
@@ -1769,13 +1769,13 @@ _LABEL_17DE_:
     ld de, ColorMenuText
     LD_HL_LOCATION 5, 4
     call DrawTextToTilesWithBackup
-    ld hl, (RAM_PenY_Smoothed)
+    ld hl, (RAM_Pen_Smoothed)
     ld ($C08D), hl
-    ld hl, ($C031)
+    ld hl, (RAM_Pen_Backup)
     ld ($C08F), hl
     LD_HL_LOCATION 88,72
-    ld (RAM_PenY_Smoothed), hl ; and x
-    ld ($C031), hl
+    ld (RAM_Pen_Smoothed), hl
+    ld (RAM_Pen_Backup), hl
     ei
     ret
 
@@ -1793,9 +1793,9 @@ _LABEL_182C_:
       exx
         call RestoreTileData
         ld hl, ($C08D)
-        ld (RAM_PenY_Smoothed), hl
+        ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
-        ld ($C031), hl
+        ld (RAM_Pen_Backup), hl
       exx
       inc hl
       ld a, (hl)
@@ -1811,14 +1811,14 @@ _LABEL_182C_:
     ld de, MirrorMenuText
     LD_HL_LOCATION 5, 4
     call DrawTextToTilesWithBackup
-    ld hl, (RAM_PenY_Smoothed)
+    ld hl, (RAM_Pen_Smoothed)
     ld ($C08D), hl
-    ld hl, ($C031)
+    ld hl, (RAM_Pen_Backup)
     ld ($C08F), hl
 
     LD_HL_LOCATION 88,72
-    ld (RAM_PenY_Smoothed), hl ; and x
-    ld ($C031), hl
+    ld (RAM_Pen_Smoothed), hl
+    ld (RAM_Pen_Backup), hl
     ei
     ret
 
@@ -1836,9 +1836,9 @@ _LABEL_187A_:
       exx
         call RestoreTileData
         ld hl, ($C08D)
-        ld (RAM_PenY_Smoothed), hl
+        ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
-        ld ($C031), hl
+        ld (RAM_Pen_Backup), hl
       exx
       inc hl
       ld a, (hl)
@@ -1854,13 +1854,13 @@ _LABEL_187A_:
     ld de, EraseMenuText
     LD_HL_LOCATION 5, 4
     call DrawTextToTilesWithBackup
-    ld hl, (RAM_PenY_Smoothed)
+    ld hl, (RAM_Pen_Smoothed)
     ld ($C08D), hl
-    ld hl, ($C031)
+    ld hl, (RAM_Pen_Backup)
     ld ($C08F), hl
     LD_HL_LOCATION 88,72
-    ld (RAM_PenY_Smoothed), hl ; and x
-    ld ($C031), hl
+    ld (RAM_Pen_Smoothed), hl
+    ld (RAM_Pen_Backup), hl
     ei
     ret
 
@@ -1878,24 +1878,24 @@ _LABEL_18C8_:
 +:  set 7, (hl)
     ld a, $80
     ld (RAM_SplashScreenTimeout), a
-    ld a, $E0
-    ld (RAM_SpriteTable1_Y), a
+    ld a, SpriteTableYTerminator
+    ld (RAM_SpriteTable1.y), a
     ret
 
 _LABEL_18E6_:
     ld a, (RAM_ButtonsNewlyPressed)
-    bit 0, a
+    bit 0, a ; 
     ret z ; Do nothing if button not just pressed
     ld a, (RAM_Beep)
     or a
     ret nz
     ld a, (RAM_NonVBlankDynamicFunction)
     and $3F
-    cp $01
+    cp 1
     ret z
-    cp $02
+    cp 2
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_NonVBlankDynamicFunction), a
     ret
 
@@ -2241,28 +2241,28 @@ _LABEL_1C4A_:
     bit 2, a
     ld a, ($C08A)
     ld ($C06B), a
-    ld hl, ($C031)
-    ld de, (RAM_PenY_Smoothed)
+    ld hl, (RAM_Pen_Backup)
+    ld de, (RAM_Pen_Smoothed)
     call nz, _LABEL_1CA1_
-    ld a, (RAM_PenX_Smoothed)
-    ld ($C032), a
-    ld a, (RAM_PenY_Smoothed)
-    ld ($C031), a
+    ld a, (RAM_Pen_Smoothed.x)
+    ld (RAM_Pen_Backup.x), a
+    ld a, (RAM_Pen_Smoothed.y)
+    ld (RAM_Pen_Backup.y), a
     ei
     ret
 
 +:  di
     ld a, (RAM_ButtonsPressed)
     ld ($C06D), a
-    ld hl, (RAM_PenY_Smoothed)
+    ld hl, (RAM_Pen_Smoothed)
     exx
     ld a, ($C08A)
     ld ($C06B), a
     call _LABEL_1D40_
-    ld a, (RAM_PenX_Smoothed)
-    ld ($C032), a
-    ld a, (RAM_PenY_Smoothed)
-    ld ($C031), a
+    ld a, (RAM_Pen_Smoothed.x)
+    ld (RAM_Pen_Backup.x), a
+    ld a, (RAM_Pen_Smoothed.y)
+    ld (RAM_Pen_Backup.y), a
     ei
     ret
 
@@ -4543,7 +4543,7 @@ _LABEL_2C5A_:
     jp z, _LABEL_2D0D_
     bit 7, a
     jp nz, _LABEL_2CF6_
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     add a, $04
     cp (iy+1)
     ret c
@@ -4551,7 +4551,7 @@ _LABEL_2C5A_:
     ret nc
     sub $18
     ld l, a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     add a, $03
     cp (iy+3)
     ret c
@@ -4790,39 +4790,43 @@ _LABEL_2DED_:
 .db $0F $2F $0D $09
 
 _LABEL_2F92_:
-    ld hl, RAM_ButtonsNewlyPressed
-    ld a, (RAM_PenY_Smoothed)
+    ld hl, RAM_ButtonsNewlyPressed ; Unused?
+    ld a, (RAM_Pen_Smoothed.y)
     ld b, a
     ld a, (RAM_NonVBlankDynamicFunction)
     and $3F
-    cp $0C
-    ret z
-    cp $09
+    cp 12
+    ret z ; Do nothing
+    cp 9
     jp c, +
-    cp $0B
+    cp 11
     jp c, ++
-    cp $0D
+    cp 13
     jp z, ++
-+:  ld a, b
-    cp $2F
-    jp c, _LABEL_36A5_
++:  ; Function 0-8 or 14+ only
+    ld a, b ; Pen Y
+    cp 47
+    jp c, _LABEL_36A5_ ; Less than 47 = near top of screen
 ++: ld a, b
-    sub $28
+    sub 40
     jp nc, +
-    xor a
+    xor a ; Zero if it carried
 +:  ld b, a
     ld a, $A8
-    ld ($C241), a
+    ld ($C241), a ; Write only?
+
     ld a, (RAM_NonVBlankDynamicFunction)
     and $3F
     exx
-    ld hl, $2FD0
-    jp JumpToFunction
+      ; shadow regs
+      ld hl, JumpTable_2FD0
+      jp JumpToFunction
 
 ; 3rd entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 DoNothing:
     ret
 
+JumpTable_2FD0:
 ; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_NonVBlankDynamicFunction)
 .dw _LABEL_2FF4_ _LABEL_3006_ DoNothing _LABEL_3044_ DoNothing _LABEL_30F7_ _LABEL_31B6_ _LABEL_31AF_
 .dw _LABEL_3264_ _LABEL_3294_ _LABEL_33D1_ _LABEL_358D_ DoNothing DoNothing _LABEL_3666_ _LABEL_3666_
@@ -4830,12 +4834,13 @@ DoNothing:
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_NonVBlankDynamicFunction)
 _LABEL_2FF4_:
-    call _LABEL_18E6_
+      ; shadow regs
+      call _LABEL_18E6_
     exx
-    ld a, (RAM_PenX_Smoothed)
-    ld (RAM_SpriteTable1_XN), a
+    ld a, (RAM_Pen_Smoothed.x)
+    ld (RAM_SpriteTable1.xn), a
     ld a, b
-    ld (RAM_SpriteTable1_Y), a
+    ld (RAM_SpriteTable1.y), a
     xor a ; CursorTile_Crosshair
     jp SetCursorIndex ; and ret
 
@@ -4843,7 +4848,7 @@ _LABEL_2FF4_:
 _LABEL_3006_:
     exx
     ld a, $58
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, b
     and $F8
     cp $40
@@ -4852,7 +4857,7 @@ _LABEL_3006_:
 +:  cp $98
     jp c, +
     ld a, $98
-+:  ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1.y), a
     sub $40
     bit 1, (hl)
     jp z, ++
@@ -4886,8 +4891,8 @@ _LABEL_3044_:
     ld a, $40
 +:  ld b, a
     dec a
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
     and $F0
     cp $70
     jp nc, +
@@ -4895,7 +4900,7 @@ _LABEL_3044_:
 +:  cp $A0
     jp c, +
     ld a, $A0
-+:  ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1.xn), a
     ld c, a
     ld a, CursorTile_Square
     call SetCursorIndex
@@ -4947,10 +4952,10 @@ _LABEL_30B9_:
     jp c, +
     ld a, $68
 +:  dec a
-    ld (RAM_SpriteTable1_Y), a
+    ld (RAM_SpriteTable1.y), a
     ex af, af'
     ld a, $58
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, CursorTile_MenuArrowRight
     call SetCursorIndex
     bit 1, (hl)
@@ -4979,9 +4984,9 @@ _LABEL_30F7_:
     ret nz
     ld d, a
     ld a, b
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
+    ld (RAM_SpriteTable1.xn), a
     push hl
       bit 0, d
       jp nz, +
@@ -4992,13 +4997,13 @@ _LABEL_30F7_:
     ret z
     ld a, $01
     ld (RAM_Beep), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     ld ($C203), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     ld ($C246), a
     ld a, $A9
     ld ($C247), a
-    ld de, (RAM_PenY_Smoothed)
+    ld de, (RAM_Pen_Smoothed)
     ld a, $04
     add a, e
     ld e, a
@@ -5026,7 +5031,7 @@ push hl
     ld hl, ($C06E)
     ld a, ($C246)
     ld b, a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     sub b
     sub $07
     ld b, a
@@ -5034,7 +5039,7 @@ push hl
     ld ($C071), a
     ld a, ($C203)
     ld d, a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     sub $07
     sub d
     ld d, a
@@ -5094,16 +5099,16 @@ _LABEL_31B6_:
     ld b, c
 +:  ex af, af'
     ld a, b
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
+    ld (RAM_SpriteTable1.xn), a
     bit 1, (hl)
     ret z
     ld a, $01
     ld (RAM_Beep), a
     ld a, ($C246)
     ld b, a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     sub b
     jp nc, +
     neg
@@ -5119,20 +5124,20 @@ _LABEL_31B6_:
 _LABEL_3206_:
     exx
     ld a, b
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
+    ld (RAM_SpriteTable1.xn), a
     bit 1, (hl)
     ret z
     ld a, $01
     ld (RAM_Beep), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     ld ($C203), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     ld ($C246), a
     ld a, $A9
     ld ($C247), a
-    ld de, (RAM_PenY_Smoothed)
+    ld de, (RAM_Pen_Smoothed)
     ld ($C0AA), de
     ld a, SetCursorIndex_Second | CursorTile_X
     call SetCursorIndex
@@ -5143,14 +5148,14 @@ _LABEL_3206_:
 _LABEL_323B_:
     ld a, ($C246)
     ld b, a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     sub b
     jr nc, +
     cpl
 +:  ld b, a
     ld a, ($C203)
     ld c, a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     sub c
     jr nc, +
     cpl
@@ -5174,18 +5179,18 @@ _LABEL_3264_:
     ret nz
     exx
       ld a, b
-      ld (RAM_SpriteTable1_Y), a
-      ld a, (RAM_PenX_Smoothed)
-      ld (RAM_SpriteTable1_XN), a
+      ld (RAM_SpriteTable1.y), a
+      ld a, (RAM_Pen_Smoothed.x)
+      ld (RAM_SpriteTable1.xn), a
       ld a, CursorTile_ArrowTopLeft
       call SetCursorIndex
       bit 1, (hl)
       ret z
       ld a, $01
       ld (RAM_Beep), a
-      ld a, (RAM_PenX_Smoothed)
+      ld a, (RAM_Pen_Smoothed.x)
       ld h, a
-      ld a, (RAM_PenY_Smoothed)
+      ld a, (RAM_Pen_Smoothed.y)
       ld l, a
       ld ($C091), hl
     exx
@@ -5212,8 +5217,8 @@ _LABEL_3294_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
++:  ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
     ld c, $21
     cp c
     jp nc, +
@@ -5222,7 +5227,7 @@ _LABEL_3294_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1.xn), a
     ld a, CursorTile_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
@@ -5232,18 +5237,18 @@ _LABEL_3294_:
     ld a, ($C089)
     set 1, a
     ld ($C089), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     ld ($C203), a
     add a, $07
     ld ($C0C4), a
     add a, $08
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_SpriteTable1.xn)
     ld ($C246), a
     add a, $07
     ld ($C0C5), a
     add a, $08
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, $A9
     ld ($C247), a
     xor a
@@ -5272,9 +5277,9 @@ _LABEL_332A_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1.y), a
     ld ($C0C6), a
-    ld a, (RAM_PenX_Smoothed)
+    ld a, (RAM_Pen_Smoothed.x)
     ld b, a
     ld a, ($C0C5)
     add a, $07
@@ -5295,7 +5300,7 @@ _LABEL_332A_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1.xn), a
     ld ($C0C7), a
     ld a, CursorTile_ArrowTopLeft
     call SetCursorIndex
@@ -5306,9 +5311,9 @@ _LABEL_332A_:
     ld a, ($C089)
     set 2, a
     ld ($C089), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     ld ($C0C6), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     ld ($C0C7), a
     ret
 
@@ -5322,8 +5327,8 @@ _LABEL_3385_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
++:  ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
     ld c, $21
     cp c
     jp nc, +
@@ -5332,17 +5337,17 @@ _LABEL_3385_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1.xn), a
     ld a, CursorTile_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, $01
     ld (RAM_Beep), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     add a, $07
     ld ($C0C8), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     add a, $07
     ld ($C0C9), a
     ld a, ($C089)
@@ -5384,9 +5389,9 @@ _LABEL_33D1_:
     ld a, c
 +:  bit 0, (iy+0)
     call nz, _LABEL_34E0_
-    ld (RAM_SpriteTable1_Y), a
+    ld (RAM_SpriteTable1.y), a
     ld ($C0C6), a
-    ld a, (RAM_PenX_Smoothed)
+    ld a, (RAM_Pen_Smoothed.x)
     ld b, a
     ld a, ($C0C5)
     add a, $07
@@ -5409,7 +5414,7 @@ _LABEL_33D1_:
     ld a, c
 +:  bit 0, (iy+0)
     call z, _LABEL_3501_
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld ($C0C7), a
     ld a, CursorTile_ArrowTopLeft
     call SetCursorIndex
@@ -5420,9 +5425,9 @@ _LABEL_33D1_:
     ld a, ($C089)
     set 2, a
     ld ($C089), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     ld ($C0C6), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     ld ($C0C7), a
     ret
 
@@ -5438,8 +5443,8 @@ _LABEL_3469_:
     ld a, c
 +:  bit 0, (iy+0)
     call nz, _LABEL_34ED_
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
     ld c, $21
     cp c
     jp nc, +
@@ -5450,7 +5455,7 @@ _LABEL_3469_:
     ld a, c
 +:  bit 0, (iy+0)
     call z, _LABEL_3513_
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, CursorTile_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
@@ -5460,18 +5465,18 @@ _LABEL_3469_:
     ld a, ($C089)
     set 1, a
     ld ($C089), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     ld ($C203), a
     add a, $07
     ld ($C0C4), a
     add a, $08
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_SpriteTable1.xn)
     ld ($C246), a
     add a, $07
     ld ($C0C5), a
     add a, $08
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, $A9
     ld ($C247), a
     xor a
@@ -5550,9 +5555,9 @@ _LABEL_3527_:
       cp (hl)
       jp c, +
       ld a, (hl)
-+:    ld (RAM_SpriteTable1_Y), a
++:    ld (RAM_SpriteTable1.y), a
       inc hl
-      ld a, (RAM_PenX_Smoothed)
+      ld a, (RAM_Pen_Smoothed.x)
       cp (hl)
       jp nc, +
       ld a, (hl)
@@ -5560,7 +5565,7 @@ _LABEL_3527_:
       cp (hl)
       jp c, +
       ld a, (hl)
-+:    ld (RAM_SpriteTable1_XN), a
++:    ld (RAM_SpriteTable1.xn), a
       inc hl
       ld a, (hl)
       inc hl
@@ -5572,11 +5577,11 @@ _LABEL_3527_:
     ex de, hl
     ld a, $01
     ld (RAM_Beep), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     add a, (hl)
     ld ($C16F), a
     inc hl
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     add a, (hl)
     ld ($C170), a
     ld a, ($C089)
@@ -5604,12 +5609,12 @@ _LABEL_358D_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1.y), a
     add a, $07
     ld ($C0C4), a
     add a, $21
     ld ($C0C6), a
-    ld a, (RAM_PenX_Smoothed)
+    ld a, (RAM_Pen_Smoothed.x)
     ld c, $20
     cp c
     jp nc, +
@@ -5618,7 +5623,7 @@ _LABEL_358D_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1_XN), a
++:  ld (RAM_SpriteTable1.xn), a
     add a, $07
     ld ($C0C5), a
     add a, $21
@@ -5632,14 +5637,14 @@ _LABEL_358D_:
     ld a, ($C089)
     or $04
     ld ($C089), a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     ld ($C203), a
     add a, $08
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_SpriteTable1_XN)
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_SpriteTable1.xn)
     ld ($C246), a
     add a, $08
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, $A9
     ld ($C247), a
     xor a
@@ -5647,12 +5652,12 @@ _LABEL_358D_:
     ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
     call SetCursorIndex
     ld c, $00
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     sub $17
     cp $40
     jp nc, +
     set 0, c
-+:  ld a, (RAM_SpriteTable1_XN)
++:  ld a, (RAM_SpriteTable1.xn)
     sub $20
     cp $50
     jp nc, +
@@ -5673,13 +5678,13 @@ _LABEL_358D_:
 _LABEL_363C_:
     bit 1, (hl)
     jp nz, +
-    ld a, (RAM_PenX_Smoothed)
+    ld a, (RAM_Pen_Smoothed.x)
     and $FE
     dec a
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, b
     and $FE
-    ld (RAM_SpriteTable1_Y), a
+    ld (RAM_SpriteTable1.y), a
     ld a, CursorTile_ZoomedPixel
     jp SetCursorIndex ; and ret
 
@@ -5696,7 +5701,7 @@ _LABEL_3666_:
     call _LABEL_18E6_
     exx
     ld a, $58
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     ld a, b
     and $F8
     cp $40
@@ -5705,7 +5710,7 @@ _LABEL_3666_:
 +:  cp $48
     jp c, +
     ld a, $48
-+:  ld (RAM_SpriteTable1_Y), a
++:  ld (RAM_SpriteTable1.y), a
     ld b, a
     ld a, CursorTile_MenuArrowRight
     call SetCursorIndex
@@ -5725,8 +5730,8 @@ _LABEL_3666_:
 
 _LABEL_36A5_:
     ld a, $0F
-    ld (RAM_SpriteTable1_Y), a
-    ld a, (RAM_PenX_Smoothed)
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
     and $F8
     ld b, $28
     cp b
@@ -5736,7 +5741,7 @@ _LABEL_36A5_:
     jp nc, +
     ld b, a
 +:  ld a, b
-    ld (RAM_SpriteTable1_XN), a
+    ld (RAM_SpriteTable1.xn), a
     sub $28
     rrca
     rrca
@@ -5817,11 +5822,11 @@ CursorColourCycleEnd:
     
 InitialiseCursorSprites:
     ld hl, InitialiseCursorSprites_Y
-    ld de, RAM_SpriteTable1_Y
+    ld de, RAM_SpriteTable1.y
     ld bc, 4
     ldir
     ld hl, InitialiseCursorSprites_XN
-    ld de, RAM_SpriteTable1_XN
+    ld de, RAM_SpriteTable1.xn
     ld bc, 8
     ldir
     ret
@@ -5953,19 +5958,19 @@ PenPressed:
     jp Write2bppToVRAMSlowly
 
 UpdatePenGraphics:
-    ld ix, RAM_PenMode_Base
+    ld ix, RAM_PenMode
     ld a, ($C08A) ; Desired new pen mode
-    cp (ix+RAM_PenMode_Current-RAM_PenMode_Base)
+    cp (ix+PenMode.Current)
     jp z, PenModeNotChanged
 
     ; Check if we need to unset the old mode
-    bit 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    bit 0, (ix+PenMode.IsSet)
     push af
       call nz, TurnOffCurrentPenIcon
     pop af
     
     ; Draw current pen mode icon in red
-    ld (ix+RAM_PenMode_Current-RAM_PenMode_Base), a ; Set pen mode
+    ld (ix+PenMode.Current), a ; Set pen mode
     ld b, 1 ; Tile count
     ld hl, +
     jp JumpToFunction
@@ -5978,35 +5983,35 @@ UpdatePenGraphics:
 
 ; 1st entry of Jump Table from 388C (indexed by $C08A)
 DrawThinPenOn:
-    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19d
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thin_On
     jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 388C (indexed by $C08A)
 DrawMediumPenOn:
-    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19e
     LD_HL_PEN_TILE_GRAPHICS PenTile_Medium_On
     jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 388C (indexed by $C08A)
 DrawThickPenOn:
-    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19f
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thick_On
     jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 388C (indexed by $C08A)
 DrawEraserOn:
-    set 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $1a0
     LD_HL_PEN_TILE_GRAPHICS PenTile_Erase_On
     jp FillTiles2bpp
 
 TurnOffCurrentPenIcon:
     ld b, 1 ; Tile count
-    ld a, (ix+RAM_PenMode_Current-RAM_PenMode_Base)
+    ld a, (ix+PenMode.Current)
     ld hl, +
     jp JumpToFunction
 
@@ -6017,25 +6022,25 @@ TurnOffCurrentPenIcon:
 .dw DrawEraserOff
 
 DrawThinPenOff:
-    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    res 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19d
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thin_Off
     jp FillTiles2bpp ; and ret
 
 DrawMediumPenOff:
-    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    res 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19e
     LD_HL_PEN_TILE_GRAPHICS PenTile_Medium_Off
     jp FillTiles2bpp ; and ret
 
 DrawThickPenOff:
-    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    res 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19f
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thick_Off
     jp FillTiles2bpp ; and ret
 
 DrawEraserOff:
-    res 0, (ix+RAM_PenMode_IsSet-RAM_PenMode_Base)
+    res 0, (ix+PenMode.IsSet)
     LD_DE_TILE $1a0
     LD_HL_PEN_TILE_GRAPHICS PenTile_Erase_Off
     jp FillTiles2bpp ; and ret
@@ -6043,10 +6048,10 @@ DrawEraserOff:
 PenModeNotChanged:
     ; Check something else...
     ld a, ($C062) ; desired new dot mode?
-    cp (ix+RAM_PenMode_Dots-RAM_PenMode_Base)
+    cp (ix+PenMode.Dots)
     ret z
     
-    ld (ix+RAM_PenMode_Dots-RAM_PenMode_Base), a
+    ld (ix+PenMode.Dots), a
     ld b, 1 ; Tile count
 
     bit 0, a
@@ -6295,11 +6300,11 @@ _LABEL_3ACE_:
     ld a, ($C0BA)
     rrca
     jp nc, +
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     add a, $07
     ld ($C16F), a
     ld c, a
-    ld a, (RAM_SpriteTable1_XN)
+    ld a, (RAM_SpriteTable1.xn)
     add a, $04
     ld ($C170), a
     ld ix, $C248
@@ -6307,11 +6312,11 @@ _LABEL_3ACE_:
     ld hl, $3B21
     jp _LABEL_3A5A_
 
-+:  ld a, (RAM_SpriteTable1_XN)
++:  ld a, (RAM_SpriteTable1.xn)
     add a, $08
     ld ($C170), a
     ld c, a
-    ld a, (RAM_SpriteTable1_Y)
+    ld a, (RAM_SpriteTable1.y)
     add a, $03
     ld ($C16F), a
     ld ix, $C248
@@ -6321,8 +6326,8 @@ _LABEL_3ACE_:
 
 EnableOnlyThreeSprites:
     ; Could only set the terminator once?
-    ld hl, RAM_SpriteTable1_Y + 3
-    ld de, RAM_SpriteTable1_Y + 4
+    ld hl, RAM_SpriteTable1.y + 3
+    ld de, RAM_SpriteTable1.y + 4
     ld bc, 64 - 3 - 1
     ld (hl), SpriteTableYTerminator
     ldir
@@ -6355,7 +6360,7 @@ UpdateStatusBarText:
     add hl, bc
     LD_DE_TILE $1B3
     VDP_ADDRESS_TO_DE
-    ld b, 13 ; String lengths
+    ld b, STATUS_BAR_TEXT_LENGTH ; String lengths
 -:  push bc
       ld a, (hl) ; Get character
       push hl
@@ -6377,6 +6382,7 @@ UpdateStatusBarText:
     
 StatusBarText:
 ; All must be 13 characters long
+.define STATUS_BAR_TEXT_LENGTH 13
 ;     1234567890123
 .asc "             "
 .asc " COLOR MODE  "
