@@ -2,6 +2,9 @@
 set WLAPATH=..\..\wla\
 set BMP2TILE=..\..\bmp2tile\bmp2tile.exe
 
+rem speed up
+goto :skipgraphics
+
 rem Graphics
 rem We don't build the pscompr because the BMP2Tile compressor is better than the one Sega used...
 rem "%BMP2TILE%" "Graphics\PNG\Control tiles.pscompr.png" -noremovedupes -savetiles "Graphics\Control tiles.pscompr" -exit
@@ -18,6 +21,8 @@ rem 2bpp graphics
 "%BMP2TILE%" "Graphics\PNG\Font.2bpp.png"             -noremovedupes -savetiles "Graphics\Font.2bpp"             -exit
 "%BMP2TILE%" "Graphics\PNG\Logo tiles.2bpp.png"       -noremovedupes -savetiles "Graphics\Logo tiles.2bpp"       -exit
 "%BMP2TILE%" "Graphics\PNG\Pen tiles.2bpp.png"        -noremovedupes -savetiles "Graphics\Pen tiles.2bpp"        -exit
+
+:skipgraphics
 
 rem Compile
 "%WLAPATH%wla-z80.exe" -o "Sega Graphic Board v2_0 [Proto].sms.asm" "object.o"
