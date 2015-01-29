@@ -52,7 +52,7 @@ RAM_c03d                                    db
 RAM_c03e                                    dw
 RAM_unusedC040                              dsb 2
 RAM_Palette                                 dsb 17 ; $C042
-RAM_c053 db ; $c053
+RAM_ColourSelectionStartValue               db ; $c053 Palette value for start of 8-colour palette used when choosing new colours
 RAM_c054 db ; $c054
 RAM_unusedC055                              dsb 13
 RAM_c062 db ; $c062

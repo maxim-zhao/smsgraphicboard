@@ -855,7 +855,7 @@ InterruptHandlerImpl:
       or a
       jp z, VBlank_CheckResetAndExit
       bit 7, a
-      jp nz, VBlank_TitleScreen ; Bit 7 set -> we are i the title screen, jump to a specialised handler
+      jp nz, VBlank_TitleScreen ; Bit 7 set -> we are in the title screen, jump to a specialised handler
       rrca
       jp nc, + ; Bit 0 set -> ???
       
@@ -863,6 +863,7 @@ InterruptHandlerImpl:
       call CopySpriteTable2ToVRAM
       call UpdateCursorGraphics
       call UpdateCursorColourCycling
+
       ld a, (RAM_CurrentMode)
       cp ModeHighBit | Mode3
       jp nz, +
@@ -886,10 +887,10 @@ InterruptHandlerImpl:
       ; Skip 3 palette entries
       LD_DE_PALETTE 20
       VDP_ADDRESS_TO_DE
-      ld a, ($C053) ; value to write
+      ld a, (RAM_ColourSelectionStartValue) ; value to write
       ld b, 8       ; 8 palette entries
 -:    out (Port_VDPData), a
-      inc a ; Write incrementing values..?
+      inc a ; Write incrementing values. These are used for the colour selection screen
       push af ; Delay
       pop af
       djnz -
@@ -2241,8 +2242,11 @@ ColorPageMenuText: ; $1b76
 .asc "`___________'"
 .db $FF
 
-; $1be7
-.db $91 $09 $8E $09 $92 $09 $8E $09 $93 $09 $8E $09 $94 $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E $09 $8E $09 $95 $09 $8E $09 $96 $09 $8E $09 $97 $09 $8E $09 $98 $09 
+ColourSelectionTilemap: ; $1be7
+; Tiles showing selectable colours
+.dw $0991 $098E $0992 $098E $0993 $098E $0994 
+.dw $098E $098E $098E $098E $098E $098E $098E 
+.dw $0995 $098E $0996 $098E $0997 $098E $0998 
 
 EraseMenuText: ; $1c11
 .db $38
@@ -2630,32 +2634,34 @@ NonVBlankMode3Function:
     LD_HL_LOCATION 5, 4
     call DrawTextToTilesWithBackup
 
-    ld hl, $1BE7
+    ld hl, ColourSelectionTilemap
     LD_DE_TILEMAP 14, 8
-    ld bc, $030E
+    LD_BC_TILEMAP_AREA 7, 3
     call WriteAreaToTilemap
     xor a
-    ld ($C053), a
+    ld (RAM_ColourSelectionStartValue), a
     ld a, $01
     ld ($C054), a
     ei
     ret
 
 _LABEL_1F0F_:
-    ld a, ($C053)
-    and $3C
+    ld a, (RAM_ColourSelectionStartValue)
+    and %00111100 ; $3C
+    rrca ; Divide by 4
     rrca
-    rrca
-    ld de, $4E80
+    ;ld de, $4E80 ; Tile 116
+    LD_DE_TILE 116
     call +
     ld de, $5400
     inc a
     and $0F
 +:  push af
-      ld hl, $1F46
+      ; Look up a'th entry in table
+      ld hl, Table_1F46
       add a, a
       ld c, a
-      ld b, $00
+      ld b, 0
       add hl, bc
       VDP_ADDRESS_TO_DE
       ld a, (hl)
@@ -2668,17 +2674,18 @@ _LABEL_1F0F_:
 
 +:  push hl
       ld c, a
-      ld b, $00
+      ld b, 0
       ld hl, $44A2
       add hl, bc
-      ld b, $01
+      ld b, 1
       call FillTiles2bppCurrentAddress
     pop hl
     ret
 
 ; Data from 1F46 to 1F65 (32 bytes)
-.db $00 $20 $00 $30 $00 $40 $00 $50 $00 $60 $00 $70 $00 $80 $00 $90
-.db $00 $A0 $20 $10 $20 $20 $20 $30 $20 $40 $20 $50 $20 $60 $20 $70
+Table_1F46:
+.dw $2000 $3000 $4000 $5000 $6000 $7000 $8000 $9000
+.dw $A000 $1020 $2020 $3020 $4020 $5020 $6020 $7020
 
 ; 6th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode5_SquareFunction:
@@ -4972,7 +4979,7 @@ Mode4_EraseSpritesHandler:
     rrca
     or b
     ld c, a
-    ld a, ($C053)
+    ld a, (RAM_ColourSelectionStartValue)
     add a, c
     and $3F
     ld c, a
@@ -5016,10 +5023,10 @@ _LABEL_30B9_:
     cp $60
     jp c, +
     ld b, $FC
-+:  ld a, ($C053)
++:  ld a, (RAM_ColourSelectionStartValue)
     add a, b
     and $3F
-    ld ($C053), a
+    ld (RAM_ColourSelectionStartValue), a
     ld a, $01
     ld ($C054), a
     ld a, $01
