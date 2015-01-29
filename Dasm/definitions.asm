@@ -33,7 +33,52 @@
 .define IO_TH2_OUT_0 %00000000
 .define IO_TH2_IN    %10001000
 
+; VDP register values
+.define VDPR0B0_VideoSync_Bit         0
+.define VDPR0B0_VideoSync_ON          0<<VDPR0B0_VideoSync_Bit
+.define VDPR0B0_VideoSync_OFF         1<<VDPR0B0_VideoSync_Bit
+.define VDPR0B1_ExtraHeightModes_Bit  1
+.define VDPR0B1_ExtraHeightModes_ON   1<<VDPR0B1_ExtraHeightModes_Bit
+.define VDPR0B1_ExtraHeightModes_OFF  0<<VDPR0B1_ExtraHeightModes_Bit
+.define VDPR0B2_SMSMode_Bit           2
+.define VDPR0B2_SMSMode_ON            1<<VDPR0B2_SMSMode_Bit
+.define VDPR0B2_SMSMode_OFF           0<<VDPR0B2_SMSMode_Bit
+.define VDPR0B3_SpriteShift_Bit       3
+.define VDPR0B3_SpriteShift_ON        1<<VDPR0B3_SpriteShift_Bit
+.define VDPR0B3_SpriteShift_OFF       0<<VDPR0B3_SpriteShift_Bit
+.define VDPR0B4_LineInterrupts_Bit    4
+.define VDPR0B4_LineInterrupts_ON     1<<VDPR0B4_LineInterrupts_Bit
+.define VDPR0B4_LineInterrupts_OFF    0<<VDPR0B4_LineInterrupts_Bit
+.define VDPR0B5_BlankLeftColumn_Bit   5
+.define VDPR0B5_BlankLeftColumn_ON    1<<VDPR0B5_BlankLeftColumn_Bit
+.define VDPR0B5_BlankLeftColumn_OFF   0<<VDPR0B5_BlankLeftColumn_Bit
+.define VDPR0B6_FixTop2Rows_Bit       6
+.define VDPR0B6_FixTop2Rows_ON        1<<VDPR0B6_FixTop2Rows_Bit
+.define VDPR0B6_FixTop2Rows_OFF       0<<VDPR0B6_FixTop2Rows_Bit
+.define VDPR0B7_FixRight8Columns_Bit  7
+.define VDPR0B7_FixRight8Columns_ON   1<<VDPR0B7_FixRight8Columns_Bit
+.define VDPR0B7_FixRight8Columns_OFF  0<<VDPR0B7_FixRight8Columns_Bit
 
+.define VDPR1B0_ZoomedSprites_Bit     0
+.define VDPR1B0_ZoomedSprites_ON      1<<VDPR1B0_ZoomedSprites_Bit
+.define VDPR1B0_ZoomedSprites_OFF     0<<VDPR1B0_ZoomedSprites_Bit
+.define VDPR1B1_DoubledSprites_Bit    1
+.define VDPR1B1_DoubledSprites_ON     1<<VDPR1B1_DoubledSprites_Bit
+.define VDPR1B1_DoubledSprites_OFF    0<<VDPR1B1_DoubledSprites_Bit
+.define VDPR1B2                       0<<2 ; Always 0
+.define VDPR1B3_30RowMode_Bit         3
+.define VDPR1B3_30RowMode_ON          1<<VDPR1B3_30RowMode_Bit
+.define VDPR1B3_30RowMode_OFF         0<<VDPR1B3_30RowMode_Bit
+.define VDPR1B4_28RowMode_Bit         4
+.define VDPR1B4_28RowMode_ON          1<<VDPR1B4_28RowMode_Bit
+.define VDPR1B4_28RowMode_OFF         0<<VDPR1B4_28RowMode_Bit
+.define VDPR1B5_VBlankInterrupts_Bit  5
+.define VDPR1B5_VBlankInterrupts_ON   1<<VDPR1B5_VBlankInterrupts_Bit
+.define VDPR1B5_VBlankInterrupts_OFF  0<<VDPR1B5_VBlankInterrupts_Bit
+.define VDPR1B6_EnableDisplay_Bit     6
+.define VDPR1B6_EnableDisplay_ON      1<<VDPR1B6_EnableDisplay_Bit
+.define VDPR1B6_EnableDisplay_OFF     0<<VDPR1B6_EnableDisplay_Bit
+.define VDPR1B7                       1<<7 ; Always 1
 
 ; VDP data sizes
 .define SizeOfTile 32
@@ -58,6 +103,7 @@
 ; VRAM addresses
 .define TileMapAddress $3800
 .define SpriteTableAddress $3f00
+.define SpriteSet 1
 
 .define SpriteTableYTerminator 224
 
