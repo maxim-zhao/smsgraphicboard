@@ -52,67 +52,67 @@ RAM_c03d                                    db
 RAM_c03e                                    dw
 RAM_unusedC040                              dsb 2
 RAM_Palette                                 dsb 17 ; $C042
-RAM_c053 db
-RAM_c054 db
+RAM_c053 db ; $c053
+RAM_c054 db ; $c054
 RAM_unusedC055                              dsb 13
-RAM_c062 db
-RAM_c063 db
-RAM_c064 db
-RAM_c065 db
-RAM_c066 db
-RAM_c067 db
-RAM_c068 db
-RAM_c069 db
-RAM_c06a db
-RAM_c06b db
-RAM_c06c db
-RAM_c06d db
-RAM_c06e dw
-RAM_c070 db
-RAM_c071 db
-RAM_c072 db
+RAM_c062 db ; $c062
+RAM_c063 db ; $c063
+RAM_c064 db ; $c064
+RAM_c065 db ; $c065
+RAM_c066 db ; $c066
+RAM_c067 db ; $c067
+RAM_c068 db ; $c068
+RAM_c069 db ; $c069
+RAM_c06a db ; $c06a
+RAM_c06b db ; $c06b
+RAM_c06c db ; $c06c
+RAM_c06d db ; $c06d
+RAM_c06e dw ; $c06e
+RAM_c070 db ; $c070
+RAM_c071 db ; $c071
+RAM_c072 db ; $c072
 RAM_TileModificationBuffer                  dsb 15 ; $C073 ; 4b+?
-RAM_c082 db
+RAM_c082 db ; $c082
 RAM_CurrentCursorIndex                      db ; $C083 Low bits are the cursor index, high bits are ??? TODO
 RAM_CurrentCursorDataAddress                dw ; $C084 Pointer to cursor tile data
 RAM_CursorColourCycle_Delay                 db ; $C086 Counter for frame between colour changes
 RAM_CursorColourCycle_Index                 db ; $C087 Current colour index, must be following previous
 RAM_ButtonStateShownOnScreen                db ; $C088 Holds the button bits as last drawn to the screen
-RAM_c089 db
-RAM_c08a db
+RAM_c089 db ; $c089
+RAM_c08a db ; $c08a
 RAM_unusedC08B dsb 2
-RAM_c08d dw
-RAM_c08f dw
+RAM_c08d dw ; $c08d
+RAM_c08f dw ; $c08f
 RAM_unusedC091 dsb 41
-RAM_c0ba db
+RAM_c0ba db ; $c0ba
 RAM_BytesPerRow                             dw ; $c0bb Used during RAM<->VRAM tile copies
 RAM_unusedc0bd dsb 1
-RAM_c0be db
-RAM_c0bf db
-RAM_c0c0 db
-RAM_c0c1 db
-RAM_c0c2 db
-RAM_c0c3 db
-RAM_c0c4 db
-RAM_c0c5 db
-RAM_c0c6 db
-RAM_c0c7 db
-RAM_c0c8 db
-RAM_c0c9 db
+RAM_c0be db ; $c0be
+RAM_c0bf db ; $c0bf
+RAM_c0c0 db ; $c0c0
+RAM_c0c1 db ; $c0c1
+RAM_c0c2 db ; $c0c2
+RAM_c0c3 db ; $c0c3
+RAM_c0c4 db ; $c0c4
+RAM_c0c5 db ; $c0c5
+RAM_c0c6 db ; $c0c6
+RAM_c0c7 db ; $c0c7
+RAM_c0c8 db ; $c0c8
+RAM_c0c9 db ; $c0c9
 RAM_unusedC0CA dsb 147
-RAM_c15d db
-RAM_c15e db
-RAM_c15f db
-RAM_c160 db
-RAM_c161 db
-RAM_c162 db
+RAM_c15d db ; $c15d
+RAM_c15e db ; $c15e
+RAM_c15f db ; $c15f
+RAM_c160 db ; $c160
+RAM_c161 db ; $c161
+RAM_c162 db ; $c162
 RAM_SplashScreenTimeout                   dw ; $C163 ; 2b
 RAM_unusedC165 dsb 1
-RAM_c166 db
+RAM_c166 db ; $c166
 RAM_unusedC167 dsb 8
-RAM_c16f db
-RAM_c170 db
-RAM_c171 dw
+RAM_c16f db ; $c16f
+RAM_c170 db ; $c170
+RAM_c171 dw ; $c171
 RAM_unusedc173 dsb 15
 RAM_UnknownWriteOnlyC182                  db ; $C182
 RAM_UnknownWriteOnlyC183                  dw ; $C183
@@ -122,5 +122,5 @@ RAM_unusedc188 dsb 119
 RAM_SpriteTable1                          instanceof SpriteTable ; $C200 write here
 RAM_SpriteTable2                          instanceof SpriteTable ; $C2C0 copy here for staging to VRAM
 RAM_unusedC380 dsb 128
-RAM_GraphicsDataBuffer                    dsb 5376 ; $c400 ; Unknown size?
+RAM_GraphicsDataBuffer                    dsb 5376 ; $c400 ; Unknown size? Copy/Mirror do up to 96x96px = 4608 bytes but it seems to use more than that (would not go past $d600
 .ende
