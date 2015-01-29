@@ -34,11 +34,6 @@ CursorTile_ZoomedPixel:       db ; Used to show snapped pixel when in Zoom mode
 CursorTile_X:                 db ; Used for defining points for circles/ellipses
 .ende
 
-; TODO
-; WLA fails here, it can't handle .defines using labels?!?
-; label: .db 0
-; .define fail label+1
-; TODO: File a bug
 .enum 0
 PenTile_Thin_Off      db
 PenTile_Thin_On       db
@@ -52,7 +47,7 @@ PenTile_DotMode_Off   db
 PenTile_DotMode_On    db
 .ende
 .macro LD_HL_PEN_TILE_GRAPHICS args tileIndex
-  ld hl, PenTiles + SizeOfTile/2 * \1 ; args fail
+  ld hl, PenTiles + SizeOfTile/2 * tileIndex
 .endm
 
 .enum 0
@@ -112,7 +107,16 @@ InterruptHandler:
     jp InterruptHandlerImpl
 
 VDPRegisterValues: ; $003b
-.db $06 $A0 $FF $FF $FF $FF $FF $00 $00 $00 $00
+.db VDPR0B0_VideoSync_ON | VDPR0B1_ExtraHeightModes_ON | VDPR0B2_SMSMode_ON | VDPR0B3_SpriteShift_OFF | VDPR0B4_LineInterrupts_OFF | VDPR0B5_BlankLeftColumn_OFF | VDPR0B6_FixTop2Rows_OFF | VDPR0B7_FixRight8Columns_OFF
+.db VDPR1B0_ZoomedSprites_OFF | VDPR1B1_DoubledSprites_OFF | VDPR1B2 | VDPR1B3_30RowMode_OFF | VDPR1B4_28RowMode_OFF | VDPR1B5_VBlankInterrupts_ON | VDPR1B6_EnableDisplay_OFF | VDPR1B7
+.db $ff, $ff ; unused regs
+.db (TileMapAddress>>10)   |%11110001
+.db (SpriteTableAddress>>7)|%10000001
+.db (SpriteSet<<2)         |%11111011
+.db 0 ; Border palette colour (sprite palette) (unused bits not set)
+.db 0 ; Horizontal scroll
+.db 0 ; Vertical scroll
+.db 0 ; Line interrupt spacing ($ff to disable)
 
 ScreenOff:
     ld a, (RAM_VDPReg1Value)
