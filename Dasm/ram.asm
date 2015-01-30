@@ -122,5 +122,5 @@ RAM_unusedc188 dsb 119
 RAM_SpriteTable1                          instanceof SpriteTable ; $C200 write here
 RAM_SpriteTable2                          instanceof SpriteTable ; $C2C0 copy here for staging to VRAM
 RAM_unusedC380 dsb 128
-RAM_GraphicsDataBuffer                    dsb 5376 ; $c400 ; Unknown size? Copy/Mirror do up to 96x96px = 4608 bytes but it seems to use more than that (would not go past $d600
+RAM_GraphicsDataBuffer                    dsb 5376 ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???. Biggest size used seems to be the main menu at 12x14 tiles.
 .ende
