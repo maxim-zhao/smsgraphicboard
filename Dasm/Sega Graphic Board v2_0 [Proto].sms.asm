@@ -385,10 +385,13 @@ Write1bppToVRAMWithExtensionMask:
     ret
     
 FillTiles2bpp:
-    ; write data from hl to VRAM address de, 2 bytes then 2 zeroes, for a total of 32 bytes read, then repeat b times
+    ; hl = source
+    ; de = dest
+    ; b = tile count
     VDP_ADDRESS_TO_DE
 FillTiles2bppCurrentAddress:
-    ; write data from hl to VDP, 2 bytes then 2 zeroes, for a total of 32 bytes read, then repeat b times
+    ; hl = source
+    ; b = tile count
 --: push hl
     push bc
       ld b, 16
@@ -888,7 +891,7 @@ InterruptHandlerImpl:
       LD_DE_PALETTE 20
       VDP_ADDRESS_TO_DE
       ld a, (RAM_ColourSelectionStartValue) ; value to write
-      ld b, 8       ; 8 palette entries
+      ld b, 8 ; 8 palette entries
 -:    out (Port_VDPData), a
       inc a ; Write incrementing values. These are used for the colour selection screen
       push af ; Delay
@@ -2629,16 +2632,20 @@ NonVBlankMode3Function:
 +:  set 7, (hl)
     di
 
+    ; Draw the text
     ld de, ColorPageMenuText
     LD_BC_AREA 13, 8
     LD_HL_LOCATION 5, 4
     call DrawTextToTilesWithBackup
 
+    ; Draw the colour boxes
     ld hl, ColourSelectionTilemap
     LD_DE_TILEMAP 14, 8
     LD_BC_TILEMAP_AREA 7, 3
     call WriteAreaToTilemap
-    xor a
+
+    ; Initialise the colours
+    xor a ; start at 0
     ld (RAM_ColourSelectionStartValue), a
     ld a, $01
     ld ($C054), a
@@ -2650,10 +2657,9 @@ _LABEL_1F0F_:
     and %00111100 ; $3C
     rrca ; Divide by 4
     rrca
-    ;ld de, $4E80 ; Tile 116
-    LD_DE_TILE 116
+    LD_DE_TILE 116 ; Upper digit
     call +
-    ld de, $5400
+    LD_DE_TILE 160 ; Lower digit
     inc a
     and $0F
 +:  push af
@@ -2664,18 +2670,19 @@ _LABEL_1F0F_:
       ld b, 0
       add hl, bc
       VDP_ADDRESS_TO_DE
-      ld a, (hl)
+      ld a, (hl) ; Get first byte
       call +
       inc hl
-      ld a, (hl)
+      ld a, (hl) ; Then second
       call +
     pop af
     ret
 
 +:  push hl
+      ; Offset into table
       ld c, a
       ld b, 0
-      ld hl, $44A2
+      ld hl, Font2bpp + 47 * SizeOfTile / 2 ; $44A2
       add hl, bc
       ld b, 1
       call FillTiles2bppCurrentAddress
@@ -2684,8 +2691,32 @@ _LABEL_1F0F_:
 
 ; Data from 1F46 to 1F65 (32 bytes)
 Table_1F46:
-.dw $2000 $3000 $4000 $5000 $6000 $7000 $8000 $9000
-.dw $A000 $1020 $2020 $3020 $4020 $5020 $6020 $7020
+; Each byte is the offset in bytes of the desired digit from the space before 0
+; i.e. 0 = space, 16 = 0, 32 = 1, ...
+.macro DIGIT_OFFSET args value
+.if value < 10
+.db 0 ; space
+.else
+.db (1 + 1) * SizeOfTile / 2
+.endif
+.db (value # 10 + 1) * SizeOfTile / 2
+.endm
+ DIGIT_OFFSET 1
+ DIGIT_OFFSET 2
+ DIGIT_OFFSET 3
+ DIGIT_OFFSET 4
+ DIGIT_OFFSET 5
+ DIGIT_OFFSET 6
+ DIGIT_OFFSET 7
+ DIGIT_OFFSET 8
+ DIGIT_OFFSET 9
+ DIGIT_OFFSET 10
+ DIGIT_OFFSET 11
+ DIGIT_OFFSET 12
+ DIGIT_OFFSET 13
+ DIGIT_OFFSET 14
+ DIGIT_OFFSET 15
+ DIGIT_OFFSET 16
 
 ; 6th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode5_SquareFunction:
