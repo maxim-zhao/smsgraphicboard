@@ -54,7 +54,7 @@ PenTile_DotMode_On    db
 Mode0 db ; Drawing
 Mode1_Menu db
 Mode2 db ; Process menu selection?
-Mode3 db ; Color set
+Mode3_ColourSelection db
 Mode4_Erase db
 Mode5_Square db
 Mode6_Circle db
@@ -868,14 +868,18 @@ InterruptHandlerImpl:
       call UpdateCursorColourCycling
 
       ld a, (RAM_CurrentMode)
-      cp ModeHighBit | Mode3
+      cp ModeHighBit | Mode3_ColourSelection
       jp nz, +
       ld a, ($C054)
       or a
       jp z, +
+
+      ; When $c054 is non-zero...
+      ; ...for one frame only...
       xor a
       ld ($C054), a
-
+      
+      ; ...update the palette
       ld hl, RAM_Palette
       LD_DE_PALETTE 0
       VDP_ADDRESS_TO_DE
@@ -898,7 +902,7 @@ InterruptHandlerImpl:
       pop af
       djnz -
 
-      call _LABEL_1F0F_
+      call UpdateColourSelectionLabels
 
 +:    ; Increment the frame counter
       ld hl, RAM_FrameCounter
@@ -1551,15 +1555,15 @@ CallNonVBlankModeFunction:
     ld a, (hl)
     and %00111111
     exx
-      ld hl, JumpTable_NonVBlankDynamicFunction
+      ld hl, CallNonVBlankModeFunction_JumpTable
       jp JumpToFunction
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_CurrentMode)
-JumpTable_NonVBlankDynamicFunction:
+CallNonVBlankModeFunction_JumpTable:
 .dw NonVBlankMode0Function 
 .dw NonVBlankMode1_MenuFunction 
 .dw NonVBlankMode2Function
-.dw NonVBlankMode3Function
+.dw NonVBlankMode3_ColourSelectionFunction
 .dw NonVBlankMode4_EraseFunction
 .dw NonVBlankMode5_SquareFunction
 .dw NonVBlankMode6_CircleAnd7Function
@@ -1578,11 +1582,12 @@ JumpTable_NonVBlankDynamicFunction:
 ; 2nd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode1_MenuFunction:
     exx
+    ; Only do this when the high bit is set
     bit 7, (hl)
     ret nz
     set 7, (hl)
     inc hl
-    ld (hl), $00
+    ld (hl), $00 ; RAM_c03d
     di
       xor a
       ld ($C089), a
@@ -1610,22 +1615,22 @@ NonVBlankMode1_MenuFunction:
 
 ; 3rd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode2Function:
-    di
-      call SetDrawingAreaTilemap
-      ld hl, (RAM_Pen_Smoothed)
-      ld a, $48
-      cp l
-      jp c, +
-      ld hl, $4858
-+:    ld ($C03E), hl
-      call RestoreTileData
-      ld hl, ($C08D)
-      ld (RAM_Pen_Smoothed), hl
-      ld hl, ($C08F)
-      ld (RAM_Pen_Backup), hl
+      di
+        call SetDrawingAreaTilemap
+        ld hl, (RAM_Pen_Smoothed)
+        ld a, $48
+        cp l
+        jp c, +
+        ld hl, $4858
++:      ld ($C03E), hl
+        call RestoreTileData
+        ld hl, ($C08D)
+        ld (RAM_Pen_Smoothed), hl
+        ld hl, ($C08F)
+        ld (RAM_Pen_Backup), hl
       exx
       inc hl
-      ld a, (hl)
+      ld a, (hl) ; RAM_c03d
       ld (hl), $00
       cp $03
       jp nz, +
@@ -2624,7 +2629,7 @@ __:   rrc c
 .db %00000001
 
 ; 4th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode3Function:
+NonVBlankMode3_ColourSelectionFunction:
     exx
     bit 7, (hl)
     jp z, + ; could ret nz
@@ -2652,7 +2657,9 @@ NonVBlankMode3Function:
     ei
     ret
 
-_LABEL_1F0F_:
+UpdateColourSelectionLabels:
+    ; Updates the labels in the colour selection screen
+    ; (numbers only)
     ld a, (RAM_ColourSelectionStartValue)
     and %00111100 ; $3C
     rrca ; Divide by 4
@@ -2664,7 +2671,7 @@ _LABEL_1F0F_:
     and $0F
 +:  push af
       ; Look up a'th entry in table
-      ld hl, Table_1F46
+      ld hl, UpdateColourSelectionLabels_TileOffsets
       add a, a
       ld c, a
       ld b, 0
@@ -2682,7 +2689,7 @@ _LABEL_1F0F_:
       ; Offset into table
       ld c, a
       ld b, 0
-      ld hl, Font2bpp + 47 * SizeOfTile / 2 ; $44A2
+      ld hl, Font2bpp + 47 * SizeOfTile / 2 ; space before zero
       add hl, bc
       ld b, 1
       call FillTiles2bppCurrentAddress
@@ -2690,7 +2697,7 @@ _LABEL_1F0F_:
     ret
 
 ; Data from 1F46 to 1F65 (32 bytes)
-Table_1F46:
+UpdateColourSelectionLabels_TileOffsets:
 ; Each byte is the offset in bytes of the desired digit from the space before 0
 ; i.e. 0 = space, 16 = 0, 32 = 1, ...
 .macro DIGIT_OFFSET args value

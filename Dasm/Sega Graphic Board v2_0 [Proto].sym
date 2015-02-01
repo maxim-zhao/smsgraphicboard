@@ -201,7 +201,7 @@
 0000:14a2 Tilemap_SegaLogo
 0000:14ca Tiles_SegaLogo
 0000:164f CallNonVBlankModeFunction
-0000:165c JumpTable_NonVBlankDynamicFunction
+0000:165c CallNonVBlankModeFunction_JumpTable
 0000:1680 NonVBlankMode1_MenuFunction
 0000:16c0 NonVBlankMode2Function
 0000:171e NonVBlankMode4_EraseFunction
@@ -230,9 +230,9 @@
 0000:1d40 _LABEL_1D40_
 0000:1d50 _LABEL_1D50_
 0000:1e57 _LABEL_1E57_
-0000:1ee2 NonVBlankMode3Function
-0000:1f0f _LABEL_1F0F_
-0000:1f46 Table_1F46
+0000:1ee2 NonVBlankMode3_ColourSelectionFunction
+0000:1f0f UpdateColourSelectionLabels
+0000:1f46 UpdateColourSelectionLabels_TileOffsets
 0000:1f66 NonVBlankMode5_SquareFunction
 0000:2079 _LABEL_2079_
 0000:2085 _LABEL_2085_
