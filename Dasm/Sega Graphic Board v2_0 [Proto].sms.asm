@@ -51,10 +51,10 @@ PenTile_DotMode_On    db
 .endm
 
 .enum 0
-Mode0 db ; Drawing
+Mode0_Drawing db ; Drawing
 Mode1_Menu db
-Mode2 db ; Process menu selection?
-Mode3_ColourSelection db
+Mode2_MenuItemSelected db ; Process menu selection?
+Mode3_Colour db
 Mode4_Erase db
 Mode5_Square db
 Mode6_Circle db
@@ -65,10 +65,10 @@ Mode10_Mirror db
 Mode11_Magnify db
 Mode12_Display db
 Mode13_End db
-Mode14 db ; Line/paint menu
-Mode15 db ; Color menu
-Mode16 db
-Mode17 db
+Mode14_LinePaintMenu db
+Mode15_ColourSelectionMenu db
+Mode16_MirrorAxisMenu db
+Mode17_EraseConfirmationMenu db
 .ende
 
 .define ModeHighBit 1<<7
@@ -655,7 +655,7 @@ Outi64:
 SpriteTable1to2:
     ld a, (RAM_CurrentMode)
     and %00111111
-    cp Mode12_Display ; Don't do it in this mode
+    cp Mode12_Display ; Leave the sprites alone - they're turned off!
     ret z
     ld a, (RAM_FrameCounter)
     rrca ; Check low bit
@@ -868,7 +868,7 @@ InterruptHandlerImpl:
       call UpdateCursorColourCycling
 
       ld a, (RAM_CurrentMode)
-      cp ModeHighBit | Mode3_ColourSelection
+      cp ModeHighBit | Mode3_Colour
       jp nz, +
       ld a, ($C054)
       or a
@@ -1047,7 +1047,7 @@ TitleScreen: ; $865
 
     ; Initialise timeout counter
     ld hl, $0200 ; 8533ms
-    ld (RAM_SplashScreenTimeout), hl
+    ld (RAM_TitleScreenAndEndTimeout), hl
 
     ld hl, TitleScreenFont ; $3C02 ; compressed tile data: font
     LD_DE_TILE 0
@@ -1156,9 +1156,9 @@ CheckForGraphicsBoard:
     call SetVBlankFunctionAndWait
 
     ; decrement timeout counter
-    ld hl, (RAM_SplashScreenTimeout)
+    ld hl, (RAM_TitleScreenAndEndTimeout)
     dec hl
-    ld (RAM_SplashScreenTimeout), hl
+    ld (RAM_TitleScreenAndEndTimeout), hl
     ld a, l
     or h
     jp z, TitleScreenTimedOut
@@ -1185,9 +1185,9 @@ GraphicsBoardDetected:
 .endif
     
     ; decrement title screen counter again
-    ld hl, (RAM_SplashScreenTimeout)
+    ld hl, (RAM_TitleScreenAndEndTimeout)
     dec hl
-    ld (RAM_SplashScreenTimeout), hl
+    ld (RAM_TitleScreenAndEndTimeout), hl
     ld a, l
     or h
     jp z, TitleScreenTimedOut
@@ -1560,10 +1560,10 @@ CallNonVBlankModeFunction:
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_CurrentMode)
 CallNonVBlankModeFunction_JumpTable:
-.dw NonVBlankMode0Function 
+.dw NonVBlankMode0_DrawingFunction 
 .dw NonVBlankMode1_MenuFunction 
-.dw NonVBlankMode2Function
-.dw NonVBlankMode3_ColourSelectionFunction
+.dw NonVBlankMode2_MenuItemSelectedFunction
+.dw NonVBlankMode3_ColourFunction
 .dw NonVBlankMode4_EraseFunction
 .dw NonVBlankMode5_SquareFunction
 .dw NonVBlankMode6_CircleAnd7Function
@@ -1574,20 +1574,22 @@ CallNonVBlankModeFunction_JumpTable:
 .dw NonVBlankMode11_MagnifyFunction
 .dw NonVBlankMode12_DisplayFunction
 .dw NonVBlankMode13_EndFunction
-.dw NonVBlankMode14Function
-.dw NonVBlankMode15Function
-.dw NonVBlankMode16Function
-.dw NonVBlankMode17Function
+.dw NonVBlankMode14_LinePaintMenuFunction
+.dw NonVBlankMode15_ColourSelectionMenuFunction
+.dw NonVBlankMode16_MirrorAxisMenuFunction
+.dw NonVBlankMode17_EraseConfirmationMenuFunction
+
+; Note: menu-showing handlers could be refactored as they are all the same except for the parameters...
 
 ; 2nd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode1_MenuFunction:
     exx
     ; Only do this when the high bit is set
-    bit 7, (hl)
+    bit 7, (hl) ; RAM_CurrentMode
     ret nz
-    set 7, (hl)
+    set 7, (hl) ; RAM_CurrentMode
     inc hl
-    ld (hl), $00 ; RAM_c03d
+    ld (hl), Mode0_Drawing ; RAM_SelectedNextMode
     di
       xor a
       ld ($C089), a
@@ -1614,8 +1616,9 @@ NonVBlankMode1_MenuFunction:
     ret
 
 ; 3rd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode2Function:
+NonVBlankMode2_MenuItemSelectedFunction:
       di
+        ; Restore the tiles under the menu
         call SetDrawingAreaTilemap
         ld hl, (RAM_Pen_Smoothed)
         ld a, $48
@@ -1630,39 +1633,41 @@ NonVBlankMode2Function:
         ld (RAM_Pen_Backup), hl
       exx
       inc hl
-      ld a, (hl) ; RAM_c03d
-      ld (hl), $00
-      cp $03
+      ld a, (hl) ; RAM_SelectedNextMode
+      ld (hl), Mode0_Drawing ; Default is to go back to drawing
+      
+      ; We check what was requested to decide if there is more to do...
+      cp Mode3_Colour
       jp nz, +
       
-      ; 3
-      ld (hl), a
-      ld a, $0F
+      ; Mode3_Colour
+      ld (hl), a ; Advance to next menu first
+      ld a, Mode15_ColourSelectionMenu
       jp ++
 
-+:    cp $04
++:    cp Mode4_Erase
       jp nz, +
       
       ; 4
-      ld (hl), a
-      ld a, $11
+      ld (hl), a ; 17 then 4
+      ld a, Mode17_EraseConfirmationMenu
       jp ++
 
-+:    cp $05
++:    cp Mode5_Square
       jp c, +
-      cp $08
+      cp Mode8_Paint
       jp nc, +
       ld (hl), a
-      ld a, $0E
+      ld a, Mode14_LinePaintMenu ; Select line/paint for square, circle, ellipse
       jp ++
 
-+:    cp $0A
++:    cp Mode10_Mirror
       jp nz, ++
       ld (hl), a
-      ld a, $10
+      ld a, Mode16_MirrorAxisMenu ; Select axis first
 
 ++:   dec hl
-      ld (hl), a
+      ld (hl), a ; RAM_CurrentMode
       ld a, $01
       ld (RAM_Beep), a
     ei
@@ -1670,25 +1675,25 @@ NonVBlankMode2Function:
 
 ; 5th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode4_EraseFunction:
-    ld a, ($C0BA)
-    or a
-    jp z, +
+      ld a, ($C0BA)
+      or a
+      jp z, +
 
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+      ld a, (RAM_Beep)
+      or a
+      ret nz
 
-    ; Zero all tiles
-    di
-      LD_DE_TILE 0
-      ld h, 0
-      ld bc, 18 * 22 * SizeOfTile ; All tiles
-      call FillVRAMWithH
-    ei
+      ; Zero all tile data
+      di
+        LD_DE_TILE 0
+        ld h, 0
+        ld bc, 18 * 22 * SizeOfTile ; All tiles
+        call FillVRAMWithH
+      ei
     ; fall through
 +:  exx
-    ld (hl), $00
-    ld a, $01 ; Blank
+    ld (hl), Mode0_Drawing ; RAM_CurrentMode
+    ld a, 1 ; Blank text
     ld (RAM_StatusBarTextIndex), a
     ret
 
@@ -1698,12 +1703,17 @@ NonVBlankMode12_DisplayFunction:
       or a
       ret nz
     exx
-    bit 7, (hl)
-    jp z, +
+    bit 7, (hl) ; RAM_CurrentMode
+    jp z, + ; High bit unset means "enter display mode"
 
+    ; High bit set means "wait for a button, then exit display mode"
+    
+    ; Wait for button
     ld a, (RAM_ButtonsNewlyPressed)
     bit 0, a
     ret z
+    
+    ; Restore the missing parts of the screen
     di
       call DrawUIControls
       ld hl, ($C08D)
@@ -1715,224 +1725,267 @@ NonVBlankMode12_DisplayFunction:
     ei
     ret
 
-+:  set 7, (hl)
++:  ; Enter "display mode"
+    set 7, (hl) ; RAM_CurrentMode
     ld hl, (RAM_Pen_Smoothed)
     ld ($C08D), hl
     ld hl, (RAM_Pen_Backup)
     ld ($C08F), hl
     di
       call ScreenOff
+      ; Sprites off
       call DisableSprites_VRAM
+      ; Blank tilemap
       LD_DE_TILEMAP 0, 0
-      ld hl, $8D09
+      ld hl, $8D09 ; Blank tile
       ld bc, 32*28
       call FillVRAMWithHL
+      ; Restore tilemap
       call SetDrawingAreaTilemap
     ei
-    jp ScreenOn
+    jp ScreenOn ; and ret
 
 ; 15th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode14Function:
+NonVBlankMode14_LinePaintMenuFunction:
       ld a, (RAM_Beep)
       or a
       ret nz
     exx
+    ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
     
+    ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
+    
     di
       exx
+        ; Restore the graphics state
         call RestoreTileData
         ld hl, ($C08D)
         ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
         ld (RAM_Pen_Backup), hl
       exx
-      inc hl
+      ; Switch to the selected next mode
+      inc hl ; RAM_SelectedNextMode
       ld a, (hl)
-      ld (hl), $00
-      dec hl
+      ld (hl), Mode0_Drawing
+      dec hl ; RAM_CurrentMode
       ld (hl), a
     ei
     ret
 
-+:  set 7, (hl)
++:  set 7, (hl) ; set "menu drawn" flag
     di
-    LD_BC_AREA 10, 4
-    ld de, ModeMenuText
-    LD_HL_LOCATION 5, 4
-    call DrawTextToTilesWithBackup
+      ; Draw it
+      LD_BC_AREA 10, 4
+      ld de, ModeMenuText
+      LD_HL_LOCATION 5, 4
+      call DrawTextToTilesWithBackup
 
-    ld hl, (RAM_Pen_Smoothed)
-    ld ($C08D), hl
-    ld hl, (RAM_Pen_Backup)
-    ld ($C08F), hl
-    LD_HL_LOCATION 88,72
-    ld (RAM_Pen_Smoothed), hl
-    ld (RAM_Pen_Backup), hl
+      ld hl, (RAM_Pen_Smoothed)
+      ld ($C08D), hl
+      ld hl, (RAM_Pen_Backup)
+      ld ($C08F), hl
+      LD_HL_LOCATION 88,72
+      ld (RAM_Pen_Smoothed), hl
+      ld (RAM_Pen_Backup), hl
     ei
     ret
 
 ; 16th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode15Function:
+NonVBlankMode15_ColourSelectionMenuFunction:
       ld a, (RAM_Beep)
       or a
       ret nz
     exx
+    ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
+    
+    ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
+
     di
       exx
+        ; Restore tiles
         call RestoreTileData
         ld hl, ($C08D)
         ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
         ld (RAM_Pen_Backup), hl
       exx
-      inc hl
+      ; Switch to the selected next mode
+      inc hl ; RAM_SelectedNextMode
       ld a, (hl)
-      ld (hl), $00
-      dec hl
+      ld (hl), Mode0_Drawing
+      dec hl ; RAM_CurrentMode
       ld (hl), a
     ei
     ret
 
 +:  set 7, (hl)
     di
-    LD_BC_AREA 16, 4
-    ld de, ColorMenuText
-    LD_HL_LOCATION 5, 4
-    call DrawTextToTilesWithBackup
-    ld hl, (RAM_Pen_Smoothed)
-    ld ($C08D), hl
-    ld hl, (RAM_Pen_Backup)
-    ld ($C08F), hl
-    LD_HL_LOCATION 88,72
-    ld (RAM_Pen_Smoothed), hl
-    ld (RAM_Pen_Backup), hl
+      ; Draw the menu
+      LD_BC_AREA 16, 4
+      ld de, ColorMenuText
+      LD_HL_LOCATION 5, 4
+      call DrawTextToTilesWithBackup
+      ld hl, (RAM_Pen_Smoothed)
+      ld ($C08D), hl
+      ld hl, (RAM_Pen_Backup)
+      ld ($C08F), hl
+      LD_HL_LOCATION 88,72
+      ld (RAM_Pen_Smoothed), hl
+      ld (RAM_Pen_Backup), hl
     ei
     ret
 
 ; 17th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode16Function:
+NonVBlankMode16_MirrorAxisMenuFunction:
       ld a, (RAM_Beep)
       or a
       ret nz
     exx
+    ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
+    
+    ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
+
     di
       exx
+        ; Restore tiles
         call RestoreTileData
         ld hl, ($C08D)
         ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
         ld (RAM_Pen_Backup), hl
       exx
-      inc hl
+      ; Switch to the selected next mode
+      inc hl ; RAM_SelectedNextMode
       ld a, (hl)
-      ld (hl), $00
-      dec hl
+      ld (hl), Mode0_Drawing
+      dec hl ; RAM_CurrentMode
       ld (hl), a
     ei
     ret
 
 +:  set 7, (hl)
     di
-    LD_BC_AREA 14, 4
-    ld de, MirrorMenuText
-    LD_HL_LOCATION 5, 4
-    call DrawTextToTilesWithBackup
-    ld hl, (RAM_Pen_Smoothed)
-    ld ($C08D), hl
-    ld hl, (RAM_Pen_Backup)
-    ld ($C08F), hl
+      ; Draw the menu
+      LD_BC_AREA 14, 4
+      ld de, MirrorMenuText
+      LD_HL_LOCATION 5, 4
+      call DrawTextToTilesWithBackup
+      ld hl, (RAM_Pen_Smoothed)
+      ld ($C08D), hl
+      ld hl, (RAM_Pen_Backup)
+      ld ($C08F), hl
 
-    LD_HL_LOCATION 88,72
-    ld (RAM_Pen_Smoothed), hl
-    ld (RAM_Pen_Backup), hl
+      LD_HL_LOCATION 88,72
+      ld (RAM_Pen_Smoothed), hl
+      ld (RAM_Pen_Backup), hl
     ei
     ret
 
 ; 18th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode17Function:
+NonVBlankMode17_EraseConfirmationMenuFunction:
       ld a, (RAM_Beep)
       or a
       ret nz
     exx
+    ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
+    
+    ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
+
     di
       exx
+        ; Restore tiles
         call RestoreTileData
         ld hl, ($C08D)
         ld (RAM_Pen_Smoothed), hl
         ld hl, ($C08F)
         ld (RAM_Pen_Backup), hl
       exx
-      inc hl
+      ; Switch to the selected next mode
+      inc hl ; RAM_SelectedNextMode
       ld a, (hl)
-      ld (hl), $00
-      dec hl
+      ld (hl), Mode0_Drawing
+      dec hl ; RAM_CurrentMode
       ld (hl), a
     ei
     ret
 
 +:  set 7, (hl)
     di
-    LD_BC_AREA 13, 4
-    ld de, EraseMenuText
-    LD_HL_LOCATION 5, 4
-    call DrawTextToTilesWithBackup
-    ld hl, (RAM_Pen_Smoothed)
-    ld ($C08D), hl
-    ld hl, (RAM_Pen_Backup)
-    ld ($C08F), hl
-    LD_HL_LOCATION 88,72
-    ld (RAM_Pen_Smoothed), hl
-    ld (RAM_Pen_Backup), hl
+      ; Draw the menu
+      LD_BC_AREA 13, 4
+      ld de, EraseMenuText
+      LD_HL_LOCATION 5, 4
+      call DrawTextToTilesWithBackup
+      ld hl, (RAM_Pen_Smoothed)
+      ld ($C08D), hl
+      ld hl, (RAM_Pen_Backup)
+      ld ($C08F), hl
+      LD_HL_LOCATION 88,72
+      ld (RAM_Pen_Smoothed), hl
+      ld (RAM_Pen_Backup), hl
     ei
     ret
 
 ; 14th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode13_EndFunction:
     exx
+    
+    ; Check if the timeout has started yet
     bit 7, (hl)
     jp z, +
-    ld hl, RAM_SplashScreenTimeout
+
+    ; Wait for timeout to expire
+    ld hl, RAM_TitleScreenAndEndTimeout
     dec (hl)
     ret p
+    
+    ; Then reset
     call ScreenOff
     jp FullReset
 
 +:  set 7, (hl)
-    ld a, $80
-    ld (RAM_SplashScreenTimeout), a
+    ; Start waiting (2133ms)
+    ld a, 128
+    ld (RAM_TitleScreenAndEndTimeout), a
+    ; Turn off sprites
     ld a, SpriteTableYTerminator
     ld (RAM_SpriteTable1.y), a
     ret
 
-_LABEL_18E6_:
+CheckMenuButton:
+    ; Check for Menu button
     ld a, (RAM_ButtonsNewlyPressed)
-    bit 0, a ; 
+    bit GraphicBoardButtonBit_Menu, a
     ret z ; Do nothing if button not just pressed
     ld a, (RAM_Beep)
     or a
     ret nz
+    ; Should we show the menu?
     ld a, (RAM_CurrentMode)
     and %00111111
     cp Mode1_Menu
-    ret z
-    cp Mode2
-    ret z
+    ret z ; Not if we are already showing it
+    cp Mode2_MenuItemSelected
+    ret z ; And not if we are just hiding it
+    
+    ; Otherwise, show it
     ld a, Mode1_Menu
     ld (RAM_CurrentMode), a
     ret
@@ -2268,7 +2321,7 @@ EraseMenuText: ; $1c11
 .db $FF
 
 ; 1st entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode0Function:
+NonVBlankMode0_DrawingFunction:
     exx
     ld a, (RAM_ButtonsNewlyPressed)
     and $03
@@ -2629,7 +2682,7 @@ __:   rrc c
 .db %00000001
 
 ; 4th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode3_ColourSelectionFunction:
+NonVBlankMode3_ColourFunction:
     exx
     bit 7, (hl)
     jp z, + ; could ret nz
@@ -4099,7 +4152,7 @@ NonVBlankMode9_CopyFunction:
     ld ($C162), a
     ld a, ($C0C9)
     sub $28
-    ld (RAM_SplashScreenTimeout), a
+    ld (RAM_TitleScreenAndEndTimeout), a
     di
     bit 0, (ix+0)
     call z, _LABEL_2BD8_
@@ -4255,11 +4308,11 @@ _LABEL_2A0B_:
       sub (ix+19)
       neg
       add a, (ix+19)
-      ld (RAM_SplashScreenTimeout), a
+      ld (RAM_TitleScreenAndEndTimeout), a
       ret
 
 +:    ld a, ($C170)
-      ld (RAM_SplashScreenTimeout), a
+      ld (RAM_TitleScreenAndEndTimeout), a
       sub (ix+2)
       ld ($C161), a
       ret
@@ -4270,7 +4323,7 @@ _LABEL_2A0B_:
       ld b, a
       ld a, ($C170)
       sub b
-      ld (RAM_SplashScreenTimeout), a
+      ld (RAM_TitleScreenAndEndTimeout), a
       ret
 
 .endasm ; Unmatched push matching
@@ -4904,7 +4957,7 @@ ModeSpritesHandlerJumpTable:
 ; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_CurrentMode)
 ; Called inside shadow registers
 ; Non-shadow regs have b = pen Y, (hl) = buttons newly pressed, a = mode
-.dw Mode0SpritesHandler
+.dw Mode0_DrawingSpritesHandler
 .dw Mode1_MenuSpritesHandler 
 .dw DoNothing 
 .dw Mode4_EraseSpritesHandler 
@@ -4918,15 +4971,15 @@ ModeSpritesHandlerJumpTable:
 .dw Mode12_DisplaySpritesHandler 
 .dw DoNothing 
 .dw DoNothing 
-.dw Mode15PlusSpritesHandler 
-.dw Mode15PlusSpritesHandler
-.dw Mode15PlusSpritesHandler 
-.dw Mode15PlusSpritesHandler
+.dw Mode15_ColourSelectionMenuPlusSpritesHandler 
+.dw Mode15_ColourSelectionMenuPlusSpritesHandler
+.dw Mode15_ColourSelectionMenuPlusSpritesHandler 
+.dw Mode15_ColourSelectionMenuPlusSpritesHandler
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode0SpritesHandler:
+Mode0_DrawingSpritesHandler:
       ; shadow regs
-      call _LABEL_18E6_
+      call CheckMenuButton
     exx
     ; Set sprite 0 to the pen location
     ld a, (RAM_Pen_Smoothed.x)
@@ -4959,12 +5012,12 @@ Mode1_MenuSpritesHandler:
     rrca ; Divide by 8 and add 2
     rrca
     rrca
-    add a, 2
-    cp Mode2
+    add a, 2 ; Now it's a mode index!
+    cp Mode2_MenuItemSelected
     ld b, a
     jp z, +
     ld ($C03D), a ; For everything except mode 2, set this with what was selected and then go to mode 2
-    ld a, Mode2
+    ld a, Mode2_MenuItemSelected
 +:  ld (RAM_CurrentMode), a ; Change mode based on pen location when DO is pressed
     ld a, b
     dec a ; Text index is mode - 1
@@ -4975,7 +5028,7 @@ Mode1_MenuSpritesHandler:
 
 ; 4th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode4_EraseSpritesHandler:
-    call _LABEL_18E6_
+      call CheckMenuButton
     exx
     ld a, b
     and $F0
@@ -5073,7 +5126,7 @@ _LABEL_30B9_:
 
 ; 6th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode6_CircleSpritesHandler:
-    call _LABEL_18E6_
+      call CheckMenuButton
     exx
     ld a, ($C089)
     bit 1, a
@@ -5170,23 +5223,23 @@ push hl
 
 ; 8th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode8_PaintSpritesHandler:
-    ld a, $01
-    and a
-    ex af, af'
-    jp +
+      ld a, $01
+      and a
+      ex af, af'
+      jp +
 
 ; 7th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode7_EllipseSpritesHandler:
-    xor a
-    ex af, af'
-+:  call _LABEL_18E6_
-    ld a, CursorTile_X
-    call SetCursorIndex
-    ld hl, $C089
-    bit 0, (hl)
-    jp z, _LABEL_3206_
-    bit 1, (hl)
-    ret nz
+      xor a
+      ex af, af'
++:    call CheckMenuButton
+      ld a, CursorTile_X
+      call SetCursorIndex
+      ld hl, $C089
+      bit 0, (hl)
+      jp z, _LABEL_3206_
+      bit 1, (hl)
+      ret nz
     exx
     ld a, ($C203)
     ld c, a
@@ -5268,11 +5321,11 @@ _LABEL_323B_:
 
 ; 9th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode9_CopySpritesHandler:
-    call _LABEL_18E6_
-    ld hl, $C089
-    ld a, (hl)
-    or a
-    ret nz
+      call CheckMenuButton
+      ld hl, $C089
+      ld a, (hl)
+      or a
+      ret nz
     exx
       ld a, b
       ld (RAM_SpriteTable1.y), a
@@ -5295,7 +5348,7 @@ Mode9_CopySpritesHandler:
 
 ; 10th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode10_MirrorSpritesHandler:
-    call _LABEL_18E6_
+      call CheckMenuButton
     exx
     ld a, ($C089)
     bit 3, a
@@ -5453,7 +5506,7 @@ _LABEL_3385_:
 
 ; 11th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode11_MagnifySpritesHandler:
-    call _LABEL_18E6_
+      call CheckMenuButton
     exx
     ld a, ($C089)
     ld d, a
@@ -5691,7 +5744,7 @@ Data_357F: ; $357F
 
 ; 12th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode12_DisplaySpritesHandler:
-    call _LABEL_18E6_
+      call CheckMenuButton
     exx
     ld a, ($C089)
     bit 2, a
@@ -5768,7 +5821,7 @@ Mode12_DisplaySpritesHandler:
     ld ($C162), a
     inc hl
     ld a, (hl)
-    ld (RAM_SplashScreenTimeout), a
+    ld (RAM_TitleScreenAndEndTimeout), a
     ret
 
 _LABEL_363C_:
@@ -5793,8 +5846,8 @@ _LABEL_363C_:
 .db $00 $00 $50 $00 $00 $70 $50 $70
 
 ; 15th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode15PlusSpritesHandler:
-    call _LABEL_18E6_
+Mode15_ColourSelectionMenuPlusSpritesHandler:
+      call CheckMenuButton
     exx
     ld a, $58
     ld (RAM_SpriteTable1.xn), a
@@ -5878,7 +5931,7 @@ _LABEL_36A5_:
     ld ($C241), a
     ld a, CursorTile_PaletteSelect
     call SetCursorIndex
-    jp _LABEL_18E6_ ; and ret
+    jp CheckMenuButton ; and ret
 
 UpdateCursorColourCycling:
     ld hl, RAM_CursorColourCycle_Delay
@@ -5991,11 +6044,11 @@ UpdateButtonGraphics:
 
     ld b, 3 ; Tile count
     LD_DE_TILE $1aa
-    bit 0, c ; Menu button
+    bit GraphicBoardButtonBit_Menu, c ; Menu button
     jp nz, MenuPressed
-    bit 0, (hl)
+    bit GraphicBoardButtonBit_Menu, (hl)
     jp z, MenuNothingToUpdate
-    res 0, (hl)
+    res GraphicBoardButtonBit_Menu, (hl)
     push hl
       ld hl, ButtonTiles + SizeOfTile/2 * 3 * 0 ; Menu not pressed
       call Write2bppToVRAMSlowly
@@ -6004,11 +6057,11 @@ MenuNothingToUpdate:
 
     ld b, 3
     LD_DE_TILE $1ad
-    bit 1, c ; Do button
+    bit GraphicBoardButtonBit_Do, c ; Do button
     jp nz, DoPressed
-    bit 1, (hl)
+    bit GraphicBoardButtonBit_Do, (hl)
     jp z, DoNothingToUpdate
-    res 1, (hl)
+    res GraphicBoardButtonBit_Do, (hl)
     push hl
       ld hl, ButtonTiles + SizeOfTile/2 * 3 * 2 ; Do not pressed
       call Write2bppToVRAMSlowly
@@ -6017,19 +6070,19 @@ DoNothingToUpdate:
 
     ld b, 3
     LD_DE_TILE $1b0
-    bit 2, c ; Pen button
+    bit GraphicBoardButtonBit_Pen, c ; Pen button
     jp nz, PenPressed
-    bit 2, (hl)
+    bit GraphicBoardButtonBit_Pen, (hl)
     ret z ; Nothing to update
-    res 2, (hl)
+    res GraphicBoardButtonBit_Pen, (hl)
     ld hl, ButtonTiles + SizeOfTile/2 * 3 * 4 ; Pen not pressed
     jp Write2bppToVRAMSlowly ; and ret
 
     
 MenuPressed:
-    bit 0, (hl)
+    bit GraphicBoardButtonBit_Menu, (hl)
     jp nz, MenuNothingToUpdate
-    set 0, (hl)
+    set GraphicBoardButtonBit_Menu, (hl)
     push hl
       ld hl, ButtonTiles + SizeOfTile/2 * 3 * 1 ; Menu pressed
       call Write2bppToVRAMSlowly
@@ -6037,9 +6090,9 @@ MenuPressed:
     jp MenuNothingToUpdate
 
 DoPressed:
-    bit 1, (hl)
+    bit GraphicBoardButtonBit_Do, (hl)
     jp nz, DoNothingToUpdate
-    set 1, (hl)
+    set GraphicBoardButtonBit_Do, (hl)
     push hl
       ld hl, ButtonTiles + SizeOfTile/2 * 3 * 3 ; Do pressed
       call Write2bppToVRAMSlowly
@@ -6047,9 +6100,9 @@ DoPressed:
     jp DoNothingToUpdate
 
 PenPressed:
-    bit 2, (hl)
+    bit GraphicBoardButtonBit_Pen, (hl)
     ret nz ; Nothing to update
-    set 2, (hl)
+    set GraphicBoardButtonBit_Pen, (hl)
     ld hl, ButtonTiles + SizeOfTile/2 * 3 * 5 ; Pen pressed
     jp Write2bppToVRAMSlowly
 

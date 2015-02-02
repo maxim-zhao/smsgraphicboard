@@ -1,8 +1,17 @@
+.enum 0
+GraphicBoardButtonBit_Menu db
+GraphicBoardButtonBit_Do db
+GraphicBoardButtonBit_Pen db
+.ende
+
 ReadGraphicBoard:
     ; Main graphic board read
     ;
     ; If TL is 1, the graphic board has no pen data and only buttons are read.
     ; Bit 3 should always be 0.
+    ; Bit 2 is 1 when the Pen button is down
+    ; Bit 1 is 1 when the Do button is down
+    ; Bit 0 is 1 when the Menu button is down
     ; 
     ; Cycles       |36|238|60|
     ; Read TL      X

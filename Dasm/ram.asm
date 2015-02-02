@@ -47,8 +47,8 @@ RAM_Pen_Backup                              instanceof XY ; $c031 A backup? Not 
 RAM_PenY                                    db ; $C033
 RAM_Pressure                                db ; $C034 - never used
 RAM_unusedC035                              dsb 7
-RAM_CurrentMode                             db ; $C03C Current "mode". High bit set when just changed. Low 6 bits are mode number.
-RAM_c03d                                    db
+RAM_CurrentMode                             db ; $C03C Current "mode". High bit set when just changed? Low 6 bits are mode number.
+RAM_SelectedNextMode                        db ; $C03D
 RAM_c03e                                    dw
 RAM_unusedC040                              dsb 2
 RAM_Palette                                 dsb 17 ; $C042
@@ -106,7 +106,7 @@ RAM_c15f db ; $c15f
 RAM_c160 db ; $c160
 RAM_c161 db ; $c161
 RAM_c162 db ; $c162
-RAM_SplashScreenTimeout                   dw ; $C163 ; 2b
+RAM_TitleScreenAndEndTimeout             dw ; $C163 ; 2b Counter for title screen (loops itself every 8.5s) and when you choose "end" (2.1s, first byte only)
 RAM_unusedC165 dsb 1
 RAM_c166 db ; $c166
 RAM_unusedC167 dsb 8
