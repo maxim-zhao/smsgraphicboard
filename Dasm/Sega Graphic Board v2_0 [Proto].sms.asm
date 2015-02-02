@@ -242,7 +242,7 @@ Start_AfterRAMClear:
 -:  ei
     ld a, $03
     call SetVBlankFunctionAndWait
-    call CallNonVBlankModeFirstFunction
+    call CallNonVBlankModeGraphicBoardHandler
     call CallNonVBlankModeSecondFunction
     call SpriteTable1to2
     jp -
@@ -870,14 +870,14 @@ InterruptHandlerImpl:
       ld a, (RAM_CurrentMode)
       cp ModeHighBit | Mode3_Colour
       jp nz, +
-      ld a, ($C054)
+      ld a, (RAM_NeedToUpdatePalette)
       or a
       jp z, +
 
-      ; When $c054 is non-zero...
+      ; When RAM_NeedToUpdatePalette is non-zero...
       ; ...for one frame only...
       xor a
-      ld ($C054), a
+      ld (RAM_NeedToUpdatePalette), a
       
       ; ...update the palette
       ld hl, RAM_Palette
@@ -1682,7 +1682,8 @@ NonVBlankMode2_MenuItemSelectedFunction:
 
 ; 5th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode4_EraseFunction:
-      ld a, ($C0BA)
+      ; Only do it if "yes" was selected (2nd option)
+      ld a, (RAM_SubmenuSelectionIndex)
       or a
       jp z, +
 
@@ -1825,7 +1826,7 @@ NonVBlankMode15_ColourSelectionMenuFunction:
         ld hl, ($C08F)
         ld (RAM_Pen_Backup), hl
       exx
-      ; Switch to the selected next mode
+      ; Switch to the selected next mode (Mode3_Colour)
       inc hl ; RAM_SelectedNextMode
       ld a, (hl)
       ld (hl), Mode0_Drawing
@@ -2657,7 +2658,7 @@ _LABEL_1E57_:
       ld a, ($C06B)
       cp $03
       jp nc, _f
-      ld a, ($C06C)
+      ld a, (RAM_CurrentlySelectedPaletteIndex)
       ld c, a
       and a
 __:   rrc c
@@ -2712,8 +2713,8 @@ NonVBlankMode3_ColourFunction:
     ; Initialise the colours
     xor a ; start at 0
     ld (RAM_ColourSelectionStartValue), a
-    ld a, $01
-    ld ($C054), a
+    ld a, 1
+    ld (RAM_NeedToUpdatePalette), a
     ei
     ret
 
@@ -2798,7 +2799,7 @@ NonVBlankMode5_SquareFunction:
       di
       ld a, ($C08A)
       ld b, a
-      ld a, ($C0BA)
+      ld a, (RAM_SubmenuSelectionIndex)
       or a
       jp z, +
       ld b, $00
@@ -2827,7 +2828,7 @@ NonVBlankMode5_SquareFunction:
       ld d, (iy+13)
       ld e, l
       call _LABEL_1CA1_
-      ld a, ($C0BA)
+      ld a, (RAM_SubmenuSelectionIndex)
       or a
       jp z, _LABEL_2079_
       ld a, (iy+16)
@@ -3117,7 +3118,7 @@ NonVBlankMode6_CircleAnd7Function:
       ld ($C06D), a
       ld a, ($C08A)
       ld d, a
-      ld a, ($C0BA)
+      ld a, (RAM_SubmenuSelectionIndex)
       ld e, a
       or a
       jp z, +
@@ -3773,7 +3774,7 @@ NonVBlankMode8_PaintFunction:
     ei
     ld a, ($C0B2)
     ld b, a
-    ld a, ($C06C)
+    ld a, (RAM_CurrentlySelectedPaletteIndex)
     cp b
     jp z, +
     xor a
@@ -4253,7 +4254,7 @@ NonVBlankMode10_MirrorFunction:
     ld ($C161), a
     ld hl, RAM_GraphicsDataBuffer
     ld ($C171), hl
-    ld a, ($C0BA)
+    ld a, (RAM_SubmenuSelectionIndex)
     or a
     jp nz, _LABEL_2A0B_
     ld hl, $29B3
@@ -4727,7 +4728,7 @@ NonVBlankMode11_MagnifyFunction:
     ld h, a
     xor a
     ld ($C06B), a
-    ld a, ($C06C)
+    ld a, (RAM_CurrentlySelectedPaletteIndex)
     ld b, a
     push af
       ld a, ($C08A)
@@ -4735,10 +4736,10 @@ NonVBlankMode11_MagnifyFunction:
       jp nz, +
       ld b, $00
 +:    ld a, b
-      ld ($C06C), a
+      ld (RAM_CurrentlySelectedPaletteIndex), a
       call _LABEL_1D50_
     pop af
-    ld ($C06C), a
+    ld (RAM_CurrentlySelectedPaletteIndex), a
     ei
     ret
 
@@ -4923,7 +4924,7 @@ _LABEL_2DED_:
 .db $18 $57 $98 $D7 $E7 $38 $B4 $2E $0D $00 $68 $A7 $98 $D7 $67 $3B
 .db $0F $2F $0D $09
 
-CallNonVBlankModeFirstFunction: ; TODO: name is wrong? Does more than update sprites..?
+CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen position and buttons
     ld hl, RAM_ButtonsNewlyPressed ; used in functions later
     ld a, (RAM_Pen_Smoothed.y)
     ld b, a                        ; used in functions later
@@ -4953,38 +4954,38 @@ CallNonVBlankModeFirstFunction: ; TODO: name is wrong? Does more than update spr
     and %00111111
     exx
       ; shadow regs
-      ld hl, ModeFirstFunctionJumpTable
+      ld hl, ModeGraphicBoardHandlerJumpTable
       jp JumpToFunction
 
 ; 3rd entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 DoNothing:
     ret
 
-ModeFirstFunctionJumpTable:
+ModeGraphicBoardHandlerJumpTable:
 ; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_CurrentMode)
 ; Called inside shadow registers
 ; Non-shadow regs have b = pen Y, (hl) = buttons newly pressed, a = mode
-.dw Mode0_DrawingFirstFunction
-.dw Mode1_MenuFirstFunction 
-.dw DoNothing 
-.dw Mode4_EraseFirstFunction 
-.dw DoNothing 
-.dw Mode6_CircleFirstFunction 
-.dw Mode7_EllipseFirstFunction 
-.dw Mode8_PaintFirstFunction
-.dw Mode9_CopyFirstFunction 
-.dw Mode10_MirrorFirstFunction 
-.dw Mode11_MagnifyFirstFunction 
-.dw Mode12_DisplayFirstFunction 
-.dw DoNothing 
-.dw DoNothing 
-.dw Mode15_ColourSelectionMenuPlusFirstFunction 
-.dw Mode15_ColourSelectionMenuPlusFirstFunction
-.dw Mode15_ColourSelectionMenuPlusFirstFunction 
-.dw Mode15_ColourSelectionMenuPlusFirstFunction
+.dw Mode0_DrawingGraphicBoardHandler
+.dw Mode1_MenuGraphicBoardHandler 
+.dw DoNothing ; Menu button press
+.dw Mode3_ColourGraphicBoardHandler
+.dw DoNothing ; Erase
+.dw Mode5_SquareGraphicBoardHandler 
+.dw Mode6_CircleGraphicBoardHandler 
+.dw Mode7_EllipseGraphicBoardHandler
+.dw Mode8_PaintGraphicBoardHandler 
+.dw Mode9_CopyGraphicBoardHandler 
+.dw Mode10_MirrorGraphicBoardHandler 
+.dw Mode11_MagnifyGraphicBoardHandler 
+.dw DoNothing ; Display
+.dw DoNothing ; End
+.dw SubmenuGraphicBoardHandler 
+.dw SubmenuGraphicBoardHandler
+.dw SubmenuGraphicBoardHandler 
+.dw SubmenuGraphicBoardHandler
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode0_DrawingFirstFunction:
+Mode0_DrawingGraphicBoardHandler:
       ; shadow regs
       call CheckMenuButton
     exx
@@ -4997,14 +4998,14 @@ Mode0_DrawingFirstFunction:
     jp SetCursorIndex ; and ret
 
 ; 2nd entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode1_MenuFirstFunction:
+Mode1_MenuGraphicBoardHandler:
     exx
     ; Set sprite 0 to x = 88...
     ld a, 88
     ld (RAM_SpriteTable1.xn), a
     ; ...y  = pen Y rounded to 8px, in the range 64..152 (menu area)
     ld a, b ; Pen Y
-    and %11111000 ; Round to 8px
+    and %11111000 ; Round down to nearest 8px
     cp 64         ; If <64, set to 64
     jp nc, +
     ld a, 64
@@ -5013,7 +5014,7 @@ Mode1_MenuFirstFunction:
     ld a, 152
 +:  ld (RAM_SpriteTable1.y), a
     sub 64 ; Now it's relative to the menu area
-    bit 1, (hl) ; Check for DO button
+    bit GraphicBoardButtonBit_Do, (hl) ; Check for DO button
     jp z, ++
 
     rrca ; Divide by 8 and add 2
@@ -5034,105 +5035,127 @@ Mode1_MenuFirstFunction:
     jp SetCursorIndex ; and ret
 
 ; 4th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode4_EraseFirstFunction:
+Mode3_ColourGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, b
-    and $F0
-    cp $58
-    jp nc, _LABEL_30B9_
-    and $F0
-    cp $40
+    ld a, b ; Pen Y
+    and $f0 ; Round down to nearest 16px
+    cp 88 ; Colour section or page up/down section?
+    jp nc, Mode3_ColourGraphicBoardHandler_LowerSection
+    
+    ; Already did this!
+    and $f0
+    
+    ; We want to select one of the colour boxes, which means:
+    ; 1. Truncate to the range of Y values they're in. We already did the upper limit.
+    cp 64
     jr nc, +
-    ld a, $40
+    ld a, 64
 +:  ld b, a
     dec a
-    ld (RAM_SpriteTable1.y), a
+    ld (RAM_SpriteTable1.y + 0), a ; That's our Y coordinate
+
+    ; Now examine x, round down to 16px and limit to 112..160
     ld a, (RAM_Pen_Smoothed.x)
     and $F0
-    cp $70
+    cp 112
     jp nc, +
-    ld a, $70
-+:  cp $A0
+    ld a, 112
++:  cp 160
     jp c, +
-    ld a, $A0
-+:  ld (RAM_SpriteTable1.xn), a
+    ld a, 160
++:  ld (RAM_SpriteTable1.xn + 0), a ; That's our X coordinate
     ld c, a
-    ld a, CursorTile_Square
+    ld a, CursorTile_Square ; Highlight the colour
     call SetCursorIndex
-    bit 1, (hl)
+
+    ; Check if Do button is pressed
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    
     ld a, $01
     ld (RAM_Beep), a
-    ld a, b
-    sub $40
+
+    ld a, b ; Y coordinate
+    ; Relative to the area of the colour boxes
+    sub 64
+    ; Divide by 4
     rrca
     rrca
     ld b, a
-    ld a, c
-    sub $70
+    ld a, c ; X coordinate
+    ; Relative to area of the colour boxes
+    sub 112
+    ; Divide by 16
     rrca
     rrca
     rrca
     rrca
+    ; Merge bits which makes it into a colour index in the range 0-8
     or b
     ld c, a
-    ld a, (RAM_ColourSelectionStartValue)
+    
+    ld a, (RAM_ColourSelectionStartValue) ; Offset from the right point, so now it's a palette value (!)
     add a, c
     and $3F
     ld c, a
-    ld a, ($C0BA)
+
+    ld a, (RAM_SubmenuSelectionIndex) ; Are we setting the background or the selected palette entry?
     or a
-    jp nz, _LABEL_30AF_
-    ld a, ($C06C)
+    jp nz, +
+    ; Selected palette entry: update RAM_Palette
+    ld a, (RAM_CurrentlySelectedPaletteIndex)
     LD_DE_A
     ld hl, RAM_Palette
     add hl, de
     ld (hl), c
-    ld a, $01
-    ld ($C054), a
+    ld a, 1
+    ld (RAM_NeedToUpdatePalette), a
     ret
 
-_LABEL_30AF_:
-    ld a, c
-    ld ($C052), a
-    ld a, $01
-    ld ($C054), a
++:  ld a, c
+    ld (RAM_Palette + 16), a ; Sprite palette index 0 = background colour
+    ld a, 1
+    ld (RAM_NeedToUpdatePalette), a
     ret
 
-_LABEL_30B9_:
-    cp $60
+Mode3_ColourGraphicBoardHandler_LowerSection:
+    ; Truncate range to 96..104. We are already a multiple of 16 so this gets us to the right 8px boundary.
+    cp 96
     jp nc, +
-    ld a, $60
-+:  cp $68
+    ld a, 96
++:  cp 104
     jp c, +
-    ld a, $68
+    ld a, 104
 +:  dec a
-    ld (RAM_SpriteTable1.y), a
-    ex af, af'
-    ld a, $58
-    ld (RAM_SpriteTable1.xn), a
+    ld (RAM_SpriteTable1.y + 0), a ; Set cursor Y
+    ex af, af' ; save value
+    ld a, 88
+    ld (RAM_SpriteTable1.xn + 0), a ; ...and X
     ld a, CursorTile_MenuArrowRight
     call SetCursorIndex
-    bit 1, (hl)
+
+    bit GraphicBoardButtonBit_Do, (hl) ; Check for Do button
     ret z
-    ex af, af'
-    ld b, $04
-    cp $60
+    
+    ; If set...
+    ex af, af' ; Restore Y value
+    ld b, 4 ; Amount to offset for page down
+    cp 96
     jp c, +
-    ld b, $FC
+    ld b, -4 ; Amount to offset for page up
 +:  ld a, (RAM_ColourSelectionStartValue)
-    add a, b
+    add a, b ; Offset
     and $3F
     ld (RAM_ColourSelectionStartValue), a
-    ld a, $01
-    ld ($C054), a
-    ld a, $01
+    ld a, 1
+    ld (RAM_NeedToUpdatePalette), a
+    ld a, 1
     ld (RAM_Beep), a
     ret
 
 ; 6th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode6_CircleFirstFunction:
+Mode5_SquareGraphicBoardHandler:
       call CheckMenuButton
     exx
     ld a, ($C089)
@@ -5229,14 +5252,14 @@ push hl
     ret
 
 ; 8th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode8_PaintFirstFunction:
+Mode7_EllipseGraphicBoardHandler:
       ld a, $01
       and a
       ex af, af'
       jp +
 
 ; 7th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode7_EllipseFirstFunction:
+Mode6_CircleGraphicBoardHandler:
       xor a
       ex af, af'
 +:    call CheckMenuButton
@@ -5327,7 +5350,7 @@ _LABEL_323B_:
     ret
 
 ; 9th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode9_CopyFirstFunction:
+Mode8_PaintGraphicBoardHandler:
       call CheckMenuButton
       ld hl, $C089
       ld a, (hl)
@@ -5354,7 +5377,7 @@ Mode9_CopyFirstFunction:
     ret
 
 ; 10th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode10_MirrorFirstFunction:
+Mode9_CopyGraphicBoardHandler:
       call CheckMenuButton
     exx
     ld a, ($C089)
@@ -5512,14 +5535,14 @@ _LABEL_3385_:
     ret
 
 ; 11th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode11_MagnifyFirstFunction:
+Mode10_MirrorGraphicBoardHandler:
       call CheckMenuButton
     exx
     ld a, ($C089)
     ld d, a
     rrca
     jp nc, _LABEL_3527_
-    ld iy, $C0BA
+    ld iy, RAM_SubmenuSelectionIndex
     rrca
     jp nc, _LABEL_3469_
     rrca
@@ -5699,7 +5722,7 @@ _LABEL_3525_:
 _LABEL_3527_:
     push hl
       ld hl, $3586
-      ld a, ($C0BA)
+      ld a, (RAM_SubmenuSelectionIndex)
       dec a
       jp nz, +
       ld hl, Data_357F
@@ -5750,7 +5773,7 @@ Data_357F: ; $357F
 .db $10 $40 $2B $CC $06 $07 $04 $1B $9C $20 $70 $07 $03 $08
 
 ; 12th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode12_DisplayFirstFunction:
+Mode11_MagnifyGraphicBoardHandler:
       call CheckMenuButton
     exx
     ld a, ($C089)
@@ -5853,7 +5876,7 @@ _LABEL_363C_:
 .db $00 $00 $50 $00 $00 $70 $50 $70
 
 ; 15th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode15_ColourSelectionMenuPlusFirstFunction:
+SubmenuGraphicBoardHandler:
       call CheckMenuButton
     exx
     ld a, $58
@@ -5878,7 +5901,7 @@ Mode15_ColourSelectionMenuPlusFirstFunction:
     sub $40
     jp z, +
     ld a, $01
-+:  ld ($C0BA), a
++:  ld (RAM_SubmenuSelectionIndex), a
     ld a, (RAM_CurrentMode)
     set 6, a
     ld (RAM_CurrentMode), a
@@ -5924,7 +5947,7 @@ _LABEL_36A5_:
 
 +:  bit 2, (hl)
     jp z, ++
-    ld ($C06C), a
+    ld (RAM_CurrentlySelectedPaletteIndex), a
     ld a, b
     ld ($C242), a
     ld a, $01
@@ -6453,7 +6476,7 @@ _LABEL_3ABA_:
 
 _LABEL_3ACE_:
     ld b, $0C
-    ld a, ($C0BA)
+    ld a, (RAM_SubmenuSelectionIndex)
     rrca
     jp nc, +
     ld a, (RAM_SpriteTable1.y)

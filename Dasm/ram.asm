@@ -53,7 +53,7 @@ RAM_c03e                                    dw
 RAM_unusedC040                              dsb 2
 RAM_Palette                                 dsb 17 ; $C042
 RAM_ColourSelectionStartValue               db ; $c053 Palette value for start of 8-colour palette used when choosing new colours
-RAM_c054 db ; $c054
+RAM_NeedToUpdatePalette                     db ; $c054 Non-zero when we need to update the palette - in colour mode only
 RAM_unusedC055                              dsb 13
 RAM_c062 db ; $c062
 RAM_c063 db ; $c063
@@ -65,7 +65,7 @@ RAM_c068 db ; $c068
 RAM_c069 db ; $c069
 RAM_c06a db ; $c06a
 RAM_c06b db ; $c06b
-RAM_c06c db ; $c06c
+RAM_CurrentlySelectedPaletteIndex           db ; $c06c Index of currently selected item in the top palette
 RAM_c06d db ; $c06d
 RAM_c06e dw ; $c06e
 RAM_c070 db ; $c070
@@ -84,7 +84,7 @@ RAM_unusedC08B dsb 2
 RAM_c08d dw ; $c08d
 RAM_c08f dw ; $c08f
 RAM_unusedC091 dsb 41
-RAM_c0ba db ; $c0ba
+RAM_SubmenuSelectionIndex                   db ; $c0ba Index of item last selected in a submenu
 RAM_BytesPerRow                             dw ; $c0bb Used during RAM<->VRAM tile copies
 RAM_unusedc0bd dsb 1
 RAM_c0be db ; $c0be
