@@ -242,8 +242,8 @@ Start_AfterRAMClear:
 -:  ei
     ld a, $03
     call SetVBlankFunctionAndWait
-    call CallNonVBlankModeSpritesHandler
-    call CallNonVBlankModeFunction
+    call CallNonVBlankModeFirstFunction
+    call CallNonVBlankModeSecondFunction
     call SpriteTable1to2
     jp -
     
@@ -1539,7 +1539,14 @@ Tilemap_Logo:
 .incbin "Graphics/Logo tilemap.bin"
 ;.orga $c2a
 Palette_Logo:
-.db $10 $3f $15 $2a $00 $00 $00 $00
+ COLOUR 0,0,1 ; Dark blue
+ COLOUR 3,3,3 ; White
+ COLOUR 1,1,1 ; Dark grey
+ COLOUR 2,2,2 ; Light grey
+ COLOUR 0,0,0 ; Black x4
+ COLOUR 0,0,0
+ COLOUR 0,0,0 
+ COLOUR 0,0,0 
 ;.orga $c32
 Tiles_Logo:
 .incbin "Graphics/Logo tiles.2bpp"
@@ -1550,16 +1557,16 @@ Tilemap_SegaLogo:
 Tiles_SegaLogo:
 .incbin "Graphics/Sega logo.pscompr"
 
-CallNonVBlankModeFunction:
+CallNonVBlankModeSecondFunction:
     ld hl, RAM_CurrentMode
     ld a, (hl)
     and %00111111
     exx
-      ld hl, CallNonVBlankModeFunction_JumpTable
+      ld hl, CallNonVBlankModeSecondFunction_JumpTable
       jp JumpToFunction
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_CurrentMode)
-CallNonVBlankModeFunction_JumpTable:
+CallNonVBlankModeSecondFunction_JumpTable:
 .dw NonVBlankMode0_DrawingFunction 
 .dw NonVBlankMode1_MenuFunction 
 .dw NonVBlankMode2_MenuItemSelectedFunction
@@ -4916,10 +4923,10 @@ _LABEL_2DED_:
 .db $18 $57 $98 $D7 $E7 $38 $B4 $2E $0D $00 $68 $A7 $98 $D7 $67 $3B
 .db $0F $2F $0D $09
 
-CallNonVBlankModeSpritesHandler:
+CallNonVBlankModeFirstFunction: ; TODO: name is wrong? Does more than update sprites..?
     ld hl, RAM_ButtonsNewlyPressed ; used in functions later
     ld a, (RAM_Pen_Smoothed.y)
-    ld b, a
+    ld b, a                        ; used in functions later
     ld a, (RAM_CurrentMode)
     and %00111111
     cp Mode12_Display
@@ -4946,38 +4953,38 @@ CallNonVBlankModeSpritesHandler:
     and %00111111
     exx
       ; shadow regs
-      ld hl, ModeSpritesHandlerJumpTable
+      ld hl, ModeFirstFunctionJumpTable
       jp JumpToFunction
 
 ; 3rd entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 DoNothing:
     ret
 
-ModeSpritesHandlerJumpTable:
+ModeFirstFunctionJumpTable:
 ; Jump Table from 2FD0 to 2FF3 (18 entries, indexed by RAM_CurrentMode)
 ; Called inside shadow registers
 ; Non-shadow regs have b = pen Y, (hl) = buttons newly pressed, a = mode
-.dw Mode0_DrawingSpritesHandler
-.dw Mode1_MenuSpritesHandler 
+.dw Mode0_DrawingFirstFunction
+.dw Mode1_MenuFirstFunction 
 .dw DoNothing 
-.dw Mode4_EraseSpritesHandler 
+.dw Mode4_EraseFirstFunction 
 .dw DoNothing 
-.dw Mode6_CircleSpritesHandler 
-.dw Mode7_EllipseSpritesHandler 
-.dw Mode8_PaintSpritesHandler
-.dw Mode9_CopySpritesHandler 
-.dw Mode10_MirrorSpritesHandler 
-.dw Mode11_MagnifySpritesHandler 
-.dw Mode12_DisplaySpritesHandler 
+.dw Mode6_CircleFirstFunction 
+.dw Mode7_EllipseFirstFunction 
+.dw Mode8_PaintFirstFunction
+.dw Mode9_CopyFirstFunction 
+.dw Mode10_MirrorFirstFunction 
+.dw Mode11_MagnifyFirstFunction 
+.dw Mode12_DisplayFirstFunction 
 .dw DoNothing 
 .dw DoNothing 
-.dw Mode15_ColourSelectionMenuPlusSpritesHandler 
-.dw Mode15_ColourSelectionMenuPlusSpritesHandler
-.dw Mode15_ColourSelectionMenuPlusSpritesHandler 
-.dw Mode15_ColourSelectionMenuPlusSpritesHandler
+.dw Mode15_ColourSelectionMenuPlusFirstFunction 
+.dw Mode15_ColourSelectionMenuPlusFirstFunction
+.dw Mode15_ColourSelectionMenuPlusFirstFunction 
+.dw Mode15_ColourSelectionMenuPlusFirstFunction
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode0_DrawingSpritesHandler:
+Mode0_DrawingFirstFunction:
       ; shadow regs
       call CheckMenuButton
     exx
@@ -4990,13 +4997,13 @@ Mode0_DrawingSpritesHandler:
     jp SetCursorIndex ; and ret
 
 ; 2nd entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode1_MenuSpritesHandler:
+Mode1_MenuFirstFunction:
     exx
     ; Set sprite 0 to x = 88...
     ld a, 88
     ld (RAM_SpriteTable1.xn), a
     ; ...y  = pen Y rounded to 8px, in the range 64..152 (menu area)
-    ld a, b
+    ld a, b ; Pen Y
     and %11111000 ; Round to 8px
     cp 64         ; If <64, set to 64
     jp nc, +
@@ -5027,7 +5034,7 @@ Mode1_MenuSpritesHandler:
     jp SetCursorIndex ; and ret
 
 ; 4th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode4_EraseSpritesHandler:
+Mode4_EraseFirstFunction:
       call CheckMenuButton
     exx
     ld a, b
@@ -5125,7 +5132,7 @@ _LABEL_30B9_:
     ret
 
 ; 6th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode6_CircleSpritesHandler:
+Mode6_CircleFirstFunction:
       call CheckMenuButton
     exx
     ld a, ($C089)
@@ -5222,14 +5229,14 @@ push hl
     ret
 
 ; 8th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode8_PaintSpritesHandler:
+Mode8_PaintFirstFunction:
       ld a, $01
       and a
       ex af, af'
       jp +
 
 ; 7th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode7_EllipseSpritesHandler:
+Mode7_EllipseFirstFunction:
       xor a
       ex af, af'
 +:    call CheckMenuButton
@@ -5320,7 +5327,7 @@ _LABEL_323B_:
     ret
 
 ; 9th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode9_CopySpritesHandler:
+Mode9_CopyFirstFunction:
       call CheckMenuButton
       ld hl, $C089
       ld a, (hl)
@@ -5347,7 +5354,7 @@ Mode9_CopySpritesHandler:
     ret
 
 ; 10th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode10_MirrorSpritesHandler:
+Mode10_MirrorFirstFunction:
       call CheckMenuButton
     exx
     ld a, ($C089)
@@ -5505,7 +5512,7 @@ _LABEL_3385_:
     ret
 
 ; 11th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode11_MagnifySpritesHandler:
+Mode11_MagnifyFirstFunction:
       call CheckMenuButton
     exx
     ld a, ($C089)
@@ -5743,7 +5750,7 @@ Data_357F: ; $357F
 .db $10 $40 $2B $CC $06 $07 $04 $1B $9C $20 $70 $07 $03 $08
 
 ; 12th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode12_DisplaySpritesHandler:
+Mode12_DisplayFirstFunction:
       call CheckMenuButton
     exx
     ld a, ($C089)
@@ -5846,7 +5853,7 @@ _LABEL_363C_:
 .db $00 $00 $50 $00 $00 $70 $50 $70
 
 ; 15th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
-Mode15_ColourSelectionMenuPlusSpritesHandler:
+Mode15_ColourSelectionMenuPlusFirstFunction:
       call CheckMenuButton
     exx
     ld a, $58
