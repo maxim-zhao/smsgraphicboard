@@ -67,7 +67,7 @@ RAM_c06a db ; $c06a
 RAM_c06b db ; $c06b
 RAM_CurrentlySelectedPaletteIndex           db ; $c06c Index of currently selected item in the top palette
 RAM_c06d db ; $c06d
-RAM_c06e dw ; $c06e
+RAM_SquareCorner1                           dw ; $c06e Coordinates of first corner of square (offset a bit?)
 RAM_c070 db ; $c070
 RAM_c071 db ; $c071
 RAM_c072 db ; $c072
@@ -78,12 +78,14 @@ RAM_CurrentCursorDataAddress                dw ; $C084 Pointer to cursor tile da
 RAM_CursorColourCycle_Delay                 db ; $C086 Counter for frame between colour changes
 RAM_CursorColourCycle_Index                 db ; $C087 Current colour index, must be following previous
 RAM_ButtonStateShownOnScreen                db ; $C088 Holds the button bits as last drawn to the screen
-RAM_c089 db ; $c089
+RAM_ShapeDrawingState                       db ; $c089 Bits indicate the phase of drawing. Bit 0 unset = step 1, set = step 2. Bit 1 set = doing it.
 RAM_c08a db ; $c08a
 RAM_unusedC08B dsb 2
 RAM_c08d dw ; $c08d Yet another pen position backup?
 RAM_c08f dw ; $c08f Yet another pen position backup?
-RAM_unusedC091 dsb 41
+RAM_unusedC091 dsb 25
+RAM_CircleEllipseCentre                     dw ; $c0aa X, Y coordinate of the centre of a circle or ellipse
+RAM_unusedC0ac dsb 14
 RAM_SubmenuSelectionIndex                   db ; $c0ba Index of item last selected in a submenu
 RAM_BytesPerRow                             dw ; $c0bb Used during RAM<->VRAM tile copies
 RAM_unusedc0bd dsb 1
@@ -99,7 +101,7 @@ RAM_c0c6 db ; $c0c6
 RAM_c0c7 db ; $c0c7
 RAM_c0c8 db ; $c0c8
 RAM_c0c9 db ; $c0c9
-RAM_unusedC0CA dsb 147
+RAM_unusedC0CA dsb 147 ; Is used... a buffer of some sort?
 RAM_c15d db ; $c15d
 RAM_c15e db ; $c15e
 RAM_c15f db ; $c15f

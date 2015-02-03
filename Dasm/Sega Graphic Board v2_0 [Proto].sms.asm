@@ -22,16 +22,16 @@ banks 1
 .define SetCursorIndex_Second 1<<5 ; Bitmask on cursor index to indicate to set the 2nd cursor
 ; Cursor indices. WLA gets confused if we don't define them now, if they're used in arithmetic later.
 .enum 0
-CursorTile_Crosshair:         db ; Drawing cursor
-CursorTile_PaletteSelect:     db ; Used when selecting stuff up top
-CursorTile_Square:            db ; Unused?
-CursorTile_MenuArrowRight:    db ; Used in menu
-CursorTile_ArrowTopLeft:      db ; Used for defining one corner of something rectangular
-CursorTile_ArrowBottomRight:  db ; Used for defining opposite corner of something rectangular
-CursorTile_ArrowDown:         db ; Used for defining H-flip axis
-CursorTile_ArrowRight:        db ; Used for defining V-flip axis
-CursorTile_ZoomedPixel:       db ; Used to show snapped pixel when in Zoom mode
-CursorTile_X:                 db ; Used for defining points for circles/ellipses
+CursorIndex_Crosshair:         db ; Drawing cursor
+CursorIndex_PaletteSelect:     db ; Used when selecting stuff up top
+CursorIndex_Square:            db ; Unused?
+CursorIndex_MenuArrowRight:    db ; Used in menu
+CursorIndex_ArrowTopLeft:      db ; Used for defining one corner of something rectangular
+CursorIndex_ArrowBottomRight:  db ; Used for defining opposite corner of something rectangular
+CursorIndex_ArrowDown:         db ; Used for defining H-flip axis
+CursorIndex_ArrowRight:        db ; Used for defining V-flip axis
+CursorIndex_ZoomedPixel:       db ; Used to show snapped pixel when in Zoom mode
+CursorIndex_X:                 db ; Used for defining points for circles/ellipses
 .ende
 
 .enum 0
@@ -99,7 +99,6 @@ JumpToFunction:
     ld l, a
     jp (hl)
 
-; Data from 19 to 37 (31 bytes)
 .db "PROGRAM By K.WAKIHARA"
 
 .org $0038
@@ -138,7 +137,7 @@ NMIHandler:
 Start:
     di
     im 1
-    
+
     ; Zero all of RAM
     ld hl, $C000
     ld de, $C001
@@ -159,10 +158,10 @@ Start_AfterRAMClear:
     ei
     ld a, $01
     call SetVBlankFunctionAndWait
-    
+
     di
     call TitleScreen
-    
+
     ; Zero tiles
     LD_DE_TILE 0
     ld bc, 448*SizeOfTile
@@ -175,14 +174,14 @@ Start_AfterRAMClear:
     LD_DE_TILE $18d
     call DecompressGraphics
 
-    LD_DE_TILE $1b3 
+    LD_DE_TILE $1b3
     ld b, 13 ; 13 tiles
     ld hl, Font2bpp ; Will only use the first tile, which is blank
     call FillTiles2bpp
 
     LD_DE_TILEMAP 0, 0
     ld hl, $8D09 ; tile $18d = background, tile palette index 1
-    ld bc, 32*28 ; $0380 
+    ld bc, 32*28 ; $0380
     call FillVRAMWithHL
 
     call DrawUIControls
@@ -246,7 +245,7 @@ Start_AfterRAMClear:
     call CallNonVBlankModeSecondFunction
     call SpriteTable1to2
     jp -
-    
+
 ; Various functions for manipulating graphics
 
 InitialiseVDPRegisters:
@@ -260,11 +259,11 @@ InitialiseVDPRegisters:
     out (Port_VDPAddress), a
     inc c
     djnz -
-    
+
     ; Save reg 1 value to RAM
     ld a, (VDPRegisterValues+1)
     ld (RAM_VDPReg1Value), a
-    
+
     ld de, VDPAddressMask_Write | $0000 ; start of VRAM
     ld h, 0
     ld bc, SizeOfVRAM
@@ -276,7 +275,7 @@ FillNameTableWithTile9:
     ld bc, 32*28 ; Entry count
     ld hl, $0009 ; Date to write
     ; fall through
-    
+
 FillVRAMWithHL:
     VDP_ADDRESS_TO_DE
 -:  ld a, h
@@ -362,28 +361,28 @@ Write1bppToVRAMWithExtensionMask:
     ; de = dest VRAM address
     ; hl = source
     ; This acts to take some 1bpp data and extend it up to 4bpp using the supplied bitmask.
-    ld (RAM_Write1bppToVRAMWithExtensionMask_Mask),a ; save the bitmask
+    ld (RAM_Write1bppToVRAMWithExtensionMask_Mask), a ; save the bitmask
     VDP_ADDRESS_TO_DE
---: ld a,(hl) ; Read a byte
+--: ld a, (hl) ; Read a byte
     exx
-      ld c, Port_VDPData    
+      ld c, Port_VDPData
       ld b, 4 ; Counter
       ld h, a ; Hold read byte
       ld a, (RAM_Write1bppToVRAMWithExtensionMask_Mask)
 -:    rra
-      ld d,h
-      jr c,+
-      ld d,0
-+:    out (c),d
+      ld d, h
+      jr c, +
+      ld d, 0
++:    out (c), d
       djnz -
     exx
     inc hl
     dec bc
-    ld a,b
+    ld a, b
     or c
-    jp nz,--
+    jp nz, --
     ret
-    
+
 FillTiles2bpp:
     ; hl = source
     ; de = dest
@@ -554,17 +553,17 @@ Fill1bppWithBitmaskToTilesColumn:
 -:  push bc
     push hl
       LD_HL_C      ; bc = c * 8
-      add hl,hl
-      add hl,hl
-      add hl,hl
-      ld b,h
-      ld c,l
+      add hl, hl
+      add hl, hl
+      add hl, hl
+      ld b, h
+      ld c, l
     pop hl
     call +
     push hl
-      ld hl,22 * SizeOfTile ; Presumably 22 is the "stride"? TODO
-      add hl,de
-      ex de,hl
+      ld hl, 22 * SizeOfTile ; Presumably 22 is the "stride"? TODO
+      add hl, de
+      ex de, hl
     pop hl
     pop bc
     djnz -
@@ -573,20 +572,20 @@ Fill1bppWithBitmaskToTilesColumn:
 +:  VDP_ADDRESS_TO_DE
 --: push hl
     push bc
-      ld b,4      ; Counter
+      ld b, 4      ; Counter
 -:    rrc h       ; Rotate a bit into carry
-      ld a,l      ; 1 = use l, 0 = use 0
-      jp c,+
+      ld a, l      ; 1 = use l, 0 = use 0
+      jp c, +
       xor a
-+:    out (Port_VDPData),a
++:    out (Port_VDPData), a
       nop         ; delay
       djnz -
     pop bc
     pop hl
     dec bc
-    ld a,b
+    ld a, b
     or c
-    jp nz,--
+    jp nz, --
     ret
 
 DecompressGraphics:
@@ -642,11 +641,11 @@ CopySpriteTable2ToVRAM:
     LD_DE_SPRITE_TABLE_X 0 ; Sprite table: XN
     VDP_ADDRESS_TO_DE
     ; fall though
-Outi128:    
+Outi128:
 .rept 64
     outi
 .endr
-Outi64:    
+Outi64:
 .rept 64
     outi
 .endr
@@ -753,12 +752,12 @@ Beep:
     ld a, (RAM_Beep)
     or a
     ret z ; Do nothing while zero
-    
+
     inc a ; Else make sound for three more frames
     ld (RAM_Beep), a
     cp 5
     jp z, SilencePSG
-    
+
     ; Set channel 0 to tone $3f = 1775.6Hz = A6
     ld a, PSG_Latch | PSG_Channel0 | PSG_Tone | %1111
     out (Port_PSG), a
@@ -781,49 +780,48 @@ SilencePSG:
     ld (RAM_Beep), a ; Disable counter
     ret
 
-; Data from 4FD to 602 (262 bytes)
 ; Unused palette? Black with blue and white
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
-  COLOUR 0,0,3
-  COLOUR 0,0,0
-  COLOUR 3,3,3
+  COLOUR 0, 0, 3
+  COLOUR 0, 0, 0
+  COLOUR 3, 3, 3
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
 
 ;.org $051d
 DrawingPalette:
-  COLOUR 3,3,3 ; White
-  COLOUR 0,0,0 ; Black
-  COLOUR 1,0,0 ; Reds
-  COLOUR 2,0,0
-  COLOUR 3,0,0
-  COLOUR 0,1,0 ; Greens
-  COLOUR 0,2,0
-  COLOUR 0,3,0
-  COLOUR 0,0,1 ; Blues
-  COLOUR 0,0,2
-  COLOUR 0,0,3
-  COLOUR 0,2,3 ; Sky blue
-  COLOUR 3,1,0 ; Orange
-  COLOUR 3,3,0 ; Yellows
-  COLOUR 3,3,1
-  COLOUR 3,3,2
+  COLOUR 3, 3, 3 ; White
+  COLOUR 0, 0, 0 ; Black
+  COLOUR 1, 0, 0 ; Reds
+  COLOUR 2, 0, 0
+  COLOUR 3, 0, 0
+  COLOUR 0, 1, 0 ; Greens
+  COLOUR 0, 2, 0
+  COLOUR 0, 3, 0
+  COLOUR 0, 0, 1 ; Blues
+  COLOUR 0, 0, 2
+  COLOUR 0, 0, 3
+  COLOUR 0, 2, 3 ; Sky blue
+  COLOUR 3, 1, 0 ; Orange
+  COLOUR 3, 3, 0 ; Yellows
+  COLOUR 3, 3, 1
+  COLOUR 3, 3, 2
   ; Sprites
-  COLOUR 0,0,0 ; Tranparent/black
-  COLOUR 0,0,0 ; Black for sprites
-  COLOUR 3,3,3 ; White
-  COLOUR 3,0,0 ; Red
-  COLOUR 0,0,0 ; These blacks are used for the colour palette selection later.
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 0,0,0
-  COLOUR 3,0,0 ; Cycling colour
+  COLOUR 0, 0, 0 ; Tranparent/black
+  COLOUR 0, 0, 0 ; Black for sprites
+  COLOUR 3, 3, 3 ; White
+  COLOUR 3, 0, 0 ; Red
+  COLOUR 0, 0, 0 ; These blacks are used for the colour palette selection later.
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 0, 0, 0
+  COLOUR 3, 0, 0 ; Cycling colour
 
 ;.org $053d
 TopBarPaletteTiles: ; 22x1
@@ -831,7 +829,7 @@ TopBarPaletteTiles: ; 22x1
 .dw TileAttribute_Palette2<<8 | $018D ; Unused
 .dw TileAttribute_Palette2<<8 | $019D, TileAttribute_Palette2<<8 | $019E, TileAttribute_Palette2<<8 | $019F, TileAttribute_Palette2<<8 | $01A0, TileAttribute_Palette2<<8 | $01A1 ; Pen controls using sprite palette
 
-PenControlsBottomLineTilemapData: ; 5x1 
+PenControlsBottomLineTilemapData: ; 5x1
 .dw $09A4, $09A4, $09A4, $09A4, $09A4 ; Draw bottom line for buttons
 
 BottomStatusBarTiles: ; 24x3
@@ -861,7 +859,7 @@ InterruptHandlerImpl:
       jp nz, VBlank_TitleScreen ; Bit 7 set -> we are in the title screen, jump to a specialised handler
       rrca
       jp nc, + ; Bit 0 set -> ???
-      
+
       ; Regular VBlank
       call CopySpriteTable2ToVRAM
       call UpdateCursorGraphics
@@ -878,7 +876,7 @@ InterruptHandlerImpl:
       ; ...for one frame only...
       xor a
       ld (RAM_NeedToUpdatePalette), a
-      
+
       ; ...update the palette
       ld hl, RAM_Palette
       LD_DE_PALETTE 0
@@ -964,7 +962,7 @@ push af
 push af
 push af
 .asm
-    
+
 VBlank_HandleReset:
     pop hl
     pop de
@@ -1061,12 +1059,12 @@ TitleScreen: ; $865
     ld hl, Tiles_SegaLogo ; $14CA ; compressed tile date: Sega logo
     LD_DE_TILE 400
     call DecompressGraphics
-    
+
     ld hl, Palette_TitleScreen
     LD_DE_PALETTE 0 ; Tile palette
     ld bc, 7 ; Count
     call RawDataToVRAM
-    
+
     ld hl, Palette_Logo ; $0C2A
     LD_DE_PALETTE 16 ; Sprite palette
     ld bc, 8 ; Count
@@ -1114,12 +1112,12 @@ TitleScreen: ; $865
     inc sp ; Discard loop address - could have popped it...
     inc sp
     di
-    
+
 ; Matching push above, ignore
 .endasm
 pop hl
-.asm    
-    
+.asm
+
 TitleScreen_PostAnimationLoop:
     ld hl, $14A2 ; data: Sega logo tilemap data
     LD_DE_TILEMAP 11, 3
@@ -1127,7 +1125,7 @@ TitleScreen_PostAnimationLoop:
     ld a, $01
     ld (RAM_VRAMFillHighByte), a
     call WriteAreaToTilemap_1byte
-    
+
     ld hl, Text_CopyrightSega1987 ; $0A08 ; data: (c) Sega 1987
     LD_DE_TILEMAP 10, 22
     ld b, $0C
@@ -1140,7 +1138,7 @@ CheckForGraphicsBoard:
     in a, (Port_IOPort1)
     and $EF
     cp $E0
-.ifdef BypassDetection    
+.ifdef BypassDetection
     jp GraphicsBoardDetected
 .else
     jp z, GraphicsBoardDetected
@@ -1178,12 +1176,12 @@ GraphicsBoardDetected:
     in a, (Port_IOPort1)
     and $EF
     cp $E0
-.ifdef BypassDetection    
+.ifdef BypassDetection
     jp z, CheckForGraphicsBoard
 .else
     jp nz, CheckForGraphicsBoard
 .endif
-    
+
     ; decrement title screen counter again
     ld hl, (RAM_TitleScreenAndEndTimeout)
     dec hl
@@ -1191,12 +1189,12 @@ GraphicsBoardDetected:
     ld a, l
     or h
     jp z, TitleScreenTimedOut
-    
+
     ; check button presses from last read
     ld a, (RAM_ButtonsNewlyPressed)
     and %00000111 ; any button
     jp z, - ; loop until pressed
-    
+
     ld a, 1
     ld (RAM_Beep), a
     di
@@ -1246,12 +1244,12 @@ TitleScreenTextUpdate:
     jp RawDataToVRAM_Interleaved1
 
 +:  ; If 0, blank the text area
-    LD_DE_TILEMAP 6, 16 
+    LD_DE_TILEMAP 6, 16
     ld bc, 20 ; 20 tiles
     ld hl, 9
     jp FillVRAMWithHL ; and ret
 
-; This mapping only applies to the title screen font.    
+; This mapping only applies to the title screen font.
 .asciitable
 map ' ' = 0
 map '0' to '9' = 1
@@ -1327,7 +1325,7 @@ TitleScreenAnimate_Bit1Zero:
 UpdateSplashScreenAnimationTilesLine:
     ; parameters = b, c
     ; b determines VRAM address, c determines data source written there
-    
+
     ; get b
     ld a, b
     ; get high 5 bits
@@ -1539,14 +1537,14 @@ Tilemap_Logo:
 .incbin "Graphics/Logo tilemap.bin"
 ;.orga $c2a
 Palette_Logo:
- COLOUR 0,0,1 ; Dark blue
- COLOUR 3,3,3 ; White
- COLOUR 1,1,1 ; Dark grey
- COLOUR 2,2,2 ; Light grey
- COLOUR 0,0,0 ; Black x4
- COLOUR 0,0,0
- COLOUR 0,0,0 
- COLOUR 0,0,0 
+ COLOUR 0, 0, 1 ; Dark blue
+ COLOUR 3, 3, 3 ; White
+ COLOUR 1, 1, 1 ; Dark grey
+ COLOUR 2, 2, 2 ; Light grey
+ COLOUR 0, 0, 0 ; Black x4
+ COLOUR 0, 0, 0
+ COLOUR 0, 0, 0
+ COLOUR 0, 0, 0
 ;.orga $c32
 Tiles_Logo:
 .incbin "Graphics/Logo tiles.2bpp"
@@ -1567,14 +1565,14 @@ CallNonVBlankModeSecondFunction:
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_CurrentMode)
 CallNonVBlankModeSecondFunction_JumpTable:
-.dw NonVBlankMode0_DrawingFunction 
-.dw NonVBlankMode1_MenuFunction 
+.dw NonVBlankMode0_DrawingFunction
+.dw NonVBlankMode1_MenuFunction
 .dw NonVBlankMode2_MenuItemSelectedFunction
 .dw NonVBlankMode3_ColourFunction
 .dw NonVBlankMode4_EraseFunction
 .dw NonVBlankMode5_SquareFunction
-.dw NonVBlankMode6_CircleAnd7Function
-.dw NonVBlankMode6_CircleAnd7Function
+.dw NonVBlankMode6_CircleAnd7_EllipseFunction
+.dw NonVBlankMode6_CircleAnd7_EllipseFunction
 .dw NonVBlankMode8_PaintFunction
 .dw NonVBlankMode9_CopyFunction
 .dw NonVBlankMode10_MirrorFunction
@@ -1599,7 +1597,7 @@ NonVBlankMode1_MenuFunction:
     ld (hl), Mode0_Drawing ; RAM_SelectedNextMode
     di
       xor a
-      ld ($C089), a
+      ld (RAM_ShapeDrawingState), a
       inc a
       ld (RAM_StatusBarTextIndex), a ; Set it to blank
       call EnableOnlyThreeSprites
@@ -1632,7 +1630,7 @@ NonVBlankMode2_MenuItemSelectedFunction:
         ld a, 72
         cp l ; Y position
         jp c, +
-        LD_HL_LOCATION 88,72
+        LD_HL_LOCATION 88, 72
 +:      ld ($C03E), hl
         call RestoreTileData
         ld hl, ($C08D)
@@ -1643,11 +1641,11 @@ NonVBlankMode2_MenuItemSelectedFunction:
       inc hl
       ld a, (hl) ; RAM_SelectedNextMode
       ld (hl), Mode0_Drawing ; Default is to go back to drawing
-      
+
       ; We check what was requested to decide if there is more to do...
       cp Mode3_Colour
       jp nz, +
-      
+
       ; Mode3_Colour
       ld (hl), a ; Advance to next menu first
       ld a, Mode15_ColourSelectionMenu
@@ -1655,7 +1653,7 @@ NonVBlankMode2_MenuItemSelectedFunction:
 
 +:    cp Mode4_Erase
       jp nz, +
-      
+
       ; 4
       ld (hl), a ; 17 then 4
       ld a, Mode17_EraseConfirmationMenu
@@ -1716,12 +1714,12 @@ NonVBlankMode12_DisplayFunction:
     jp z, + ; High bit unset means "enter display mode"
 
     ; High bit set means "wait for a button, then exit display mode"
-    
+
     ; Wait for button
     ld a, (RAM_ButtonsNewlyPressed)
     bit 0, a
     ret z
-    
+
     ; Restore the missing parts of the screen
     di
       call DrawUIControls
@@ -1763,11 +1761,11 @@ NonVBlankMode14_LinePaintMenuFunction:
     ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
-    
+
     ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
-    
+
     di
       exx
         ; Restore the graphics state
@@ -1798,7 +1796,7 @@ NonVBlankMode14_LinePaintMenuFunction:
       ld ($C08D), hl
       ld hl, (RAM_Pen_Backup)
       ld ($C08F), hl
-      LD_HL_LOCATION 88,72
+      LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
       ld (RAM_Pen_Backup), hl
     ei
@@ -1813,7 +1811,7 @@ NonVBlankMode15_ColourSelectionMenuFunction:
     ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
-    
+
     ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
@@ -1847,7 +1845,7 @@ NonVBlankMode15_ColourSelectionMenuFunction:
       ld ($C08D), hl
       ld hl, (RAM_Pen_Backup)
       ld ($C08F), hl
-      LD_HL_LOCATION 88,72
+      LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
       ld (RAM_Pen_Backup), hl
     ei
@@ -1862,7 +1860,7 @@ NonVBlankMode16_MirrorAxisMenuFunction:
     ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
-    
+
     ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
@@ -1897,7 +1895,7 @@ NonVBlankMode16_MirrorAxisMenuFunction:
       ld hl, (RAM_Pen_Backup)
       ld ($C08F), hl
 
-      LD_HL_LOCATION 88,72
+      LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
       ld (RAM_Pen_Backup), hl
     ei
@@ -1912,7 +1910,7 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
     ; Bit 7 signals if the menu has been drawn yet
     bit 7, (hl)
     jp z, +
-    
+
     ; Bit 6 signals if a choice has been chosen yet
     bit 6, (hl)
     ret z
@@ -1946,7 +1944,7 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
       ld ($C08D), hl
       ld hl, (RAM_Pen_Backup)
       ld ($C08F), hl
-      LD_HL_LOCATION 88,72
+      LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
       ld (RAM_Pen_Backup), hl
     ei
@@ -1955,7 +1953,7 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
 ; 14th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode13_EndFunction:
     exx
-    
+
     ; Check if the timeout has started yet
     bit 7, (hl)
     jp z, +
@@ -1964,7 +1962,7 @@ NonVBlankMode13_EndFunction:
     ld hl, RAM_TitleScreenAndEndTimeout
     dec (hl)
     ret p
-    
+
     ; Then reset
     call ScreenOff
     jp FullReset
@@ -1993,7 +1991,7 @@ CheckMenuButton:
     ret z ; Not if we are already showing it
     cp Mode2_MenuItemSelected
     ret z ; And not if we are just hiding it
-    
+
     ; Otherwise, show it
     ld a, Mode1_Menu
     ld (RAM_CurrentMode), a
@@ -2038,9 +2036,9 @@ DrawTextToTilesWithBackup:
         add hl, de
         ld de, TileMapAddress
         add hl, de
-        
+
         ld (RAM_GraphicsDataBuffer_VRAMAddress_Tilemap), hl ; Save that
-        
+
         ; Set the tile attributes for the second palette
         ex de, hl
         ld h, TileAttribute_Palette2
@@ -2064,15 +2062,15 @@ DrawTextToTilesWithBackup:
       ex de, hl
       set 6, d ; Set write bit
     pop hl
-    
+
     ; Backup the tile
     ld (RAM_GraphicsDataBuffer_VRAMAddress_Tiles), de
     call BackupTilesToGraphicsDataBuffer
-    
+
     ; Get the character count
     ld b, (hl)
     inc hl
-    
+
     ; Start drawing
     VDP_ADDRESS_TO_DE
 -:  ld a, (hl) ; Get the character
@@ -2219,9 +2217,9 @@ map '.' = 28
 map '?' = 29
 map '-' = 30
 ; Menu borders
-map '/' = 31      ; /^^^^^,
+map '/' = 31      ; /^^^^^, 
 map '^' = 32      ; [     ]
-map ',' = 33      ; `_____'
+map ', ' = 33      ; `_____'
 map ']' = 34
 map ''' = 35
 map '_' = 36
@@ -2230,35 +2228,35 @@ map '[' = 38
 .enda
 
 MenuText: ; $1a10
-.db $B6 
+.db $B6
 .asc "/^^ MENU ^^,"
-.db $FF 
+.db $FF
 .asc "[  EXIT    ]"
-.db $FF 
+.db $FF
 .asc "[  COLOR   ]"
-.db $FF 
+.db $FF
 .asc "[  ERASE   ]"
-.db $FF 
+.db $FF
 .asc "[  SQUARE  ]"
-.db $FF 
+.db $FF
 .asc "[  CIRCLE  ]"
-.db $FF 
+.db $FF
 .asc "[  ELLIPSE ]"
-.db $FF 
+.db $FF
 .asc "[  PAINT   ]"
-.db $FF 
+.db $FF
 .asc "[  COPY    ]"
-.db $FF 
+.db $FF
 .asc "[  MIRROR  ]"
-.db $FF 
+.db $FF
 .asc "[  MAGNIFY ]"
-.db $FF 
+.db $FF
 .asc "[  DISPLAY ]"
-.db $FF 
+.db $FF
 .asc "[  END     ]"
-.db $FF 
+.db $FF
 .asc "`__________'"
-.db $FF 
+.db $FF
 
 ModeMenuText: ; $1ac7
 .db $2C
@@ -2314,9 +2312,9 @@ ColorPageMenuText: ; $1b76
 
 ColourSelectionTilemap: ; $1be7
 ; Tiles showing selectable colours
-.dw $0991 $098E $0992 $098E $0993 $098E $0994 
-.dw $098E $098E $098E $098E $098E $098E $098E 
-.dw $0995 $098E $0996 $098E $0997 $098E $0998 
+.dw $0991 $098E $0992 $098E $0993 $098E $0994
+.dw $098E $098E $098E $098E $098E $098E $098E
+.dw $0995 $098E $0996 $098E $0997 $098E $0998
 
 EraseMenuText: ; $1c11
 .db $38
@@ -2483,7 +2481,7 @@ _LABEL_1D32_:
 ++: exx
     ret
 
-; Data from 1D3F to 1D3F (1 bytes)
+; $1D3F
     ret ; Unused
 
 _LABEL_1D40_:
@@ -2758,7 +2756,6 @@ UpdateColourSelectionLabels:
     pop hl
     ret
 
-; Data from 1F46 to 1F65 (32 bytes)
 UpdateColourSelectionLabels_TileOffsets:
 ; Each byte is the offset in bytes of the desired digit from the space before 0
 ; i.e. 0 = space, 16 = 0, 32 = 1, ...
@@ -2789,139 +2786,142 @@ UpdateColourSelectionLabels_TileOffsets:
 
 ; 6th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode5_SquareFunction:
-    ld a, ($C089)
-    cp $03
-    ret nz
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+      ld a, (RAM_ShapeDrawingState)
+      cp %00000011 ; Are we ready to draw?
+      ret nz
+
+      ; Wait for the beep to end
+      ld a, (RAM_Beep)
+      or a
+      ret nz
+
     exx
     push hl
       di
-      ld a, ($C08A)
-      ld b, a
-      ld a, (RAM_SubmenuSelectionIndex)
-      or a
-      jp z, +
-      ld b, $00
-+:    ld a, b
-      ld ($C06B), a
-      ld a, $04
-      ld ($C06D), a
-      ld iy, $C062
-      ld h, (iy+13)
-      ld l, (iy+12)
-      ld d, h
-      ld e, (iy+14)
-      call _LABEL_1CA1_
-      ld h, (iy+13)
-      ld l, (iy+14)
-      ld d, (iy+15)
-      ld e, l
-      call _LABEL_1CA1_
-      ld h, (iy+15)
-      ld l, (iy+14)
-      ld d, h
-      ld e, (iy+12)
-      call _LABEL_1CA1_
-      ld h, (iy+15)
-      ld l, (iy+12)
-      ld d, (iy+13)
-      ld e, l
-      call _LABEL_1CA1_
-      ld a, (RAM_SubmenuSelectionIndex)
-      or a
-      jp z, _LABEL_2079_
-      ld a, (iy+16)
-      or a
-      jp nz, +
-      inc a
-+:    ld b, a
-      ld a, (iy+15)
-      sub (iy+13)
-      cp $08
-      jp c, _LABEL_2085_
-      ld a, $24
-      cp (iy+13)
-      jp c, +
-      cp (iy+15)
-      jp nc, _LABEL_2079_
-+:    ld a, $D4
-      cp (iy+13)
-      jp nc, +
-      cp (iy+15)
-      jp c, _LABEL_2079_
-+:    ld a, (iy+13)
-      call _LABEL_209E_
-      ld (iy+13), a
-      ld a, (iy+15)
-      call _LABEL_209E_
-      ld (iy+15), a
-      ld a, (iy+12)
-      add a, (iy+16)
-      sub $3C
-      jp c, _LABEL_2079_
-      ld a, (iy+12)
-      cp $CC
-      jp c, +
-      ld a, (iy+14)
-      cp $CC
-      jp nc, _LABEL_2079_
-+:    ld a, (iy+12)
-      sub $3C
-      jp nc, +
-      xor a
-+:    ld (iy+12), a
-      ld c, a
-      ld a, (iy+14)
-      sub $3C
-      sub c
-      ld b, a
--:    push bc
+        ld a, ($C08A)
+        ld b, a
+        ld a, (RAM_SubmenuSelectionIndex)
+        or a
+        jp z, + ; Line mode
+        ld b, 0
++:      ld a, b
+        ld ($C06B), a
+        ld a, $04
+        ld ($C06D), a
+        ld iy, $C062
+        ld h, (iy+13) ; hl = (RAM_SquareCorner1)
+        ld l, (iy+12)
+        ld d, h
+        ld e, (iy+14)
+        call _LABEL_1CA1_
+        ld h, (iy+13)
+        ld l, (iy+14)
+        ld d, (iy+15)
+        ld e, l
+        call _LABEL_1CA1_
+        ld h, (iy+15)
+        ld l, (iy+14)
+        ld d, h
+        ld e, (iy+12)
+        call _LABEL_1CA1_
+        ld h, (iy+15)
+        ld l, (iy+12)
+        ld d, (iy+13)
+        ld e, l
+        call _LABEL_1CA1_
+        ld a, (RAM_SubmenuSelectionIndex)
+        or a
+        jp z, _LABEL_2079_
+        ld a, (iy+16)
+        or a
+        jp nz, +
+        inc a
++:      ld b, a
+        ld a, (iy+15)
+        sub (iy+13)
+        cp $08
+        jp c, _LABEL_2085_
+        ld a, $24
+        cp (iy+13)
+        jp c, +
+        cp (iy+15)
+        jp nc, _LABEL_2079_
++:      ld a, $D4
+        cp (iy+13)
+        jp nc, +
+        cp (iy+15)
+        jp c, _LABEL_2079_
++:      ld a, (iy+13)
+        call _LABEL_209E_
+        ld (iy+13), a
+        ld a, (iy+15)
+        call _LABEL_209E_
+        ld (iy+15), a
         ld a, (iy+12)
-        and $F8
-        LD_HL_A
-        add hl, hl
-        add hl, hl
-        add hl, hl
-        push hl
-          add hl, hl
-          push hl
-            add hl, hl
-            add hl, hl
-          pop de
-          add hl, de
-        pop de
-        add hl, de
-        push hl
-          ld a, (iy+13)
+        add a, (iy+16)
+        sub $3C
+        jp c, _LABEL_2079_
+        ld a, (iy+12)
+        cp $CC
+        jp c, +
+        ld a, (iy+14)
+        cp $CC
+        jp nc, _LABEL_2079_
++:      ld a, (iy+12)
+        sub $3C
+        jp nc, +
+        xor a
++:      ld (iy+12), a
+        ld c, a
+        ld a, (iy+14)
+        sub $3C
+        sub c
+        ld b, a
+-:      push bc
+          ld a, (iy+12)
           and $F8
           LD_HL_A
           add hl, hl
           add hl, hl
-        pop de
-        add hl, de
+          add hl, hl
+          push hl
+            add hl, hl
+            push hl
+              add hl, hl
+              add hl, hl
+            pop de
+            add hl, de
+          pop de
+          add hl, de
+          push hl
+            ld a, (iy+13)
+            and $F8
+            LD_HL_A
+            add hl, hl
+            add hl, hl
+          pop de
+          add hl, de
+          ld a, (iy+12)
+          and $07
+          add a, a
+          add a, a
+          LD_DE_A
+          add hl, de
+          ex de, hl
+          call _LABEL_20AA_
+        pop bc
+        inc (iy+12)
         ld a, (iy+12)
-        and $07
-        add a, a
-        add a, a
-        LD_DE_A
-        add hl, de
-        ex de, hl
-        call _LABEL_20AA_
-      pop bc
-      inc (iy+12)
-      ld a, (iy+12)
-      cp $90
-      jp nc, _LABEL_2079_
-      djnz -
+        cp $90
+        jp nc, _LABEL_2079_
+        djnz -
 
 _LABEL_2079_:
-      ld a, $F0
-      ld ($C203), a
-      xor a
-      ld ($C089), a
-    pop hl
+        ld a, $F0
+        ld (RAM_SpriteTable1.y + 3), a
+        xor a
+        ld (RAM_ShapeDrawingState), a
+      pop hl
     ei
     ret
 
@@ -3104,12 +3104,12 @@ _LABEL_213E_:
 .db %00000001
 
 ; 7th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
-NonVBlankMode6_CircleAnd7Function:
+NonVBlankMode6_CircleAnd7_EllipseFunction:
     ld a, (RAM_Beep)
     or a
     ret nz
     exx
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     rlca
     ret nc
     push hl
@@ -3127,15 +3127,15 @@ NonVBlankMode6_CircleAnd7Function:
 +:    ld a, d
       ld ($C06B), a
       ld a, e
-      ld de, ($C0AA)
+      ld de, (RAM_CircleEllipseCentre)
       ld hl, ($C0A8)
       di
       call _LABEL_21E1_
     pop hl
     xor a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ld a, $F0
-    ld ($C203), a
+    ld (RAM_SpriteTable1.y + 3), a
     ei
     ret
 
@@ -3712,7 +3712,7 @@ _LABEL_259B_:
     pop de
     pop bc
     ret
-    
+
 ; push/pop matching, ignore
 .endasm
 push af
@@ -3722,24 +3722,38 @@ push af
 
 +:    ex af, af'
       ld d, l
-      ld hl, ($C0AA)
+      ld hl, (RAM_CircleEllipseCentre)
       call _LABEL_1CA1_
     pop hl
     pop de
     pop bc
     ret
 
-; Data from 25DD to 25F1 (21 bytes)
-.db $3E $10 $21 $00 $00 $29 $CB $11 $CB $10 $30 $04 $19 $30 $01 $03
-.db $3D $C2 $E2 $25 $C9
-; TODO unused code here
+; Unused function? $25dd
+Multiply_bc_de_hl:
+    ; Inputs: bc, de
+    ; Outputs: hl = bc * de
+    ; Trashes a, bc
+    ld a, 16  ; Bits
+    ld hl, 0  ; Accumulator
+-:  add hl, hl ; Shift accumulator left
+    rl c      ; Shift bc left
+    rl b
+    jr nc, +   ; If no carry out, nothing to do
+    add hl, de ; Else add de
+    jr nc, +   ; If that carried, increment bc (I guess this is necessary)
+    inc bc
++:  dec a     ; Loop over 16 bits
+    jp nz, -
+    ret
 
 _LABEL_25F2_:
-    ld hl, $0100
-    ld b, $08
-    xor a
--:  add a, a
-    inc a
+    ; Divide?
+    ld hl, 256
+    ld b, 8     ; Bits
+    xor a       ; Accumulator
+-:  add a, a    ; Shift accumulator left
+    inc a       ; Put a bit in on the right
     add hl, hl
     sbc hl, de
     jp nc, +
@@ -3753,7 +3767,7 @@ NonVBlankMode8_PaintFunction:
     ld a, (RAM_Beep)
     or a
     ret nz
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     or a
     ret z
     ld de, ($C091)
@@ -3784,7 +3798,7 @@ NonVBlankMode8_PaintFunction:
     call _LABEL_2646_
     ei
 +:  xor a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ret
 
 _LABEL_2646_:
@@ -3798,7 +3812,7 @@ _LABEL_2646_:
       ld a, e
       ld ($C0AB), a
       ld a, d
-      ld ($C0AA), a
+      ld (RAM_CircleEllipseCentre), a
       call _LABEL_2752_
       or a
       jp nz, +++
@@ -3810,7 +3824,7 @@ _LABEL_2646_:
       jr z, +
       dec a
       ld e, a
-      ld a, ($C0AA)
+      ld a, (RAM_CircleEllipseCentre)
       ld d, a
       call _LABEL_2752_
       or a
@@ -3826,24 +3840,24 @@ _LABEL_2646_:
       ld ($C0AE), a
       ld a, ($C0B1)
       ld ($C0AF), a
-      ld a, ($C0AA)
+      ld a, (RAM_CircleEllipseCentre)
       cp $8F
       ld a, $01
       jr z, +
       ld a, ($C0AB)
       ld e, a
-      ld a, ($C0AA)
+      ld a, (RAM_CircleEllipseCentre)
       inc a
       ld d, a
       call _LABEL_2752_
 +:    ld ($C0B1), a
-      ld a, ($C0AA)
+      ld a, (RAM_CircleEllipseCentre)
       cp $00
       ld a, $01
       jr z, +
       ld a, ($C0AB)
       ld e, a
-      ld a, ($C0AA)
+      ld a, (RAM_CircleEllipseCentre)
       dec a
       ld d, a
       call _LABEL_2752_
@@ -3859,7 +3873,7 @@ _LABEL_2646_:
       ld ($C0AC), hl
       ld a, ($C0AB)
       ld l, a
-      ld a, ($C0AA)
+      ld a, (RAM_CircleEllipseCentre)
       dec a
       ld h, a
       push hl
@@ -3874,13 +3888,13 @@ _LABEL_2646_:
         ld ($C0AC), hl
         ld a, ($C0AB)
         ld l, a
-        ld a, ($C0AA)
+        ld a, (RAM_CircleEllipseCentre)
         inc a
         ld h, a
         push hl
 +:        ld a, ($C0AB)
           ld e, a
-          ld a, ($C0AA)
+          ld a, (RAM_CircleEllipseCentre)
           ld d, a
           ld a, $01
           call _LABEL_2850_
@@ -3889,7 +3903,7 @@ _LABEL_2646_:
           jr z, _f
           inc a
           ld e, a
-          ld a, ($C0AA)
+          ld a, (RAM_CircleEllipseCentre)
           ld d, a
           call _LABEL_2752_
           or a
@@ -3907,13 +3921,13 @@ __:       ld hl, ($C0AC)
         ld a, l
         ld ($C0AB), a
         ld a, h
-        ld ($C0AA), a
+        ld (RAM_CircleEllipseCentre), a
         ld hl, ($C0AC)
         dec hl
         ld ($C0AC), hl
         ld a, ($C0AB)
         ld e, a
-        ld a, ($C0AA)
+        ld a, (RAM_CircleEllipseCentre)
         ld d, a
         call _LABEL_2752_
         or a
@@ -3923,7 +3937,7 @@ __:       ld hl, ($C0AC)
 .endasm ; push/pop matching
 pop hl
 .asm
-        
+
 +++:pop hl
     pop de
     pop bc
@@ -4129,7 +4143,7 @@ _LABEL_2850_:
 ; 10th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode9_CopyFunction:
     exx
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     bit 3, a
     jp z, _LABEL_3932_
     ld a, (RAM_Beep)
@@ -4208,16 +4222,16 @@ NonVBlankMode9_CopyFunction:
     jp nc, +
     djnz --
 +:  ei
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     and $06
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ret
 
 ; 11th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode10_MirrorFunction:
     exx
     xor a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     rra
     jp nc, _LABEL_3ACE_
     rra
@@ -4258,7 +4272,7 @@ NonVBlankMode10_MirrorFunction:
     ld a, (RAM_SubmenuSelectionIndex)
     or a
     jp nz, _LABEL_2A0B_
-    ld hl, $29B3
+    ld hl, _LABEL_29B3_ ; will ret to here
     push hl
       ld a, ($C15E)
       cp (ix+18)
@@ -4273,38 +4287,80 @@ NonVBlankMode10_MirrorFunction:
       add a, (ix+18)
       ld ($C162), a
       ret
-      
+
 .endasm ; Unmatched push matching
 pop hl
 .asm
 
 _LABEL_2994_:
-    ld a, ($C16F)
-    ld ($C162), a
-    sub (ix+1)
-    ld ($C160), a
-    ret
+      ld a, ($C16F)
+      ld ($C162), a
+      sub (ix+1)
+      ld ($C160), a
+      ret
 
 _LABEL_29A1_:
-    ld a, ($C15E)
-    add a, (ix+3)
-    sub (ix+18)
-    ld b, a
-    ld a, ($C16F)
-    sub b
-    ld ($C162), a
-    ret
+      ld a, ($C15E)
+      add a, (ix+3)
+      sub (ix+18)
+      ld b, a
+      ld a, ($C16F)
+      sub b
+      ld ($C162), a
+      ret
 
-; Data from 29B3 to 2A0A (88 bytes)
-.db $F3 $DD $CB $00 $46 $CC $D8 $2B $DD $46 $03 $DD $4E $04 $DD $7E
-.db $01 $E6 $07 $80 $3D $57 $DD $7E $02 $E6 $07 $5F $DD $66 $05 $DD
-.db $6E $02 $C5 $D5 $E5 $7C $FE $90 $D2 $01 $2A $41 $7B $E6 $07 $4F
-.db $7D $E6 $07 $91 $D2 $EC $29 $C6 $08 $32 $66 $C1 $C5 $CD $B1 $2A
-.db $CD $DC $2A $C1 $1C $2C $7D $FE $B0 $D2 $01 $2A $10 $DE $E1 $D1
-.db $C1 $15 $24 $10 $CD $C3 $A9 $2A
+_LABEL_29B3_:
+    di
+      bit 0, (ix+0)
+      call z, _LABEL_2BD8_
+      ld b, (ix+3)
+      ld c, (ix+4)
+      ld a, (ix+1)
+      and $07
+      add a, b
+      dec a
+      ld d, a
+      ld a, (ix+2)
+      and $07
+      ld e, a
+      ld h, (ix+5)
+      ld l, (ix+2)
+--:   push bc
+      push de
+      push hl
+        ld a, h
+        cp $90
+        jp nc, ++
+        ld b, c
+-:      ld a, e
+        and $07
+        ld c, a
+        ld a, l
+        and $07
+        sub c
+        jp nc, +
+        add a, 8
++:      ld ($c166), a
+        push bc
+          call _LABEL_2AB1_
+          call _LABEL_2ADC_
+        pop bc
+        inc e
+        inc l
+        ld a, l
+        cp $b0
+        jp nc, ++
+        djnz   -
+++:   pop hl
+      pop de
+      pop bc
+      dec d
+      inc h
+      djnz --
+    jp _LABEL_2AA9_
 
 _LABEL_2A0B_:
-    ld hl, $2A52
+    ld hl, _LABEL_2A52_ ; will ret to here
     push hl
       ld a, ($C15F)
       cp (ix+19)
@@ -4338,14 +4394,60 @@ _LABEL_2A0B_:
 .endasm ; Unmatched push matching
 pop hl
 .asm
-      
-; Data from 2A52 to 2AB0 (95 bytes)
-.db $F3 $DD $CB $00 $46 $CC $D8 $2B $DD $46 $03 $DD $4E $04 $DD $7E
-.db $01 $E6 $07 $57 $DD $7E $02 $E6 $07 $DD $86 $04 $3D $5F $DD $66
-.db $01 $DD $6E $06 $C5 $D5 $E5 $41 $7B $E6 $07 $4F $7D $E6 $07 $91
-.db $D2 $87 $2A $C6 $08 $32 $66 $C1 $7D $FE $B0 $D2 $98 $2A $C5 $CD
-.db $B1 $2A $CD $DC $2A $C1 $1D $2C $10 $DE $E1 $D1 $C1 $14 $24 $7C
-.db $FE $90 $D2 $A9 $2A $10 $CD $FB $AF $32 $89 $C0 $C3 $13 $3B
+
+_LABEL_2A52_:
+    di
+      bit 0, (ix+0)
+      call z, _LABEL_2BD8_
+      ld b, (ix+3)
+      ld c, (ix+4)
+      ld a, (ix+1)
+      and $07
+      ld d, a
+      ld a, (ix+2)
+      and $07
+      add a, (ix+4)
+      dec a
+      ld e, a
+      ld h, (ix+1)
+      ld l, (ix+6)
+--:   push bc
+      push de
+      push hl
+        ld b, c
+-:      ld a, e
+        and $07
+        ld c, a
+        ld a, l
+        and $07
+        sub c
+        jp nc, +
+        add a, $08
++:      ld ($c166), a
+        ld a, l
+        cp $b0
+        jp nc, +
+        push bc
+          call _LABEL_2AB1_
+          call _LABEL_2ADC_
+        pop bc
++:      dec e
+        inc l
+        djnz -
+      pop hl
+      pop de
+      pop bc
+      inc d
+      inc h
+      ld a, h
+      cp $90
+      jp nc, ++
+      djnz --
+_LABEL_2AA9_:
+++: ei
+    xor a
+    ld ($c089), a
+    jp EnableOnlyThreeSprites ; and ret
 
 _LABEL_2AB1_:
     push hl
@@ -4671,7 +4773,7 @@ NonVBlankMode11_MagnifyFunction:
     jp z, _LABEL_2D05_
     call _LABEL_3932_
     ld ix, $C15D
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     bit 2, a
     ret z
     bit 6, a
@@ -4756,7 +4858,7 @@ _LABEL_2CF6_:
 _LABEL_2D05_:
     set 7, (hl)
     ld a, $02
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ret
 
 _LABEL_2D0D_: ; magnify mode?
@@ -4766,7 +4868,7 @@ _LABEL_2D0D_: ; magnify mode?
       ret nz
     ex af, af'
     or $40
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     di
     ld a, ($C172)
     add a, a
@@ -4800,7 +4902,7 @@ _LABEL_2D0D_: ; magnify mode?
       inc hl
       ld d, (hl)
       inc hl
-      ; Location to draw it 
+      ; Location to draw it
       ld a, (hl)
       inc hl
       ld h, (hl)
@@ -4898,6 +5000,7 @@ _LABEL_2DED_:
     ret
 
 ; Data from 2DFE to 2F91 (404 bytes)
+; Unused? Looks a bit like graphics data?
 .db $5A $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00 $00
 .db $00 $00 $00 $2A $FF $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00
 .db $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00 $00 $00 $00
@@ -4967,22 +5070,22 @@ ModeGraphicBoardHandlerJumpTable:
 ; Called inside shadow registers
 ; Non-shadow regs have b = pen Y, (hl) = buttons newly pressed, a = mode
 .dw Mode0_DrawingGraphicBoardHandler
-.dw Mode1_MenuGraphicBoardHandler 
+.dw Mode1_MenuGraphicBoardHandler
 .dw DoNothing ; Menu button press
 .dw Mode3_ColourGraphicBoardHandler
 .dw DoNothing ; Erase
-.dw Mode5_SquareGraphicBoardHandler 
-.dw Mode6_CircleGraphicBoardHandler 
+.dw Mode5_SquareGraphicBoardHandler
+.dw Mode6_CircleGraphicBoardHandler
 .dw Mode7_EllipseGraphicBoardHandler
-.dw Mode8_PaintGraphicBoardHandler 
-.dw Mode9_CopyGraphicBoardHandler 
-.dw Mode10_MirrorGraphicBoardHandler 
-.dw Mode11_MagnifyGraphicBoardHandler 
+.dw Mode8_PaintGraphicBoardHandler
+.dw Mode9_CopyGraphicBoardHandler
+.dw Mode10_MirrorGraphicBoardHandler
+.dw Mode11_MagnifyGraphicBoardHandler
 .dw DoNothing ; Display
 .dw DoNothing ; End
-.dw SubmenuGraphicBoardHandler 
 .dw SubmenuGraphicBoardHandler
-.dw SubmenuGraphicBoardHandler 
+.dw SubmenuGraphicBoardHandler
+.dw SubmenuGraphicBoardHandler
 .dw SubmenuGraphicBoardHandler
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
@@ -4990,12 +5093,12 @@ Mode0_DrawingGraphicBoardHandler:
       ; shadow regs
       call CheckMenuButton
     exx
-    ; Set sprite 0 to the pen location
+    ; Set sprite 0 to the pen location and the crosshair sprite
     ld a, (RAM_Pen_Smoothed.x)
     ld (RAM_SpriteTable1.xn + 0), a
     ld a, b
     ld (RAM_SpriteTable1.y + 0), a
-    xor a ; CursorTile_Crosshair
+    xor a ; CursorIndex_Crosshair
     jp SetCursorIndex ; and ret
 
 ; 2nd entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
@@ -5032,7 +5135,7 @@ Mode1_MenuGraphicBoardHandler:
     dec a ; Text index is mode - 1
     ld (RAM_StatusBarTextIndex), a
 
-++: ld a, CursorTile_MenuArrowRight
+++: ld a, CursorIndex_MenuArrowRight
     jp SetCursorIndex ; and ret
 
 ; 4th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
@@ -5043,10 +5146,10 @@ Mode3_ColourGraphicBoardHandler:
     and $f0 ; Round down to nearest 16px
     cp 88 ; Colour section or page up/down section?
     jp nc, Mode3_ColourGraphicBoardHandler_LowerSection
-    
+
     ; Already did this!
     and $f0
-    
+
     ; We want to select one of the colour boxes, which means:
     ; 1. Truncate to the range of Y values they're in. We already did the upper limit.
     cp 64
@@ -5067,13 +5170,13 @@ Mode3_ColourGraphicBoardHandler:
     ld a, 160
 +:  ld (RAM_SpriteTable1.xn + 0), a ; That's our X coordinate
     ld c, a
-    ld a, CursorTile_Square ; Highlight the colour
+    ld a, CursorIndex_Square ; Highlight the colour
     call SetCursorIndex
 
     ; Check if Do button is pressed
     bit GraphicBoardButtonBit_Do, (hl)
     ret z
-    
+
     ; Beep when pressed
     ld a, 1
     ld (RAM_Beep), a
@@ -5096,7 +5199,7 @@ Mode3_ColourGraphicBoardHandler:
     ; Merge bits which makes it into a colour index in the range 0-8
     or b
     ld c, a
-    
+
     ld a, (RAM_ColourSelectionStartValue) ; Offset from the right point, so now it's a palette value (!)
     add a, c
     and $3F
@@ -5134,12 +5237,12 @@ Mode3_ColourGraphicBoardHandler_LowerSection:
     ex af, af' ; save value
     ld a, 88
     ld (RAM_SpriteTable1.xn + 0), a ; ...and X
-    ld a, CursorTile_MenuArrowRight
+    ld a, CursorIndex_MenuArrowRight
     call SetCursorIndex
 
     bit GraphicBoardButtonBit_Do, (hl) ; Check for Do button
     ret z
-    
+
     ; If set...
     ex af, af' ; Restore Y value
     ld b, 4 ; Amount to offset for page down
@@ -5160,68 +5263,88 @@ Mode3_ColourGraphicBoardHandler_LowerSection:
 Mode5_SquareGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, ($C089)
+    ; Do nothing if we're drawing
+    ld a, (RAM_ShapeDrawingState)
     bit 1, a
     ret nz
-    ld d, a
-    ld a, b
-    ld (RAM_SpriteTable1.y), a
+
+    ld d, a ; RAM_ShapeDrawingState
+    ; Make the cursor follow the pen
+    ld a, b ; Pen Y
+    ld (RAM_SpriteTable1.y + 0), a
     ld a, (RAM_Pen_Smoothed.x)
-    ld (RAM_SpriteTable1.xn), a
+    ld (RAM_SpriteTable1.xn + 0), a
     push hl
-      bit 0, d
+      bit 0, d ; Are we in phase 1 or 2?
       jp nz, +
-      ld a, CursorTile_ArrowBottomRight
+      ; Phase 1 (first corner)
+      ld a, CursorIndex_ArrowBottomRight
       call SetCursorIndex
     pop hl
-    bit 1, (hl)
+
+    bit GraphicBoardButtonBit_Do, (hl) ; Wait for Do button
     ret z
+
     ld a, 1
     ld (RAM_Beep), a
-    ld a, (RAM_SpriteTable1.y)
-    ld ($C203), a
-    ld a, (RAM_SpriteTable1.xn)
-    ld ($C246), a
-    ld a, $A9
-    ld ($C247), a
+    ld a, (RAM_SpriteTable1.y + 0)
+    ld (RAM_SpriteTable1.y + 3), a
+    ld a, (RAM_SpriteTable1.xn + 0)
+    ld (RAM_SpriteTable1.xn + 3*2), a
+    ld a, $A9 ; Second cursor tile index
+    ld (RAM_SpriteTable1.xn + 3*2+1), a
+
+    ; Offset position by 4, 3
     ld de, (RAM_Pen_Smoothed)
-    ld a, $04
+    ld a, 4
     add a, e
     ld e, a
-    ld a, $03
+    ld a, 3
     add a, d
     ld d, a
-    ld ($C06E), de
-    ld a, ($C089)
+    ; ...and save here
+    ld (RAM_SquareCorner1), de
+
+    ; Set the flag to move on to the next stage
+    ld a, (RAM_ShapeDrawingState)
     set 0, a
-    ld ($C089), a
-    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
+    ld (RAM_ShapeDrawingState), a
+
+    ; Write into the second cursor
+    ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
 
 .endasm ; Unmatched push matching
 push hl
 .asm
-    
-+:    ld a, $04
+
++:    ; Phase 2 (second corner)
+      ld a, CursorIndex_ArrowTopLeft
       call SetCursorIndex
     pop hl
-    bit 1, (hl)
+
+    bit GraphicBoardButtonBit_Do, (hl) ; Wait for Do button
     ret z
+
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
-    ld hl, ($C06E)
-    ld a, ($C246)
+
+    ld hl, (RAM_SquareCorner1)
+    ; Calculate the width from the sprites' positions
+    ld a, (RAM_SpriteTable1.xn + 3*2)
     ld b, a
-    ld a, (RAM_SpriteTable1.xn)
+    ld a, (RAM_SpriteTable1.xn + 0)
     sub b
-    sub $07
+    sub 7 ; Account for sprite widths?
     ld b, a
-    add a, h
+    add a, h ;
     ld ($C071), a
-    ld a, ($C203)
+    ; Likewise for the height
+    ld a, (RAM_SpriteTable1.y + 3)
     ld d, a
     ld a, (RAM_SpriteTable1.y)
-    sub $07
+    sub 7
     sub d
     ld d, a
     push af
@@ -5232,7 +5355,7 @@ push hl
     jp nc, +
     neg
 +:  ld ($C072), a
-    ld hl, ($C06E)
+    ld hl, (RAM_SquareCorner1)
     ld de, ($C070)
     ld a, l
     cp e
@@ -5246,11 +5369,12 @@ push hl
     ld b, h
     ld h, d
     ld d, b
-+:  ld ($C06E), hl
++:  ld (RAM_SquareCorner1), hl
     ld ($C070), de
-    ld a, ($C089)
+    ; Enter "drawing mode"
+    ld a, (RAM_ShapeDrawingState)
     set 1, a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ret
 
 ; 8th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
@@ -5265,15 +5389,15 @@ Mode6_CircleGraphicBoardHandler:
       xor a
       ex af, af'
 +:    call CheckMenuButton
-      ld a, CursorTile_X
+      ld a, CursorIndex_X
       call SetCursorIndex
-      ld hl, $C089
+      ld hl, RAM_ShapeDrawingState
       bit 0, (hl)
       jp z, _LABEL_3206_
       bit 1, (hl)
       ret nz
     exx
-    ld a, ($C203)
+    ld a, (RAM_SpriteTable1.y + 3)
     ld c, a
     ex af, af'
     jp nz, +
@@ -5282,14 +5406,14 @@ Mode6_CircleGraphicBoardHandler:
     ld a, b
     ld (RAM_SpriteTable1.y), a
     ld a, (RAM_Pen_Smoothed.x)
-    ld (RAM_SpriteTable1.xn), a
+    ld (RAM_SpriteTable1.xn + 0), a
     bit 1, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C246)
+    ld a, (RAM_SpriteTable1.xn + 3*2)
     ld b, a
-    ld a, (RAM_SpriteTable1.xn)
+    ld a, (RAM_SpriteTable1.xn + 0)
     sub b
     jp nc, +
     neg
@@ -5307,34 +5431,38 @@ _LABEL_3206_:
     ld a, b
     ld (RAM_SpriteTable1.y), a
     ld a, (RAM_Pen_Smoothed.x)
-    ld (RAM_SpriteTable1.xn), a
+    ld (RAM_SpriteTable1.xn + 0), a
     bit 1, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, (RAM_SpriteTable1.y)
-    ld ($C203), a
-    ld a, (RAM_SpriteTable1.xn)
-    ld ($C246), a
-    ld a, $A9
-    ld ($C247), a
+    ; Fix sprite 3 where sprite 0 is
+    ld a, (RAM_SpriteTable1.y + 0)
+    ld (RAM_SpriteTable1.y + 3), a
+    ld a, (RAM_SpriteTable1.xn + 0)
+    ld (RAM_SpriteTable1.xn + 3*2), a
+    ld a, $A9 ; Second cursor tile
+    ld (RAM_SpriteTable1.xn + 3*2+1), a
+
+    ; Store the location
     ld de, (RAM_Pen_Smoothed)
-    ld ($C0AA), de
-    ld a, SetCursorIndex_Second | CursorTile_X
+    ld (RAM_CircleEllipseCentre), de
+
+    ld a, SetCursorIndex_Second | CursorIndex_X
     call SetCursorIndex
     exx
     set 0, (hl)
     ret
 
 _LABEL_323B_:
-    ld a, ($C246)
+    ld a, (RAM_SpriteTable1.xn + 3*2)
     ld b, a
-    ld a, (RAM_SpriteTable1.xn)
+    ld a, (RAM_SpriteTable1.xn + 0)
     sub b
     jr nc, +
     cpl
 +:  ld b, a
-    ld a, ($C203)
+    ld a, (RAM_SpriteTable1.y + 3)
     ld c, a
     ld a, (RAM_SpriteTable1.y)
     sub c
@@ -5354,7 +5482,7 @@ _LABEL_323B_:
 ; 9th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode8_PaintGraphicBoardHandler:
       call CheckMenuButton
-      ld hl, $C089
+      ld hl, RAM_ShapeDrawingState
       ld a, (hl)
       or a
       ret nz
@@ -5362,8 +5490,8 @@ Mode8_PaintGraphicBoardHandler:
       ld a, b
       ld (RAM_SpriteTable1.y), a
       ld a, (RAM_Pen_Smoothed.x)
-      ld (RAM_SpriteTable1.xn), a
-      ld a, CursorTile_ArrowTopLeft
+      ld (RAM_SpriteTable1.xn + 0), a
+      ld a, CursorIndex_ArrowTopLeft
       call SetCursorIndex
       bit 1, (hl)
       ret z
@@ -5382,7 +5510,7 @@ Mode8_PaintGraphicBoardHandler:
 Mode9_CopyGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     bit 3, a
     ret nz
     bit 2, a
@@ -5408,33 +5536,33 @@ Mode9_CopyGraphicBoardHandler:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1.xn), a
-    ld a, CursorTile_ArrowBottomRight
++:  ld (RAM_SpriteTable1.xn + 0), a
+    ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     set 1, a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ld a, (RAM_SpriteTable1.y)
-    ld ($C203), a
+    ld (RAM_SpriteTable1.y + 3), a
     add a, $07
     ld ($C0C4), a
     add a, $08
     ld (RAM_SpriteTable1.y), a
-    ld a, (RAM_SpriteTable1.xn)
-    ld ($C246), a
+    ld a, (RAM_SpriteTable1.xn + 0)
+    ld (RAM_SpriteTable1.xn + 3*2), a
     add a, $07
     ld ($C0C5), a
     add a, $08
-    ld (RAM_SpriteTable1.xn), a
+    ld (RAM_SpriteTable1.xn + 0), a
     ld a, $A9
-    ld ($C247), a
+    ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
     ld ($C15D), a
-    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
+    ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
 
 _LABEL_3311_:
@@ -5481,20 +5609,20 @@ _LABEL_332A_:
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1.xn), a
++:  ld (RAM_SpriteTable1.xn + 0), a
     ld ($C0C7), a
-    ld a, CursorTile_ArrowTopLeft
+    ld a, CursorIndex_ArrowTopLeft
     call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     set 2, a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ld a, (RAM_SpriteTable1.y)
     ld ($C0C6), a
-    ld a, (RAM_SpriteTable1.xn)
+    ld a, (RAM_SpriteTable1.xn + 0)
     ld ($C0C7), a
     ret
 
@@ -5519,7 +5647,7 @@ _LABEL_3385_:
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1.xn), a
-    ld a, CursorTile_ArrowBottomRight
+    ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5531,16 +5659,16 @@ _LABEL_3385_:
     ld a, (RAM_SpriteTable1.xn)
     add a, $07
     ld ($C0C9), a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     set 3, a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ret
 
 ; 11th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode10_MirrorGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     ld d, a
     rrca
     jp nc, _LABEL_3527_
@@ -5597,15 +5725,15 @@ Mode10_MirrorGraphicBoardHandler:
     call z, _LABEL_3501_
     ld (RAM_SpriteTable1.xn), a
     ld ($C0C7), a
-    ld a, CursorTile_ArrowTopLeft
+    ld a, CursorIndex_ArrowTopLeft
     call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     set 2, a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ld a, (RAM_SpriteTable1.y)
     ld ($C0C6), a
     ld a, (RAM_SpriteTable1.xn)
@@ -5637,32 +5765,32 @@ _LABEL_3469_:
 +:  bit 0, (iy+0)
     call z, _LABEL_3513_
     ld (RAM_SpriteTable1.xn), a
-    ld a, CursorTile_ArrowBottomRight
+    ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     set 1, a
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ld a, (RAM_SpriteTable1.y)
-    ld ($C203), a
+    ld (RAM_SpriteTable1.y + 3), a
     add a, $07
     ld ($C0C4), a
     add a, $08
     ld (RAM_SpriteTable1.y), a
     ld a, (RAM_SpriteTable1.xn)
-    ld ($C246), a
+    ld (RAM_SpriteTable1.xn + 3*2), a
     add a, $07
     ld ($C0C5), a
     add a, $08
     ld (RAM_SpriteTable1.xn), a
     ld a, $A9
-    ld ($C247), a
+    ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
     ld ($C15D), a
-    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
+    ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
 
 _LABEL_34E0_:
@@ -5765,12 +5893,11 @@ _LABEL_3527_:
     ld a, (RAM_SpriteTable1.xn)
     add a, (hl)
     ld ($C170), a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     or $01
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ret
 
-; Data from 357F to 358C (14 bytes)
 Data_357F: ; $357F
 .db $10 $40 $2B $CC $06 $07 $04 $1B $9C $20 $70 $07 $03 $08
 
@@ -5778,7 +5905,7 @@ Data_357F: ; $357F
 Mode11_MagnifyGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     bit 2, a
     jp nz, _LABEL_363C_
     ld c, $0F
@@ -5809,28 +5936,28 @@ Mode11_MagnifyGraphicBoardHandler:
     ld ($C0C5), a
     add a, $21
     ld ($C0C7), a
-    ld a, CursorTile_ArrowBottomRight
+    ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     or $04
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ld a, (RAM_SpriteTable1.y)
-    ld ($C203), a
+    ld (RAM_SpriteTable1.y + 3), a
     add a, $08
     ld (RAM_SpriteTable1.y), a
     ld a, (RAM_SpriteTable1.xn)
-    ld ($C246), a
+    ld (RAM_SpriteTable1.xn + 3*2), a
     add a, $08
     ld (RAM_SpriteTable1.xn), a
     ld a, $A9
-    ld ($C247), a
+    ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
     ld ($C15D), a
-    ld a, SetCursorIndex_Second | CursorTile_ArrowBottomRight
+    ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     call SetCursorIndex
     ld c, $00
     ld a, (RAM_SpriteTable1.y)
@@ -5846,8 +5973,8 @@ Mode11_MagnifyGraphicBoardHandler:
 +:  ld a, c
     ld ($C172), a
     rlc c
-    ld b, $00
-    ld hl, $365E
+    ld b, 0
+    ld hl, Data_365E
     add hl, bc
     ld a, (hl)
     ld ($C162), a
@@ -5866,15 +5993,16 @@ _LABEL_363C_:
     ld a, b
     and $FE
     ld (RAM_SpriteTable1.y), a
-    ld a, CursorTile_ZoomedPixel
+    ld a, CursorIndex_ZoomedPixel
     jp SetCursorIndex ; and ret
 
-+:  ld a, ($C089)
++:  ld a, (RAM_ShapeDrawingState)
     or $80
-    ld ($C089), a
+    ld (RAM_ShapeDrawingState), a
     ret
 
 ; Data from 365E to 3665 (8 bytes)
+Data_365E:
 .db $00 $00 $50 $00 $00 $70 $50 $70
 
 ; 15th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
@@ -5893,7 +6021,7 @@ SubmenuGraphicBoardHandler:
     ld a, $48
 +:  ld (RAM_SpriteTable1.y), a
     ld b, a
-    ld a, CursorTile_MenuArrowRight
+    ld a, CursorIndex_MenuArrowRight
     call SetCursorIndex
     bit 1, (hl)
     ret z
@@ -5961,7 +6089,7 @@ _LABEL_36A5_:
     ld ($C08A), a
 ++: ld a, $A8
     ld ($C241), a
-    ld a, CursorTile_PaletteSelect
+    ld a, CursorIndex_PaletteSelect
     call SetCursorIndex
     jp CheckMenuButton ; and ret
 
@@ -5987,20 +6115,20 @@ UpdateCursorColourCycling:
     ; Delay: 4350 cycles - seems unnecessary?
     ld b, 0
     djnz -3 ; This actually jumps to the 0 parameter of the preceding opcode, which decodes as "nop".
-    
+
     ld a, (hl)
     out (Port_VDPData), a
     ret
 
-CursorColourCycle:    
-    COLOUR 0,0,0 ; Black
-    COLOUR 3,0,0 ; Red
-    COLOUR 0,3,0 ; Green
-    COLOUR 3,3,0 ; Yellow
-    COLOUR 0,0,3 ; Blue
-    COLOUR 3,3,3 ; White
+CursorColourCycle:
+    COLOUR 0, 0, 0 ; Black
+    COLOUR 3, 0, 0 ; Red
+    COLOUR 0, 3, 0 ; Green
+    COLOUR 3, 3, 0 ; Yellow
+    COLOUR 0, 0, 3 ; Blue
+    COLOUR 3, 3, 3 ; White
 CursorColourCycleEnd:
-    
+
 InitialiseCursorSprites:
     ld hl, InitialiseCursorSprites_Y
     ld de, RAM_SpriteTable1.y
@@ -6049,7 +6177,7 @@ SetCursorIndex:
 
       ld a, b
       ld (hl), a ; Store the new value
-      
+
       res 5, a ; Might be set, determines which sprite to set
       push hl
         ; Calculate de + a * 32
@@ -6110,7 +6238,7 @@ DoNothingToUpdate:
     ld hl, ButtonTiles + SizeOfTile/2 * 3 * 4 ; Pen not pressed
     jp Write2bppToVRAMSlowly ; and ret
 
-    
+
 MenuPressed:
     bit GraphicBoardButtonBit_Menu, (hl)
     jp nz, MenuNothingToUpdate
@@ -6149,7 +6277,7 @@ UpdatePenGraphics:
     push af
       call nz, TurnOffCurrentPenIcon
     pop af
-    
+
     ; Draw current pen mode icon in red
     ld (ix+PenMode.Current), a ; Set pen mode
     ld b, 1 ; Tile count
@@ -6197,9 +6325,9 @@ TurnOffCurrentPenIcon:
     jp JumpToFunction
 
 +:
-.dw DrawThinPenOff 
-.dw DrawMediumPenOff 
-.dw DrawThickPenOff 
+.dw DrawThinPenOff
+.dw DrawMediumPenOff
+.dw DrawThickPenOff
 .dw DrawEraserOff
 
 DrawThinPenOff:
@@ -6231,13 +6359,13 @@ PenModeNotChanged:
     ld a, ($C062) ; desired new dot mode?
     cp (ix+PenMode.Dots)
     ret z
-    
+
     ld (ix+PenMode.Dots), a
     ld b, 1 ; Tile count
 
     bit 0, a
     jp z, +
-    
+
     ; Dots mode
     LD_DE_TILE $1a1
     LD_HL_PEN_TILE_GRAPHICS PenTile_DotMode_On
@@ -6249,7 +6377,7 @@ PenModeNotChanged:
     jp FillTiles2bpp ; and ret
 
 _LABEL_3932_:
-    ld a, ($C089)
+    ld a, (RAM_ShapeDrawingState)
     and $07
     ret z
     cp $07
@@ -6351,10 +6479,36 @@ _LABEL_39C0_:
     djnz -
     jp +
 
-; Data from 39F8 to 3A23 (44 bytes)
-.db $C5 $78 $3D $4F $06 $00 $21 $CA $C0 $09 $EB $C5 $E1 $29 $01 $FA
-.db $C0 $09 $23 $EB $C1 $7E $DD $77 $00 $DD $23 $2B $1A $FD $77 $01
-.db $1B $1A $FD $77 $00 $FD $23 $FD $23 $1B $10 $E9
+; Skipped-over code?
+    push bc
+      ld a, b
+      dec a
+      ld c, a
+      ld b, 0
+      ld hl, $c0ca
+      add hl, bc
+      ex de, hl
+      push bc
+      pop hl
+      add hl, hl
+      ld bc, $c0fa
+      add hl, bc
+      inc hl
+      ex de, hl
+    pop bc
+-:  ld a, (hl)
+    ld (ix+0), a
+    inc ix
+    dec hl
+    ld a, (de)
+    ld (iy+1), a
+    dec de
+    ld a, (de)
+    ld (iy+0), a
+    inc iy
+    inc iy
+    dec de
+    djnz   -
 
 +:  ld a, c
     or a
@@ -6545,8 +6699,8 @@ UpdateStatusBarText:
 -:  push bc
       ld a, (hl) ; Get character
       push hl
-        ld h,0
-        ld l,a ; Convert to address of letter in font
+        ld h, 0
+        ld l, a ; Convert to address of letter in font
         add hl, hl ; x16
         add hl, hl
         add hl, hl
@@ -6560,7 +6714,7 @@ UpdateStatusBarText:
     pop bc
     djnz -
     ret
-    
+
 StatusBarText:
 ; All must be 13 characters long
 .define STATUS_BAR_TEXT_LENGTH 13

@@ -57,7 +57,7 @@
 0000:c06b RAM_c06b
 0000:c06c RAM_CurrentlySelectedPaletteIndex
 0000:c06d RAM_c06d
-0000:c06e RAM_c06e
+0000:c06e RAM_SquareCorner1
 0000:c070 RAM_c070
 0000:c071 RAM_c071
 0000:c072 RAM_c072
@@ -68,12 +68,14 @@
 0000:c086 RAM_CursorColourCycle_Delay
 0000:c087 RAM_CursorColourCycle_Index
 0000:c088 RAM_ButtonStateShownOnScreen
-0000:c089 RAM_c089
+0000:c089 RAM_ShapeDrawingState
 0000:c08a RAM_c08a
 0000:c08b RAM_unusedC08B
 0000:c08d RAM_c08d
 0000:c08f RAM_c08f
 0000:c091 RAM_unusedC091
+0000:c0aa RAM_CircleEllipseCentre
+0000:c0ac RAM_unusedC0ac
 0000:c0ba RAM_SubmenuSelectionIndex
 0000:c0bb RAM_BytesPerRow
 0000:c0bd RAM_unusedc0bd
@@ -239,7 +241,7 @@
 0000:209e _LABEL_209E_
 0000:20aa _LABEL_20AA_
 0000:213e _LABEL_213E_
-0000:21a2 NonVBlankMode6_CircleAnd7Function
+0000:21a2 NonVBlankMode6_CircleAnd7_EllipseFunction
 0000:21e1 _LABEL_21E1_
 0000:22ec _LABEL_22EC_
 0000:2353 _LABEL_2353_
@@ -256,6 +258,7 @@
 0000:2555 _LABEL_2555_
 0000:2558 _LABEL_2558_
 0000:259b _LABEL_259B_
+0000:25dd Multiply_bc_de_hl
 0000:25f2 _LABEL_25F2_
 0000:2605 NonVBlankMode8_PaintFunction
 0000:2646 _LABEL_2646_
@@ -277,7 +280,10 @@
 0000:290d NonVBlankMode10_MirrorFunction
 0000:2994 _LABEL_2994_
 0000:29a1 _LABEL_29A1_
+0000:29b3 _LABEL_29B3_
 0000:2a0b _LABEL_2A0B_
+0000:2a52 _LABEL_2A52_
+0000:2aa9 _LABEL_2AA9_
 0000:2ab1 _LABEL_2AB1_
 0000:2adc _LABEL_2ADC_
 0000:2b74 _LABEL_2B74_
@@ -321,6 +327,7 @@
 0000:357f Data_357F
 0000:358d Mode11_MagnifyGraphicBoardHandler
 0000:363c _LABEL_363C_
+0000:365e Data_365E
 0000:3666 SubmenuGraphicBoardHandler
 0000:36a5 _LABEL_36A5_
 0000:371e UpdateCursorColourCycling
