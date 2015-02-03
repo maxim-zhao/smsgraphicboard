@@ -232,7 +232,7 @@ Start_AfterRAMClear:
 
     call InitialiseCursorSprites
     call ScreenOn
-    ld hl, $4858
+    LD_HL_LOCATION 88, 72
     ld ($C03E), hl
 
     ld a, 1
@@ -754,7 +754,7 @@ Beep:
     or a
     ret z ; Do nothing while zero
     
-    inc a ; Else make sound for four more frames
+    inc a ; Else make sound for three more frames
     ld (RAM_Beep), a
     cp 5
     jp z, SilencePSG
@@ -812,7 +812,7 @@ DrawingPalette:
   COLOUR 0,0,0 ; Black for sprites
   COLOUR 3,3,3 ; White
   COLOUR 3,0,0 ; Red
-  COLOUR 0,0,0 ; Unused blacks
+  COLOUR 0,0,0 ; These blacks are used for the colour palette selection later.
   COLOUR 0,0,0
   COLOUR 0,0,0
   COLOUR 0,0,0
@@ -1617,7 +1617,7 @@ NonVBlankMode1_MenuFunction:
       ld hl, ($C03E)
       ld (RAM_Pen_Smoothed), hl
       ld (RAM_Pen_Backup), hl
-      ld a, $01
+      ld a, 1
       ld (RAM_Beep), a
     ei
     ret
@@ -1628,10 +1628,11 @@ NonVBlankMode2_MenuItemSelectedFunction:
         ; Restore the tiles under the menu
         call SetDrawingAreaTilemap
         ld hl, (RAM_Pen_Smoothed)
-        ld a, $48
-        cp l
+
+        ld a, 72
+        cp l ; Y position
         jp c, +
-        ld hl, $4858
+        LD_HL_LOCATION 88,72
 +:      ld ($C03E), hl
         call RestoreTileData
         ld hl, ($C08D)
@@ -1675,7 +1676,7 @@ NonVBlankMode2_MenuItemSelectedFunction:
 
 ++:   dec hl
       ld (hl), a ; RAM_CurrentMode
-      ld a, $01
+      ld a, 1
       ld (RAM_Beep), a
     ei
     ret
@@ -2653,7 +2654,7 @@ _LABEL_1E57_:
       ld e, a
       cpl
       ld d, a
-      ld b, $04
+      ld b, 4
       ld c, $00
       ld a, ($C06B)
       cp $03
@@ -4022,7 +4023,7 @@ _LABEL_27CD_:
 _LABEL_27D8_:
     ld hl, RAM_TileModificationBuffer
     push bc
-      ld b, $04
+      ld b, 4
       ld a, ($C0B2)
       or a
       jp z, ++
@@ -4745,12 +4746,12 @@ NonVBlankMode11_MagnifyFunction:
 
 _LABEL_2CF6_:
     di
-    push hl
-      call EnableOnlyThreeSprites
-      call RestoreTileData
-    pop hl
+      push hl
+        call EnableOnlyThreeSprites
+        call RestoreTileData
+      pop hl
     ei
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
 _LABEL_2D05_:
     set 7, (hl)
@@ -4760,9 +4761,9 @@ _LABEL_2D05_:
 
 _LABEL_2D0D_: ; magnify mode?
     ex af, af'
-    ld a, (RAM_Beep)
-    or a
-    ret nz
+      ld a, (RAM_Beep)
+      or a
+      ret nz
     ex af, af'
     or $40
     ld ($C089), a
@@ -5073,7 +5074,8 @@ Mode3_ColourGraphicBoardHandler:
     bit GraphicBoardButtonBit_Do, (hl)
     ret z
     
-    ld a, $01
+    ; Beep when pressed
+    ld a, 1
     ld (RAM_Beep), a
 
     ld a, b ; Y coordinate
@@ -5174,7 +5176,7 @@ Mode5_SquareGraphicBoardHandler:
     pop hl
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1.y)
     ld ($C203), a
@@ -5205,7 +5207,7 @@ push hl
     pop hl
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld hl, ($C06E)
     ld a, ($C246)
@@ -5283,7 +5285,7 @@ Mode6_CircleGraphicBoardHandler:
     ld (RAM_SpriteTable1.xn), a
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, ($C246)
     ld b, a
@@ -5308,7 +5310,7 @@ _LABEL_3206_:
     ld (RAM_SpriteTable1.xn), a
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1.y)
     ld ($C203), a
@@ -5365,7 +5367,7 @@ Mode8_PaintGraphicBoardHandler:
       call SetCursorIndex
       bit 1, (hl)
       ret z
-      ld a, $01
+      ld a, 1
       ld (RAM_Beep), a
       ld a, (RAM_Pen_Smoothed.x)
       ld h, a
@@ -5411,7 +5413,7 @@ Mode9_CopyGraphicBoardHandler:
     call SetCursorIndex
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, ($C089)
     set 1, a
@@ -5485,7 +5487,7 @@ _LABEL_332A_:
     call SetCursorIndex
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, ($C089)
     set 2, a
@@ -5521,7 +5523,7 @@ _LABEL_3385_:
     call SetCursorIndex
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1.y)
     add a, $07
@@ -5599,7 +5601,7 @@ Mode10_MirrorGraphicBoardHandler:
     call SetCursorIndex
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, ($C089)
     set 2, a
@@ -5639,7 +5641,7 @@ _LABEL_3469_:
     call SetCursorIndex
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, ($C089)
     set 1, a
@@ -5754,7 +5756,7 @@ _LABEL_3527_:
     bit 1, (hl)
     ret z
     ex de, hl
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1.y)
     add a, (hl)
@@ -5811,7 +5813,7 @@ Mode11_MagnifyGraphicBoardHandler:
     call SetCursorIndex
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, ($C089)
     or $04
@@ -5895,7 +5897,7 @@ SubmenuGraphicBoardHandler:
     call SetCursorIndex
     bit 1, (hl)
     ret z
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, b
     sub $40
@@ -5934,11 +5936,11 @@ _LABEL_36A5_:
     cp $04
     jp z, +++
     ld ($C08A), a
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     jp ++
 
-+++:ld a, $01
++++:ld a, 1
     ld (RAM_Beep), a
     ld a, ($C062)
     xor $01
@@ -5950,7 +5952,7 @@ _LABEL_36A5_:
     ld (RAM_CurrentlySelectedPaletteIndex), a
     ld a, b
     ld ($C242), a
-    ld a, $01
+    ld a, 1
     ld (RAM_Beep), a
     ld a, ($C08A)
     cp $03

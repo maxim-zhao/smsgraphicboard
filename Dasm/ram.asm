@@ -49,7 +49,7 @@ RAM_Pressure                                db ; $C034 - never used
 RAM_unusedC035                              dsb 7
 RAM_CurrentMode                             db ; $C03C Current "mode". High bit set when just changed? Low 6 bits are mode number.
 RAM_SelectedNextMode                        db ; $C03D
-RAM_c03e                                    dw
+RAM_c03e                                    dw ; $C03E Yet another pen location copy? Not sure how it makes sense
 RAM_unusedC040                              dsb 2
 RAM_Palette                                 dsb 17 ; $C042
 RAM_ColourSelectionStartValue               db ; $c053 Palette value for start of 8-colour palette used when choosing new colours
@@ -81,8 +81,8 @@ RAM_ButtonStateShownOnScreen                db ; $C088 Holds the button bits as 
 RAM_c089 db ; $c089
 RAM_c08a db ; $c08a
 RAM_unusedC08B dsb 2
-RAM_c08d dw ; $c08d
-RAM_c08f dw ; $c08f
+RAM_c08d dw ; $c08d Yet another pen position backup?
+RAM_c08f dw ; $c08f Yet another pen position backup?
 RAM_unusedC091 dsb 41
 RAM_SubmenuSelectionIndex                   db ; $c0ba Index of item last selected in a submenu
 RAM_BytesPerRow                             dw ; $c0bb Used during RAM<->VRAM tile copies
