@@ -68,7 +68,7 @@
 0000:c086 RAM_CursorColourCycle_Delay
 0000:c087 RAM_CursorColourCycle_Index
 0000:c088 RAM_ButtonStateShownOnScreen
-0000:c089 RAM_ShapeDrawingState
+0000:c089 RAM_ActionStateFlags
 0000:c08a RAM_c08a
 0000:c08b RAM_unusedC08B
 0000:c08d RAM_c08d
@@ -327,7 +327,7 @@
 0000:357f Data_357F
 0000:358d Mode11_MagnifyGraphicBoardHandler
 0000:363c _LABEL_363C_
-0000:365e Data_365E
+0000:365e Magnify_WindowLocations
 0000:3666 SubmenuGraphicBoardHandler
 0000:36a5 _LABEL_36A5_
 0000:371e UpdateCursorColourCycling

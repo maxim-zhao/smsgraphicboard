@@ -78,7 +78,7 @@ RAM_CurrentCursorDataAddress                dw ; $C084 Pointer to cursor tile da
 RAM_CursorColourCycle_Delay                 db ; $C086 Counter for frame between colour changes
 RAM_CursorColourCycle_Index                 db ; $C087 Current colour index, must be following previous
 RAM_ButtonStateShownOnScreen                db ; $C088 Holds the button bits as last drawn to the screen
-RAM_ShapeDrawingState                       db ; $c089 Bits indicate the phase of drawing. Bit 0 unset = step 1, set = step 2. Bit 1 set = doing it.
+RAM_ActionStateFlags                        db ; $c089 Bits indicate the phase of drawing. Bit 0 unset = step 1, set = step 2. Bit 1 set = doing it.
 RAM_c08a db ; $c08a
 RAM_unusedC08B dsb 2
 RAM_c08d dw ; $c08d Yet another pen position backup?

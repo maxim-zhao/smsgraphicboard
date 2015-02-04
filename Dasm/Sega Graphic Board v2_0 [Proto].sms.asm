@@ -1597,7 +1597,7 @@ NonVBlankMode1_MenuFunction:
     ld (hl), Mode0_Drawing ; RAM_SelectedNextMode
     di
       xor a
-      ld (RAM_ShapeDrawingState), a
+      ld (RAM_ActionStateFlags), a
       inc a
       ld (RAM_StatusBarTextIndex), a ; Set it to blank
       call EnableOnlyThreeSprites
@@ -2786,7 +2786,7 @@ UpdateColourSelectionLabels_TileOffsets:
 
 ; 6th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode5_SquareFunction:
-      ld a, (RAM_ShapeDrawingState)
+      ld a, (RAM_ActionStateFlags)
       cp %00000011 ; Are we ready to draw?
       ret nz
 
@@ -2920,7 +2920,7 @@ _LABEL_2079_:
         ld a, $F0
         ld (RAM_SpriteTable1.y + 3), a
         xor a
-        ld (RAM_ShapeDrawingState), a
+        ld (RAM_ActionStateFlags), a
       pop hl
     ei
     ret
@@ -3109,7 +3109,7 @@ NonVBlankMode6_CircleAnd7_EllipseFunction:
     or a
     ret nz
     exx
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     rlca
     ret nc
     push hl
@@ -3133,7 +3133,7 @@ NonVBlankMode6_CircleAnd7_EllipseFunction:
       call _LABEL_21E1_
     pop hl
     xor a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ld a, $F0
     ld (RAM_SpriteTable1.y + 3), a
     ei
@@ -3767,7 +3767,7 @@ NonVBlankMode8_PaintFunction:
     ld a, (RAM_Beep)
     or a
     ret nz
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     or a
     ret z
     ld de, ($C091)
@@ -3798,7 +3798,7 @@ NonVBlankMode8_PaintFunction:
     call _LABEL_2646_
     ei
 +:  xor a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ret
 
 _LABEL_2646_:
@@ -4143,7 +4143,7 @@ _LABEL_2850_:
 ; 10th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode9_CopyFunction:
     exx
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     bit 3, a
     jp z, _LABEL_3932_
     ld a, (RAM_Beep)
@@ -4222,16 +4222,16 @@ NonVBlankMode9_CopyFunction:
     jp nc, +
     djnz --
 +:  ei
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     and $06
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ret
 
 ; 11th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode10_MirrorFunction:
     exx
     xor a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     rra
     jp nc, _LABEL_3ACE_
     rra
@@ -4773,7 +4773,7 @@ NonVBlankMode11_MagnifyFunction:
     jp z, _LABEL_2D05_
     call _LABEL_3932_
     ld ix, $C15D
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     bit 2, a
     ret z
     bit 6, a
@@ -4858,7 +4858,7 @@ _LABEL_2CF6_:
 _LABEL_2D05_:
     set 7, (hl)
     ld a, $02
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ret
 
 _LABEL_2D0D_: ; magnify mode?
@@ -4868,7 +4868,7 @@ _LABEL_2D0D_: ; magnify mode?
       ret nz
     ex af, af'
     or $40
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     di
     ld a, ($C172)
     add a, a
@@ -5264,11 +5264,11 @@ Mode5_SquareGraphicBoardHandler:
       call CheckMenuButton
     exx
     ; Do nothing if we're drawing
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     bit 1, a
     ret nz
 
-    ld d, a ; RAM_ShapeDrawingState
+    ld d, a ; RAM_ActionStateFlags
     ; Make the cursor follow the pen
     ld a, b ; Pen Y
     ld (RAM_SpriteTable1.y + 0), a
@@ -5306,9 +5306,9 @@ Mode5_SquareGraphicBoardHandler:
     ld (RAM_SquareCorner1), de
 
     ; Set the flag to move on to the next stage
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     set 0, a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
 
     ; Write into the second cursor
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
@@ -5372,9 +5372,9 @@ push hl
 +:  ld (RAM_SquareCorner1), hl
     ld ($C070), de
     ; Enter "drawing mode"
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     set 1, a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ret
 
 ; 8th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
@@ -5391,7 +5391,7 @@ Mode6_CircleGraphicBoardHandler:
 +:    call CheckMenuButton
       ld a, CursorIndex_X
       call SetCursorIndex
-      ld hl, RAM_ShapeDrawingState
+      ld hl, RAM_ActionStateFlags
       bit 0, (hl)
       jp z, _LABEL_3206_
       bit 1, (hl)
@@ -5482,7 +5482,7 @@ _LABEL_323B_:
 ; 9th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode8_PaintGraphicBoardHandler:
       call CheckMenuButton
-      ld hl, RAM_ShapeDrawingState
+      ld hl, RAM_ActionStateFlags
       ld a, (hl)
       or a
       ret nz
@@ -5510,7 +5510,7 @@ Mode8_PaintGraphicBoardHandler:
 Mode9_CopyGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     bit 3, a
     ret nz
     bit 2, a
@@ -5543,9 +5543,9 @@ Mode9_CopyGraphicBoardHandler:
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     set 1, a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_SpriteTable1.y + 3), a
     add a, $07
@@ -5617,9 +5617,9 @@ _LABEL_332A_:
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     set 2, a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ld a, (RAM_SpriteTable1.y)
     ld ($C0C6), a
     ld a, (RAM_SpriteTable1.xn + 0)
@@ -5659,16 +5659,16 @@ _LABEL_3385_:
     ld a, (RAM_SpriteTable1.xn)
     add a, $07
     ld ($C0C9), a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     set 3, a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ret
 
 ; 11th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode10_MirrorGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     ld d, a
     rrca
     jp nc, _LABEL_3527_
@@ -5731,9 +5731,9 @@ Mode10_MirrorGraphicBoardHandler:
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     set 2, a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ld a, (RAM_SpriteTable1.y)
     ld ($C0C6), a
     ld a, (RAM_SpriteTable1.xn)
@@ -5771,9 +5771,9 @@ _LABEL_3469_:
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     set 1, a
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_SpriteTable1.y + 3), a
     add a, $07
@@ -5893,9 +5893,9 @@ _LABEL_3527_:
     ld a, (RAM_SpriteTable1.xn)
     add a, (hl)
     ld ($C170), a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     or $01
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ret
 
 Data_357F: ; $357F
@@ -5905,7 +5905,7 @@ Data_357F: ; $357F
 Mode11_MagnifyGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     bit 2, a
     jp nz, _LABEL_363C_
     ld c, $0F
@@ -5942,9 +5942,9 @@ Mode11_MagnifyGraphicBoardHandler:
     ret z
     ld a, 1
     ld (RAM_Beep), a
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     or $04
-    ld (RAM_ShapeDrawingState), a
+    ld (RAM_ActionStateFlags), a
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_SpriteTable1.y + 3), a
     add a, $08
@@ -5974,7 +5974,7 @@ Mode11_MagnifyGraphicBoardHandler:
     ld ($C172), a
     rlc c
     ld b, 0
-    ld hl, Data_365E
+    ld hl, Magnify_WindowLocations
     add hl, bc
     ld a, (hl)
     ld ($C162), a
@@ -5996,44 +5996,54 @@ _LABEL_363C_:
     ld a, CursorIndex_ZoomedPixel
     jp SetCursorIndex ; and ret
 
-+:  ld a, (RAM_ShapeDrawingState)
-    or $80
-    ld (RAM_ShapeDrawingState), a
++:  ld a, (RAM_ActionStateFlags)
+    or $80 ; Set high bit
+    ld (RAM_ActionStateFlags), a
     ret
 
-; Data from 365E to 3665 (8 bytes)
-Data_365E:
-.db $00 $00 $50 $00 $00 $70 $50 $70
+Magnify_WindowLocations:
+.db  0,   0
+.db 80,   0
+.db  0, 112
+.db 80, 112
 
 ; 15th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 SubmenuGraphicBoardHandler:
       call CheckMenuButton
     exx
-    ld a, $58
-    ld (RAM_SpriteTable1.xn), a
-    ld a, b
-    and $F8
-    cp $40
+    ; Sprite to 88, (y % 8) (in the range 64..72), menu arrow cursor
+    ld a, 88
+    ld (RAM_SpriteTable1.xn + 0), a
+    ld a, b ; Pen Y
+    and $F8 ; Modulo 8
+    cp 64 ; Minimum 64
     jp nc, +
-    ld a, $40
-+:  cp $48
+    ld a, 64
++:  cp 72
     jp c, +
-    ld a, $48
+    ld a, 72
 +:  ld (RAM_SpriteTable1.y), a
     ld b, a
     ld a, CursorIndex_MenuArrowRight
     call SetCursorIndex
-    bit 1, (hl)
+
+    ; Wait for button
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    
+    ; Figure out our index
     ld a, b
-    sub $40
+    sub 64
     jp z, +
-    ld a, $01
-+:  ld (RAM_SubmenuSelectionIndex), a
+    ld a, 1
++:  ld (RAM_SubmenuSelectionIndex), a ; 0 for top item, 1 for bottom one
+
     ld a, (RAM_CurrentMode)
-    set 6, a
+    set 6, a ; Set bit 6 (?)
     ld (RAM_CurrentMode), a
     ret
 
@@ -6377,7 +6387,7 @@ PenModeNotChanged:
     jp FillTiles2bpp ; and ret
 
 _LABEL_3932_:
-    ld a, (RAM_ShapeDrawingState)
+    ld a, (RAM_ActionStateFlags)
     and $07
     ret z
     cp $07
