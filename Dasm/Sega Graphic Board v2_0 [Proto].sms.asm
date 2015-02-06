@@ -2338,13 +2338,13 @@ NonVBlankMode0_DrawingFunction:
     or a
     jp nz, +
     ld a, (RAM_ButtonsPressed)
-    ld ($C06D), a
+    ld (RAM_ButtonsPressed_virtual), a ; use the real buttons
     bit 2, a
-    ld a, ($C08A)
-    ld ($C06B), a
+    ld a, (RAM_PenStyle)
+    ld (RAM_PenStyleForCurrentShape), a
     ld hl, (RAM_Pen_Backup)
     ld de, (RAM_Pen_Smoothed)
-    call nz, _LABEL_1CA1_
+    call nz, DrawLine
     ld a, (RAM_Pen_Smoothed.x)
     ld (RAM_Pen_Backup.x), a
     ld a, (RAM_Pen_Smoothed.y)
@@ -2353,46 +2353,58 @@ NonVBlankMode0_DrawingFunction:
     ret
 
 +:  di
-    ld a, (RAM_ButtonsPressed)
-    ld ($C06D), a
-    ld hl, (RAM_Pen_Smoothed)
-    exx
-    ld a, ($C08A)
-    ld ($C06B), a
-    call _LABEL_1D40_
-    ld a, (RAM_Pen_Smoothed.x)
-    ld (RAM_Pen_Backup.x), a
-    ld a, (RAM_Pen_Smoothed.y)
-    ld (RAM_Pen_Backup.y), a
+      ld a, (RAM_ButtonsPressed)
+      ld (RAM_ButtonsPressed_virtual), a
+      ld hl, (RAM_Pen_Smoothed)
+      exx
+      ld a, (RAM_PenStyle)
+      ld (RAM_PenStyleForCurrentShape), a
+      call DrawPenDotIfButtonPressed
+      ld a, (RAM_Pen_Smoothed.x)
+      ld (RAM_Pen_Backup.x), a
+      ld a, (RAM_Pen_Smoothed.y)
+      ld (RAM_Pen_Backup.y), a
     ei
     ret
 
-_LABEL_1CA1_:
-    ld c, $00
+DrawLine:
+    ; params: 
+    ; hl = x1,y1
+    ; de = x2,y2    
+    ; Somewhere in here is Bresenham's algorithm...
+    ld c, 0 ; 0 if x2>=x1, 1 otherwise.
     ld a, d
     sub h
     jp nc, +
     neg
-    ld c, $01
-+:  push bc
+    ld c, 1
++:  ; copy c, hl into shadow regs
+    push bc 
     push hl
-      exx
+    exx
     pop hl
     pop bc
     exx
-    ld d, a
+    ld d, a ; d = abs(x2-x1) = width
+
+    ; repeat for ys
     ld a, e
     sub l
-    jp c, _LABEL_1CF4_
-    ld e, a
-    ld a, d
-    sub e
+    jp c, ++
+    ; Whole separate chunk of code, to allow the inc later to be swapped for a dec
+    ; Everything else is the same between the two...
+    ld e, a ; e = abs(y2-y1) = height
+
+    ld a, d ; width
+    sub e   ; height
     jp c, +
+
+    ; Rectangle is wider than it is tall
     ld h, d
-    srl h
+    srl h     ; h = width / 2
     ld l, d
-    inc l
--:  call _LABEL_1D40_
+    inc l     ; l = height + 1
+-:  call DrawPenDotIfButtonPressed
     dec l
     ret z
     call _LABEL_1D32_
@@ -2407,27 +2419,27 @@ _LABEL_1CA1_:
     exx
     jp -
 
-+:  ld h, e
-    srl h
++:  ; Rectangle is taller than it is wide
+    ld h, e
+    srl h     ; h = width / 2
     ld l, e
-    inc l
--:  call _LABEL_1D40_
-    dec l
+    inc l     ; l = width + 1
+-:  call DrawPenDotIfButtonPressed
+    dec l ; counter
     ret z
     exx
-      inc l
+      inc l ; ++y
     exx
-    ld a, h
+    ld a, h ; width / 2
     sub d
     ld h, a
-    jp nc, -
+    jp nc, - ; repeat until either we run out of Y pixels, or we've drawn half the height?
     add a, e
     ld h, a
     call _LABEL_1D32_
     jp -
 
-_LABEL_1CF4_:
-    neg
+++: neg ; fix negative result
     ld e, a
     ld a, d
     sub e
@@ -2436,7 +2448,7 @@ _LABEL_1CF4_:
     srl h
     ld l, d
     inc l
--:  call _LABEL_1D40_
+-:  call DrawPenDotIfButtonPressed
     dec l
     ret z
     call _LABEL_1D32_
@@ -2455,7 +2467,7 @@ _LABEL_1CF4_:
     srl h
     ld l, e
     inc l
--:  call _LABEL_1D40_
+-:  call DrawPenDotIfButtonPressed
     dec l
     ret z
     exx
@@ -2473,142 +2485,149 @@ _LABEL_1CF4_:
 _LABEL_1D32_:
     ; If low bit of c' is 0, --h' else ++h'
     exx
-    bit 0, c
-    jp nz, +
-    inc h
-    jp ++
-+:  dec h
+      bit 0, c
+      jp nz, +
+      inc h
+      jp ++
++:    dec h
 ++: exx
     ret
 
 ; $1D3F
     ret ; Unused
 
-_LABEL_1D40_:
-    ld a, ($C06D)
-    bit 2, a
+DrawPenDotIfButtonPressed:
+    ld a, (RAM_ButtonsPressed_virtual) ; Do nothing if pen bit is not set
+    bit GraphicBoardButtonBit_Pen, a
     ret z
     exx
-    push bc
-    push hl
-      call _LABEL_1D50_
-    pop hl
-    pop bc
+      push bc
+      push hl
+        call DrawPenDot
+      pop hl
+      pop bc
     exx
     ret
 
-_LABEL_1D50_:
-    ld a, l
-    sub $3C
-    ld ($C067), a
+DrawPenDot:
+    ld a, l ; screen y?
+    sub 60 ; seems high
+    ld (RAM_PixelYPlus0), a ; y
     inc a
-    ld ($C069), a
+    ld (RAM_PixelYPlus1), a ; y + 1
     sub $02
-    ld ($C06A), a
-    ld a, h
-    sub $24
-    ld ($C063), a
+    ld (RAM_PixelYMinus1), a ; y - 1
+    ld a, h ; screen x?
+    sub 36 ; seems low?
+    ld (RAM_PixelXPlus0), a ; x
     inc a
-    ld ($C065), a
+    ld (RAM_PixelXPlus1), a ; x + 1
     sub $02
-    ld ($C066), a
-    ld a, ($C06B)
+    ld (RAM_PixelXMinus1), a ; x - 1
+
+    ld a, (RAM_PenStyleForCurrentShape)
     or a
     jp z, +
-    cp $01
+    cp 1
     jp z, ++
-    cp $02
+    cp 2
     jp z, +++
-    cp $03
-    jp z, ++
+    cp 3
+    jp z, ++ ; medium pen for erase
     ret
 
-+:  ld a, ($C063)
-    ld ($C064), a
-    ld a, ($C067)
-    ld ($C068), a
-    jp _LABEL_1E57_
++:  ; Draw one pixel (selected)
+    ld a, (RAM_PixelXPlus0)
+    ld (RAM_PixelXToDraw), a ; x
+    ld a, (RAM_PixelYPlus0)
+    ld (RAM_PixelYToDraw), a ; y
+    jp DrawPixel
 
-++: ld a, ($C063)
-    ld ($C064), a
-    ld a, ($C067)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C063)
-    ld ($C064), a
-    ld a, ($C069)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C065)
-    ld ($C064), a
-    ld a, ($C067)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C065)
-    ld ($C064), a
-    ld a, ($C069)
-    ld ($C068), a
-    jp _LABEL_1E57_
+++: ; Draw four pixels (top-left = selected)
+    ld a, (RAM_PixelXPlus0)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus0)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus0)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus1)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus0)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus1)
+    ld (RAM_PixelYToDraw), a
+    jp DrawPixel
 
-+++:ld a, ($C066)
-    ld ($C064), a
-    ld a, ($C06A)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C066)
-    ld ($C064), a
-    ld a, ($C067)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C066)
-    ld ($C064), a
-    ld a, ($C069)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C063)
-    ld ($C064), a
-    ld a, ($C06A)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C063)
-    ld ($C064), a
-    ld a, ($C067)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C063)
-    ld ($C064), a
-    ld a, ($C069)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C065)
-    ld ($C064), a
-    ld a, ($C06A)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C065)
-    ld ($C064), a
-    ld a, ($C067)
-    ld ($C068), a
-    call _LABEL_1E57_
-    ld a, ($C065)
-    ld ($C064), a
-    ld a, ($C069)
-    ld ($C068), a
-    jp _LABEL_1E57_ ; ### Unnecessary, could fall through
++++:; Draw 9 pixels (middle = selected)
+    ld a, (RAM_PixelXMinus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYMinus1)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXMinus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus0)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXMinus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus1)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus0)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYMinus1)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus0)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus0)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus0)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus1)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYMinus1)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus0)
+    ld (RAM_PixelYToDraw), a
+    call DrawPixel
+    ld a, (RAM_PixelXPlus1)
+    ld (RAM_PixelXToDraw), a
+    ld a, (RAM_PixelYPlus1)
+    ld (RAM_PixelYToDraw), a
+    jp DrawPixel ; ### Unnecessary, could fall through
 
-_LABEL_1E57_:
-    ld a, ($C068)
-    cp $90
-    ret nc
+DrawPixel:
+    ld a, (RAM_PixelYToDraw) ; y
+    cp DRAWING_AREA_HEIGHT_PIXELS
+    ret nc ; Do nothing if off the bottom
     ld b, a
-    ld a, ($C064)
-    cp $B0
+    ld a, (RAM_PixelXToDraw) ; x
+    cp DRAWING_AREA_WIDTH_PIXELS ; Do nothing if off the right
     ret nc
-    call CheckForReset
-    ld c, a
-    ld a, b
-    and $F8
-    ld h, 0 ; calculate de = a * 88
+
+    call CheckForReset ; since we may be in here a long time
+
+    ; Determine the tile for this pixel
+    ld c, a ; x
+    ld a, b ; y
+    and %11111000 ; Clear low three bits = round down to multiple of 8
+    ld h, 0 ; calculate de = a * 88. 88 = DRAWING_AREA_WIDTH_TILES * 4. 4 because 8px becomes 32 bytes in VRAM.
     ld l, a
     add hl, hl ; x2
     add hl, hl ; x4
@@ -2623,62 +2642,74 @@ _LABEL_1E57_:
     pop de
     add hl, de ; x64 + x16 + x8 = x88
     ex de, hl
+    ; Repeat for x
     ld a, c
-    and $F8
+    and %11111000
     LD_HL_A ; hl = a * 4 + de
     add hl, hl
     add hl, hl
     add hl, de
-    ld a, b
-    and $07
+    ; Now hl is the tile base address
+
+    ; Adjust for the address within the tile
+    ld a, b ; add 4 bytes per y pixel offset
+    and %00000111
     add a, a
     add a, a
     LD_DE_A
     add hl, de
     ex de, hl
+    ; Copy the 4 bytes for that row to RAM
     push bc
       ld hl, RAM_TileModificationBuffer
       ld bc, 4
       call CopyVRAMToRAM
     pop bc
+    ; Then calculate the x offset within the row
     ld a, c
-    and $07
+    and %00000111
     push de
-      ld hl, $1EDA
+      ; Get the bitmask for the pixel in question
+      ld hl, Table_BitInPixelRowFromX
       LD_DE_A
       add hl, de
       ld a, (hl)
       ld hl, RAM_TileModificationBuffer
-      ld e, a
+      ld e, a ; e = 1 for the pixel in question
       cpl
-      ld d, a
-      ld b, 4
-      ld c, $00
-      ld a, ($C06B)
-      cp $03
-      jp nc, _f
+      ld d, a ; d = 1 for every other pixel
+
+      ld b, 4 ; Number of bitplanes
+      ld c, 0 ; Palette index for erase
+      ld a, (RAM_PenStyleForCurrentShape)
+      cp 3 ; erase
+      jp nc, +
       ld a, (RAM_CurrentlySelectedPaletteIndex)
       ld c, a
-      and a
-__:   rrc c
-      ld a, (hl)
-      jp nc, +
+      and a ; clear carry
++:    
+-:    ; For each bitplane...
+      rrc c      ; Get the bit for this bitplane
+      ld a, (hl) ; Get the existing byte for this bitplane
+      jp nc, +   ; If the bit is 1, set the bit in the byte
       or e
       ld (hl), a
       jp ++
-+:    and d
++:    and d      ; ...else unset it
       ld (hl), a
-++:   inc hl
-      djnz _b
+++:   inc hl     ; Next byte
+      djnz -
     pop de
+    ; Write the row back to VRAM
     ld a, d
     or >VDPAddressMask_Write
     ld d, a
     ld hl, RAM_TileModificationBuffer
     ld bc, 4
-    jp RawDataToVRAM
+    jp RawDataToVRAM ; and ret
 
 ; Data from 1EDA to 1EE1 (8 bytes)
+Table_BitInPixelRowFromX: ; Table_BitInPixelRowFromX
 .db %10000000
 .db %01000000
 .db %00100000
@@ -2798,37 +2829,37 @@ NonVBlankMode5_SquareFunction:
     exx
     push hl
       di
-        ld a, ($C08A)
+        ld a, (RAM_PenStyle) ; Pen width
         ld b, a
         ld a, (RAM_SubmenuSelectionIndex)
         or a
-        jp z, + ; Line mode
+        jp z, + ; fill mode -> ignore (you can't "fill erase" a square)
         ld b, 0
 +:      ld a, b
-        ld ($C06B), a
-        ld a, $04
-        ld ($C06D), a
+        ld (RAM_PenStyleForCurrentShape), a
+        ld a, 1<<GraphicBoardButtonBit_Pen ; Simulate pen button bit
+        ld (RAM_ButtonsPressed_virtual), a
         ld iy, $C062
         ld h, (iy+13) ; hl = (RAM_SquareCorner1)
         ld l, (iy+12)
         ld d, h
-        ld e, (iy+14)
-        call _LABEL_1CA1_
+        ld e, (iy+14) ; de = bottom-right corner
+        call DrawLine
         ld h, (iy+13)
         ld l, (iy+14)
         ld d, (iy+15)
         ld e, l
-        call _LABEL_1CA1_
+        call DrawLine
         ld h, (iy+15)
         ld l, (iy+14)
         ld d, h
         ld e, (iy+12)
-        call _LABEL_1CA1_
+        call DrawLine
         ld h, (iy+15)
         ld l, (iy+12)
         ld d, (iy+13)
         ld e, l
-        call _LABEL_1CA1_
+        call DrawLine
         ld a, (RAM_SubmenuSelectionIndex)
         or a
         jp z, _LABEL_2079_
@@ -2933,7 +2964,7 @@ _LABEL_2085_:
     push de
     push hl
       ld e, l
-      call _LABEL_1CA1_
+      call DrawLine
     pop hl
     pop de
     pop bc
@@ -3115,9 +3146,9 @@ NonVBlankMode6_CircleAnd7_EllipseFunction:
     push hl
       ld a, ($C0AC)
       ld b, a
-      ld a, $04
-      ld ($C06D), a
-      ld a, ($C08A)
+      ld a, 1 << GraphicBoardButtonBit_Pen
+      ld (RAM_ButtonsPressed_virtual), a
+      ld a, (RAM_PenStyle)
       ld d, a
       ld a, (RAM_SubmenuSelectionIndex)
       ld e, a
@@ -3125,7 +3156,7 @@ NonVBlankMode6_CircleAnd7_EllipseFunction:
       jp z, +
       ld d, 0
 +:    ld a, d
-      ld ($C06B), a
+      ld (RAM_PenStyleForCurrentShape), a
       ld a, e
       ld de, (RAM_CircleEllipseCentre)
       ld hl, ($C0A8)
@@ -3707,7 +3738,7 @@ _LABEL_259B_:
       ld a, l
       ld l, e
       ld h, a
-      call _LABEL_1D50_
+      call DrawPenDot
     pop hl
     pop de
     pop bc
@@ -3723,7 +3754,7 @@ push af
 +:    ex af, af'
       ld d, l
       ld hl, (RAM_CircleEllipseCentre)
-      call _LABEL_1CA1_
+      call DrawLine
     pop hl
     pop de
     pop bc
@@ -3793,7 +3824,7 @@ NonVBlankMode8_PaintFunction:
     cp b
     jp z, +
     xor a
-    ld ($C06B), a
+    ld (RAM_PenStyleForCurrentShape), a
     di
     call _LABEL_2646_
     ei
@@ -3997,7 +4028,7 @@ _LABEL_2792_:
       ld hl, RAM_TileModificationBuffer
       push hl
         and $07
-        ld de, $1EDA
+        ld de, Table_BitInPixelRowFromX
         LD_HL_A
         add hl, de
         ld d, (hl)
@@ -4131,10 +4162,10 @@ _LABEL_2850_:
     push hl
     push bc
       ld a, d
-      ld ($C068), a
+      ld (RAM_PixelYToDraw), a
       ld a, e
-      ld ($C064), a
-      call _LABEL_1E57_
+      ld (RAM_PixelXToDraw), a
+      call DrawPixel
     pop bc
     pop hl
     pop de
@@ -4801,11 +4832,11 @@ NonVBlankMode11_MagnifyFunction:
     bit 2, a
     ret z
     di
-    ld a, ($C08A)
+    ld a, (RAM_PenStyle)
     cp $03
     jp z, +
     ld a, $01
-+:  ld ($C06B), a
++:  ld (RAM_PenStyleForCurrentShape), a
     push hl
       ld a, $24
       add a, h
@@ -4813,7 +4844,7 @@ NonVBlankMode11_MagnifyFunction:
       ld a, $3C
       add a, l
       ld l, a
-      call _LABEL_1D50_
+      call DrawPenDot
     pop hl
     ld a, l
     sub (ix+5)
@@ -4830,17 +4861,17 @@ NonVBlankMode11_MagnifyFunction:
     add a, $24
     ld h, a
     xor a
-    ld ($C06B), a
+    ld (RAM_PenStyleForCurrentShape), a
     ld a, (RAM_CurrentlySelectedPaletteIndex)
     ld b, a
     push af
-      ld a, ($C08A)
+      ld a, (RAM_PenStyle)
       cp $03
       jp nz, +
       ld b, $00
 +:    ld a, b
       ld (RAM_CurrentlySelectedPaletteIndex), a
-      call _LABEL_1D50_
+      call DrawPenDot
     pop af
     ld (RAM_CurrentlySelectedPaletteIndex), a
     ei
@@ -5332,45 +5363,47 @@ push hl
 
     ld hl, (RAM_SquareCorner1)
     ; Calculate the width from the sprites' positions
-    ld a, (RAM_SpriteTable1.xn + 3*2)
+    ld a, (RAM_SpriteTable1.xn + 3*2) ; x1
     ld b, a
-    ld a, (RAM_SpriteTable1.xn + 0)
+    ld a, (RAM_SpriteTable1.xn + 0)   ; x2
     sub b
-    sub 7 ; Account for sprite widths?
+    sub 7 ; Account for sprite widths
     ld b, a
-    add a, h ;
-    ld ($C071), a
+    add a, h ; Add to corner1.x. No need to fix overflow, since the maximum width is 256.
+    ld (RAM_SquareCorner2.x), a
     ; Likewise for the height
-    ld a, (RAM_SpriteTable1.y + 3)
+    ld a, (RAM_SpriteTable1.y + 3) ; y1
     ld d, a
-    ld a, (RAM_SpriteTable1.y)
-    sub 7
+    ld a, (RAM_SpriteTable1.y) ; y2
+    sub 7 ; Account for the first sprite's height
     sub d
     ld d, a
     push af
       add a, l
-      ld ($C070), a
+      ld (RAM_SquareCorner2.y), a
     pop af
-    ld a, d
+    ld a, d ; unnecessary?
     jp nc, +
-    neg
-+:  ld ($C072), a
+    neg ; fix overflow 
++:  ld (RAM_SquareHeight), a
+
+    ; Juggle the corners if they are not top-left, bottom-right
     ld hl, (RAM_SquareCorner1)
-    ld de, ($C070)
-    ld a, l
+    ld de, (RAM_SquareCorner2)
+    ld a, l ; compare y
     cp e
     jp c, +
-    ld b, l
+    ld b, l ; swap if wrong way round
     ld l, e
     ld e, b
-+:  ld a, h
++:  ld a, h ; compare x
     cp d
-    jp c, +
+    jp c, + ; swap if wrong way round
     ld b, h
     ld h, d
     ld d, b
 +:  ld (RAM_SquareCorner1), hl
-    ld ($C070), de
+    ld (RAM_SquareCorner2), de
     ; Enter "drawing mode"
     ld a, (RAM_ActionStateFlags)
     set 1, a
@@ -6073,7 +6106,7 @@ _LABEL_36A5_:
     jp z, ++
     cp $04
     jp z, +++
-    ld ($C08A), a
+    ld (RAM_PenStyle), a
     ld a, 1
     ld (RAM_Beep), a
     jp ++
@@ -6092,11 +6125,11 @@ _LABEL_36A5_:
     ld ($C242), a
     ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C08A)
+    ld a, (RAM_PenStyle)
     cp $03
     jp nz, ++
     xor a
-    ld ($C08A), a
+    ld (RAM_PenStyle), a
 ++: ld a, $A8
     ld ($C241), a
     ld a, CursorIndex_PaletteSelect
@@ -6278,7 +6311,7 @@ PenPressed:
 
 UpdatePenGraphics:
     ld ix, RAM_PenMode
-    ld a, ($C08A) ; Desired new pen mode
+    ld a, (RAM_PenStyle) ; Desired new pen mode
     cp (ix+PenMode.Current)
     jp z, PenModeNotChanged
 
@@ -6300,28 +6333,28 @@ UpdatePenGraphics:
 .dw DrawThickPenOn
 .dw DrawEraserOn
 
-; 1st entry of Jump Table from 388C (indexed by $C08A)
+; 1st entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawThinPenOn:
     set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19d
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thin_On
     jp FillTiles2bpp
 
-; 2nd entry of Jump Table from 388C (indexed by $C08A)
+; 2nd entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawMediumPenOn:
     set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19e
     LD_HL_PEN_TILE_GRAPHICS PenTile_Medium_On
     jp FillTiles2bpp
 
-; 3rd entry of Jump Table from 388C (indexed by $C08A)
+; 3rd entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawThickPenOn:
     set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $19f
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thick_On
     jp FillTiles2bpp
 
-; 4th entry of Jump Table from 388C (indexed by $C08A)
+; 4th entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawEraserOn:
     set 0, (ix+PenMode.IsSet)
     LD_DE_TILE $1a0

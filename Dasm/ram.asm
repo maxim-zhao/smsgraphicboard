@@ -56,21 +56,20 @@ RAM_ColourSelectionStartValue               db ; $c053 Palette value for start o
 RAM_NeedToUpdatePalette                     db ; $c054 Non-zero when we need to update the palette - in colour mode only
 RAM_unusedC055                              dsb 13
 RAM_c062 db ; $c062
-RAM_c063 db ; $c063
-RAM_c064 db ; $c064
-RAM_c065 db ; $c065
-RAM_c066 db ; $c066
-RAM_c067 db ; $c067
-RAM_c068 db ; $c068
-RAM_c069 db ; $c069
-RAM_c06a db ; $c06a
-RAM_c06b db ; $c06b
+RAM_PixelXPlus0                             db ; $c063 Used during drawing of the pen
+RAM_PixelXToDraw                            db ; $c064
+RAM_PixelXPlus1                             db ; $c065
+RAM_PixelXMinus1                            db ; $c066
+RAM_PixelYPlus0                             db ; $c067
+RAM_PixelYToDraw                            db ; $c068
+RAM_PixelYPlus1                             db ; $c069
+RAM_PixelYMinus1                            db ; $c06a
+RAM_PenStyleForCurrentShape                 db ; $c06b Copy of RAM_PenStyle but zero for fill mode
 RAM_CurrentlySelectedPaletteIndex           db ; $c06c Index of currently selected item in the top palette
-RAM_c06d db ; $c06d
-RAM_SquareCorner1                           dw ; $c06e Coordinates of first corner of square (offset a bit?)
-RAM_c070 db ; $c070
-RAM_c071 db ; $c071
-RAM_c072 db ; $c072
+RAM_ButtonsPressed_virtual                  db ; $c06d Pen bits for the purposes of the current operation (e.g. pen button maintained during drawing)
+RAM_SquareCorner1                           instanceof XY ; $c06e Coordinates of first corner of square
+RAM_SquareCorner2                           instanceof XY ; $c070 Coordinates of second corner of square
+RAM_SquareHeight                            db ; $c072 Height of square in pixels
 RAM_TileModificationBuffer                  dsb 15 ; $C073 ; 4b+?
 RAM_c082 db ; $c082
 RAM_CurrentCursorIndex                      db ; $C083 Low bits are the cursor index, high bits are ??? TODO
@@ -79,7 +78,7 @@ RAM_CursorColourCycle_Delay                 db ; $C086 Counter for frame between
 RAM_CursorColourCycle_Index                 db ; $C087 Current colour index, must be following previous
 RAM_ButtonStateShownOnScreen                db ; $C088 Holds the button bits as last drawn to the screen
 RAM_ActionStateFlags                        db ; $c089 Bits indicate the phase of drawing. Bit 0 unset = step 1, set = step 2. Bit 1 set = doing it.
-RAM_c08a db ; $c08a
+RAM_PenStyle                                db ; $c08a 0-2 = thin, medium, wide; 3 = erase
 RAM_unusedC08B dsb 2
 RAM_c08d dw ; $c08d Yet another pen position backup?
 RAM_c08f dw ; $c08f Yet another pen position backup?

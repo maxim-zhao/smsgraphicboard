@@ -117,3 +117,11 @@
 .define PSG_Channel3 3<<5
 .define PSG_Tone     %00000000
 .define PSG_Volume   %00010000
+
+
+
+
+; Program-specific stuff - could split out?
+.define DRAWING_AREA_WIDTH_PIXELS 176 ; $b0
+.define DRAWING_AREA_HEIGHT_PIXELS 144 ; $90
+.define DRAWING_AREA_WIDTH_TILES DRAWING_AREA_WIDTH_PIXELS/8 ; $b0
