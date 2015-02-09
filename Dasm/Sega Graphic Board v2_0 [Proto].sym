@@ -230,7 +230,12 @@
 0000:1c11 EraseMenuText
 0000:1c4a NonVBlankMode0_DrawingFunction
 0000:1ca1 DrawLine
-0000:1d32 _LABEL_1D32_
+0000:1cb8 _DrawLine_BottomToTop
+0000:1cd9 _DrawLine_BottomToTop_Steep
+0000:1cf4 _DrawLine_TopToBottom
+0000:1cfc _DrawLine_TopToBottom_Shallow
+0000:1d17 _DrawLine_TopToBottom_Steep
+0000:1d32 _DrawLine_NextX
 0000:1d40 DrawPenDotIfButtonPressed
 0000:1d50 DrawPenDot
 0000:1e57 DrawPixel

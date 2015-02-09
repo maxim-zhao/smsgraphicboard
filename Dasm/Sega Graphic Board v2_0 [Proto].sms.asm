@@ -2370,80 +2370,87 @@ NonVBlankMode0_DrawingFunction:
 DrawLine:
     ; params: 
     ; hl = x1,y1
-    ; de = x2,y2    
-    ; Somewhere in here is Bresenham's algorithm...
+    ; de = x2,y2
+    ; Bresenham's line drawing algorithm...
+
+    ; First we decide if we are drawing left-to-right or right-to-left...
     ld c, 0 ; 0 if x2>=x1, 1 otherwise.
     ld a, d
     sub h
     jp nc, +
     neg
     ld c, 1
-+:  ; copy c, hl into shadow regs
++:  ; Put the result in c', and put hl into hl' - that's our drawing x, y.
     push bc 
     push hl
     exx
     pop hl
     pop bc
     exx
-    ld d, a ; d = abs(x2-x1) = width
+    ld d, a ; d = abs(x2-x1) = dx
 
-    ; repeat for ys
+    ; Next, decide if we are draing bottom-top-top or top-to-bottom.
     ld a, e
     sub l
-    jp c, ++
-    ; Whole separate chunk of code, to allow the inc later to be swapped for a dec
-    ; Everything else is the same between the two...
-    ld e, a ; e = abs(y2-y1) = height
+    jp c, _DrawLine_TopToBottom
 
-    ld a, d ; width
-    sub e   ; height
-    jp c, +
+_DrawLine_BottomToTop:
+    ; (The code for top-to-bottom is almost identical, later.)
 
-    ; Rectangle is wider than it is tall
+    ld e, a ; e = abs(y2-y1) = dy
+
+    ld a, d ; Shallow or steep line?
+    sub e
+    jp c, _DrawLine_BottomToTop_Steep
+
+    ; Rectangle is wider than it is tall - shallow line, step in x before y
     ld h, d
-    srl h     ; h = width / 2
+    srl h     ; h = dx / 2 = initial "error" accumulator. We subtract dy each time we draw a pixel; when this hits zero, we add on dx and move over by a pixel in the y axis.
     ld l, d
-    inc l     ; l = height + 1
+    inc l     ; l = dx + 1 = pixel count in the x axis
+-:  call DrawPenDotIfButtonPressed
+    dec l     ; decrement pixel counter
+    ret z
+    call _DrawLine_NextX ; Move left or right by 1 pixel
+    ld a, h   ; Update "error" accumulator:
+    sub e     ; - subtract dy
+    ld h, a
+    jp nc, -
+    add a, d  ; - If we hit zero, add dx back on again
+    ld h, a
+    exx
+      inc l   ;   - And increment y
+    exx
+    jp -
+
+_DrawLine_BottomToTop_Steep:    
+    ; Rectangle is taller than it is wide - steep line, step in y before x
+    ld h, e
+    srl h     ; h = dy / 2 = initial "error" accumulator
+    ld l, e
+    inc l     ; l = dy + 1 = pixel count
 -:  call DrawPenDotIfButtonPressed
     dec l
     ret z
-    call _LABEL_1D32_
-    ld a, h
-    sub e
-    ld h, a
-    jp nc, -
-    add a, d
-    ld h, a
     exx
       inc l
     exx
-    jp -
-
-+:  ; Rectangle is taller than it is wide
-    ld h, e
-    srl h     ; h = width / 2
-    ld l, e
-    inc l     ; l = width + 1
--:  call DrawPenDotIfButtonPressed
-    dec l ; counter
-    ret z
-    exx
-      inc l ; ++y
-    exx
-    ld a, h ; width / 2
-    sub d
+    ld a, h
+    sub d     
     ld h, a
-    jp nc, - ; repeat until either we run out of Y pixels, or we've drawn half the height?
+    jp nc, -
     add a, e
     ld h, a
-    call _LABEL_1D32_
+    call _DrawLine_NextX
     jp -
 
-++: neg ; fix negative result
+_DrawLine_TopToBottom:    
+    neg ; fix negative dy
     ld e, a
     ld a, d
     sub e
-    jp c, +
+    jp c, _DrawLine_TopToBottom_Steep
+_DrawLine_TopToBottom_Shallow:
     ld h, d
     srl h
     ld l, d
@@ -2451,7 +2458,7 @@ DrawLine:
 -:  call DrawPenDotIfButtonPressed
     dec l
     ret z
-    call _LABEL_1D32_
+    call _DrawLine_NextX
     ld a, h
     sub e
     ld h, a
@@ -2463,7 +2470,8 @@ DrawLine:
     exx
     jp -
 
-+:  ld h, e
+_DrawLine_TopToBottom_Steep:
+    ld h, e
     srl h
     ld l, e
     inc l
@@ -2479,11 +2487,13 @@ DrawLine:
     jp nc, -
     add a, e
     ld h, a
-    call _LABEL_1D32_
+    call _DrawLine_NextX
     jp -
 
-_LABEL_1D32_:
+_DrawLine_NextX:
     ; If low bit of c' is 0, --h' else ++h'
+    ; This is used to move over by one pixel in the shorter axis, e.g. for a shallow line, h' is the y coordinate.
+    ; c' lets us know if we're drawing upwards or downwards.
     exx
       bit 0, c
       jp nz, +
