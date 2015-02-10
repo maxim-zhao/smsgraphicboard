@@ -16,6 +16,28 @@
   xn dsb 128
 .endst
 
+.struct DrawingData
+  c062                          db ; $c062 unknown
+  PixelXPlus0                   db ; $c063 Used during drawing of the pen
+  PixelXToDraw                  db ; $c064
+  PixelXPlus1                   db ; $c065
+  PixelXMinus1                  db ; $c066
+  PixelYPlus0                   db ; $c067
+  PixelYToDraw                  db ; $c068
+  PixelYPlus1                   db ; $c069
+  PixelYMinus1                  db ; $c06a
+  PenStyleForCurrentShape       db ; $c06b Copy of RAM_PenStyle but zero for fill mode
+  CurrentlySelectedPaletteIndex db ; $c06c Index of currently selected item in the top palette
+  ButtonsPressed_virtual        db ; $c06d Pen bits for the purposes of the current operation (e.g. pen button maintained during drawing)
+  SquareCorner1                 dsb 0 ; $c06e Coordinates of first corner of square (.dw doesn't work here)
+  SquareCorner1_y               db
+  SquareCorner1_x               db
+  SquareCorner2                 dsb 0 ; $c070 Coordinates of second corner of square
+  SquareCorner2_y               db
+  SquareCorner2_x               db
+  SquareHeight                  db ; $c072 Height of square in pixels
+.endst
+
 .enum $c000 asc export
 RAM_ResetButton1                            db ; $c000 Currently pressed value
 RAM_ResetButton2                            db ; $c001 Positive edge signal
@@ -55,21 +77,7 @@ RAM_Palette                                 dsb 17 ; $C042
 RAM_ColourSelectionStartValue               db ; $c053 Palette value for start of 8-colour palette used when choosing new colours
 RAM_NeedToUpdatePalette                     db ; $c054 Non-zero when we need to update the palette - in colour mode only
 RAM_unusedC055                              dsb 13
-RAM_c062 db ; $c062
-RAM_PixelXPlus0                             db ; $c063 Used during drawing of the pen
-RAM_PixelXToDraw                            db ; $c064
-RAM_PixelXPlus1                             db ; $c065
-RAM_PixelXMinus1                            db ; $c066
-RAM_PixelYPlus0                             db ; $c067
-RAM_PixelYToDraw                            db ; $c068
-RAM_PixelYPlus1                             db ; $c069
-RAM_PixelYMinus1                            db ; $c06a
-RAM_PenStyleForCurrentShape                 db ; $c06b Copy of RAM_PenStyle but zero for fill mode
-RAM_CurrentlySelectedPaletteIndex           db ; $c06c Index of currently selected item in the top palette
-RAM_ButtonsPressed_virtual                  db ; $c06d Pen bits for the purposes of the current operation (e.g. pen button maintained during drawing)
-RAM_SquareCorner1                           instanceof XY ; $c06e Coordinates of first corner of square
-RAM_SquareCorner2                           instanceof XY ; $c070 Coordinates of second corner of square
-RAM_SquareHeight                            db ; $c072 Height of square in pixels
+RAM_DrawingData                             instanceof DrawingData ; $c062 A bunch of variables, referenced using index registers starting at this address
 RAM_TileModificationBuffer                  dsb 15 ; $C073 ; 4b+?
 RAM_c082 db ; $c082
 RAM_CurrentCursorIndex                      db ; $C083 Low bits are the cursor index, high bits are ??? TODO
@@ -82,9 +90,13 @@ RAM_PenStyle                                db ; $c08a 0-2 = thin, medium, wide;
 RAM_unusedC08B dsb 2
 RAM_c08d dw ; $c08d Yet another pen position backup?
 RAM_c08f dw ; $c08f Yet another pen position backup?
-RAM_unusedC091 dsb 25
+RAM_unusedC091 dsb 19
+RAM_c0a4 dw; $c0a4
+RAM_c0a6 dw; $c0a6
+RAM_EllipseRatio                            dw ; $c0a8 Fixed-point ellipse squashed-ness factor - $0100 = a circle
 RAM_CircleEllipseCentre                     dw ; $c0aa X, Y coordinate of the centre of a circle or ellipse
-RAM_unusedC0ac dsb 14
+RAM_EllipseMinorRadius                      db ; $c0ac Circle radius, or minor radius for ellipse
+RAM_unusedC0ad dsb 13
 RAM_SubmenuSelectionIndex                   db ; $c0ba Index of item last selected in a submenu
 RAM_BytesPerRow                             dw ; $c0bb Used during RAM<->VRAM tile copies
 RAM_unusedc0bd dsb 1
