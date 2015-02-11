@@ -80,6 +80,17 @@ Mode17_EraseConfirmationMenu db
 
 .define ModeHighBit 1<<7
 
+.enum 0
+VBlankFunctionControl_DrawingUIEnabled db
+VBlankFunctionControl_ReadGraphicBoard db
+VBlankFunctionControl_TitleScreen_UpdateText db
+VBlankFunctionControl_bit3 db ; Unused?
+VBlankFunctionControl_bit4 db
+VBlankFunctionControl_bit5 db
+VBlankFunctionControl_bit6 db
+VBlankFunctionControl_TitleScreen db
+.ende
+
 .bank 0 slot 0
 .org $0000
 FullReset:
@@ -163,7 +174,7 @@ Start_AfterRAMClear:
     out (Port_IOPortControl), a
 
     ei
-    ld a, $01
+    ld a, 1<<VBlankFunctionControl_DrawingUIEnabled
     call SetVBlankFunctionAndWait
 
     di
@@ -246,7 +257,7 @@ Start_AfterRAMClear:
 
     ; Main loop
 -:  ei
-    ld a, $03
+    ld a, 1<<VBlankFunctionControl_DrawingUIEnabled + 1<<VBlankFunctionControl_ReadGraphicBoard
     call SetVBlankFunctionAndWait
     call CallNonVBlankModeGraphicBoardHandler
     call CallNonVBlankModeSecondFunction
@@ -862,10 +873,10 @@ InterruptHandlerImpl:
       ld a, (RAM_VBlankFunctionControl)
       or a
       jp z, VBlank_CheckResetAndExit
-      bit 7, a
+      bit VBlankFunctionControl_TitleScreen, a
       jp nz, VBlank_TitleScreen ; Bit 7 set -> we are in the title screen, jump to a specialised handler
       rrca
-      jp nc, + ; Bit 0 set -> ???
+      jp nc, + ; Bit 0 set -> we are in the main program
 
       ; Regular VBlank
       call CopySpriteTable2ToVRAM
@@ -915,12 +926,12 @@ InterruptHandlerImpl:
 
       call UpdateStatusBarText
       ld a, (RAM_VBlankFunctionControl)
-      bit 1, a
+      bit VBlankFunctionControl_ReadGraphicBoard, a
       jp z, +
       push af
         call ReadGraphicBoard
       pop af
-+:    bit 0, a
++:    bit VBlankFunctionControl_DrawingUIEnabled, a
       jp z, +
       call UpdateButtonGraphics
       call UpdatePenGraphics
@@ -932,7 +943,7 @@ VBlank_CheckResetAndExit:
       in a, (Port_IOPort2)
       ld hl, RAM_ResetButton1
       cpl
-      and $10 ; check for reset button
+      and 1<<4 ; check for reset button
       ld c, a
       xor (hl)
       ld (hl), c
@@ -1004,11 +1015,11 @@ VBlank_TitleScreen:
     push af
       call TitleScreenAnimationVBlankEntry ; Always update title screen animation
     pop af
-    bit 1, a ; Bit 1 set -> read graphic board
+    bit VBlankFunctionControl_ReadGraphicBoard, a ; Bit 1 set -> read graphic board
     push af
       call nz, ReadGraphicBoard
     pop af
-    bit 2, a ; Bit 2 set -> update title screen text
+    bit VBlankFunctionControl_TitleScreen_UpdateText, a ; Bit 2 set -> update title screen text
     call nz, TitleScreenTextUpdate
     jp VBlank_CheckResetAndExit
 
@@ -1080,9 +1091,9 @@ TitleScreen: ; $865
     in a, (Port_IOPort1)
     and %11101111 ; $EF ; Ignore TL
     cp  %11100000 ; $E0 ; Expect UDLR lines low, rest high
-    ld a, $8A
+    ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_bit3 + 1<<VBlankFunctionControl_ReadGraphicBoard ; $8A
     jp z, +
-    ld a, $88
+    ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_bit3
 +:  ld ($C15D), a ; gets either $8a or $88 accordingly
 
     ld b, $00   ; Draw into tilemap for splash screen animation
@@ -1115,7 +1126,7 @@ TitleScreen: ; $865
       bit 0, (ix+1) ; $c15e
       jp z, TitleScreenAnimate_Bit0Zero ; Blinds slide animation
       bit 1, (ix+1) ; $c15e
-      jp z, TitleScreenAnimate_Bit1Zero ; Piel slide/flip animation
+      jp z, TitleScreenAnimate_Bit1Zero ; Pixel slide/flip animation
     inc sp ; Discard loop address - could have popped it...
     inc sp
     di
@@ -1157,7 +1168,7 @@ CheckForGraphicsBoard:
     ld (RAM_TitleScreenTextLocation), de
     ld bc, 20 | (12<<8)
     ld (RAM_TitleScreenTextLength), bc ; also sets RAM_TitleScreenTextFlashSpeed
-    ld a, $84
+    ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_TitleScreen_UpdateText
     call SetVBlankFunctionAndWait
 
     ; decrement timeout counter
@@ -1176,7 +1187,7 @@ GraphicsBoardDetected:
     ld (RAM_TitleScreenTextLocation), de
     ld bc, 12 | (32 << 8)
     ld (RAM_TitleScreenTextLength), bc ; also sets RAM_TitleScreenTextFlashSpeed
--:  ld a, $86
+-:  ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_TitleScreen_UpdateText + 1<<VBlankFunctionControl_ReadGraphicBoard
     call SetVBlankFunctionAndWait
 
     ; check the board again
@@ -4984,7 +4995,7 @@ NonVBlankMode11_MagnifyFunction:
     sub $28
     ld h, a
     ld a, (RAM_ButtonsPressed)
-    bit 2, a
+    bit GraphicBoardButtonBit_Pen, a
     ret z
     di
     ld a, (RAM_PenStyle)
@@ -5745,7 +5756,7 @@ Mode9_CopyGraphicBoardHandler:
 +:  ld (RAM_SpriteTable1.xn + 0), a
     ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
-    bit 1, (hl)
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
     ld a, 1
     ld (RAM_Beep), a
