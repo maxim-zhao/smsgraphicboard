@@ -17,7 +17,7 @@
 .endst
 
 .struct DrawingData
-  c062                          db ; $c062 unknown
+  c062                          db ; $c062 0 for lines, 1 for dots?
   PixelXPlus0                   db ; $c063 Used during drawing of the pen
   PixelXToDraw                  db ; $c064
   PixelXPlus1                   db ; $c065
@@ -90,9 +90,10 @@ RAM_PenStyle                                db ; $c08a 0-2 = thin, medium, wide;
 RAM_unusedC08B dsb 2
 RAM_c08d dw ; $c08d Yet another pen position backup?
 RAM_c08f dw ; $c08f Yet another pen position backup?
-RAM_unusedC091 dsb 19
-RAM_c0a4 dw; $c0a4
-RAM_c0a6 dw; $c0a6
+RAM_unusedC091 dsb 17
+RAM_EllipseCurrentX                         dw ; $c0a2 Circle current point x
+RAM_EllipseCurrentY                         dw ; $c0a4 Circle current point y
+RAM_EllipseRadiusError                      dw ; $c0a6 Part of circle drawing algorithm
 RAM_EllipseRatio                            dw ; $c0a8 Fixed-point ellipse squashed-ness factor - $0100 = a circle
 RAM_CircleEllipseCentre                     dw ; $c0aa X, Y coordinate of the centre of a circle or ellipse
 RAM_EllipseMinorRadius                      db ; $c0ac Circle radius, or minor radius for ellipse

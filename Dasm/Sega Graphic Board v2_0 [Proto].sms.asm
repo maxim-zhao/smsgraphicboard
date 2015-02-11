@@ -2532,14 +2532,14 @@ DrawPenDot:
     ld (RAM_DrawingData.PixelYPlus0), a ; y
     inc a
     ld (RAM_DrawingData.PixelYPlus1), a ; y + 1
-    sub $02
+    sub 2
     ld (RAM_DrawingData.PixelYMinus1), a ; y - 1
     ld a, h ; screen x?
     sub 36 ; seems low?
     ld (RAM_DrawingData.PixelXPlus0), a ; x
     inc a
     ld (RAM_DrawingData.PixelXPlus1), a ; x + 1
-    sub $02
+    sub 2
     ld (RAM_DrawingData.PixelXMinus1), a ; x - 1
 
     ld a, (RAM_DrawingData.PenStyleForCurrentShape)
@@ -3270,11 +3270,11 @@ NonVBlankMode6_CircleAnd7_EllipseFunction:
     ret
 
 DrawEllipse:
-    ; Inputs:
-    ; a = pen style
-    ; b = minor radius
-    ; de = centre coordinates
-    ; hl = ratio of radii (ry/rx), *256
+; Inputs:
+; a = pen style
+; b = minor radius
+; de = centre coordinates
+; hl = ratio of radii (ry/rx), *256
     
       ex af, af' ; Save pen style for later
 
@@ -3291,6 +3291,7 @@ DrawEllipse:
       jp z, DrawEllipse_Circle
 
       ; It's an ellipse
+      ; Wide or tall?
       ld a, h
       or a
       jp z, DrawEllipse_Wide
@@ -3307,50 +3308,61 @@ DrawEllipse:
       jp DrawEllipse_Tall
 
 DrawEllipse_Circle:      
+; Inputs:
+; a' = pen style
+; b = minor radius
+; de = centre coordinates
+; hl = ratio of radii (ry/rx), *256
       ld l, e
       ld h, 0
-      ld ($C0A4), hl ; Circle centre as 16 bits?
-      ld l, d
-      ld e, b
+      ld (RAM_EllipseCurrentY), hl ; Centre y as 16 bits
+      ld l, d ; Centre x
+      ld e, b ; Radius ("x")
       ld d, h ; = 0
       add hl, de
-      ld ($C0A2), hl ; Drawing point as 16 bits?
-      ld bc, 0       ; ???
+      ld (RAM_EllipseCurrentX), hl ; Initial x point as 16 bits
+      ld bc, 0       ; y
       ld hl, 0
-      ld ($C0A6), hl ; ???
--:    call _LABEL_259B_
-      ld hl, ($C0A6)
-      inc hl
+      ld (RAM_EllipseRadiusError), hl ; radiusError
+      
+      ; First segment: upper-right quadrant
+-:    call Ellipse_DrawPoint ; Draw a point
+      ld hl, (RAM_EllipseRadiusError)  ; radiusError +=...
+      inc hl          ; ...1
       or a
-      sbc hl, de
+      sbc hl, de      ; ...-x
       or a
-      sbc hl, bc
+      sbc hl, bc      ; ...-y
       jp m, +
-      add hl, bc
+      ; Didn't overflow
+      add hl, bc      ; ...+y
       or a
-      sbc hl, de
-      ld ($C0A6), hl
-      dec de
-      ld hl, ($C0A2)
+      sbc hl, de      ; ...-x
+      ld (RAM_EllipseRadiusError), hl  ; So overall radiusError += 1-2x
+      dec de          ; --x
+      ld hl, (RAM_EllipseCurrentX)
       dec hl
-      ld ($C0A2), hl
+      ld (RAM_EllipseCurrentX), hl
       jp ++
 
-+:    add hl, de
++:    ; Overflowed
+      add hl, de      ; ...+x
       or a
-      sbc hl, bc
-      ld ($C0A6), hl
-      dec bc
-      ld hl, ($C0A4)
+      sbc hl, bc      ; ...-y
+      ld (RAM_EllipseRadiusError), hl ; So overall radiusError += 1-2y
+      dec bc          ; ++y
+      ld hl, (RAM_EllipseCurrentY)
       dec hl
-      ld ($C0A4), hl
+      ld (RAM_EllipseCurrentY), hl
 
-++:   ld a, d
+++:   ld a, d ; Repeat until de = 0
       or e
       jp nz, -
 
--:    call _LABEL_259B_
-      ld hl, ($C0A6)
+      ; Second segment: upper-left quadrant
+      ; Similar to before, but with some things swapped around
+-:    call Ellipse_DrawPoint
+      ld hl, (RAM_EllipseRadiusError)
       inc hl
       add hl, bc
       or a
@@ -3360,26 +3372,27 @@ DrawEllipse_Circle:
       sbc hl, bc
       or a
       sbc hl, de
-      ld ($C0A6), hl
+      ld (RAM_EllipseRadiusError), hl
       dec de
-      ld hl, ($C0A2)
+      ld hl, (RAM_EllipseCurrentX)
       dec hl
-      ld ($C0A2), hl
+      ld (RAM_EllipseCurrentX), hl
       jp ++
 
 +:    add hl, bc
       add hl, de
-      ld ($C0A6), hl
+      ld (RAM_EllipseRadiusError), hl
       inc bc
-      ld hl, ($C0A4)
+      ld hl, (RAM_EllipseCurrentY)
       inc hl
-      ld ($C0A4), hl
+      ld (RAM_EllipseCurrentY), hl
 ++:   ld a, b
       or c
       jp nz, -
 
--:    call _LABEL_259B_
-      ld hl, ($C0A6)
+      ; Third segment: lower-left quadrant
+-:    call Ellipse_DrawPoint
+      ld hl, (RAM_EllipseRadiusError)
       inc hl
       add hl, bc
       or a
@@ -3388,25 +3401,27 @@ DrawEllipse_Circle:
       or a
       sbc hl, bc
       add hl, de
-      ld ($C0A6), hl
+      ld (RAM_EllipseRadiusError), hl
       inc de
-      ld hl, ($C0A2)
+      ld hl, (RAM_EllipseCurrentX)
       inc hl
-      ld ($C0A2), hl
+      ld (RAM_EllipseCurrentX), hl
       jp ++
 +:    or a
       sbc hl, de
       add hl, bc
-      ld ($C0A6), hl
+      ld (RAM_EllipseRadiusError), hl
       inc bc
-      ld hl, ($C0A4)
+      ld hl, (RAM_EllipseCurrentY)
       inc hl
-      ld ($C0A4), hl
+      ld (RAM_EllipseCurrentY), hl
 ++:   ld a, d
       or e
       jp nz, -
--:    call _LABEL_259B_
-      ld hl, ($C0A6)
+      
+      ; Fourth segment: lower-right quadrant
+-:    call Ellipse_DrawPoint
+      ld hl, (RAM_EllipseRadiusError)
       inc hl
       add hl, de
       or a
@@ -3414,201 +3429,208 @@ DrawEllipse_Circle:
       jp p, +
       add hl, bc
       add hl, de
-      ld ($C0A6), hl
+      ld (RAM_EllipseRadiusError), hl
       inc de
-      ld hl, ($C0A2)
+      ld hl, (RAM_EllipseCurrentX)
       inc hl
-      ld ($C0A2), hl
+      ld (RAM_EllipseCurrentX), hl
       jp ++
 +:    or a
       sbc hl, de
       or a
       sbc hl, bc
-      ld ($C0A6), hl
+      ld (RAM_EllipseRadiusError), hl
       dec bc
-      ld hl, ($C0A4)
+      ld hl, (RAM_EllipseCurrentY)
       dec hl
-      ld ($C0A4), hl
+      ld (RAM_EllipseCurrentY), hl
 ++:   ld a, b
       or c
       jp nz, -
       ret
 
 DrawEllipse_Wide:
-    ld a, $7F
-    ld ($C0A9), a
-    ld l, e
-    ld h, $00
-    ld ($C0A4), hl
-    ld l, d
-    ld e, b
-    ld d, h
-    add hl, de
-    ld ($C0A2), hl
-    ld bc, $0000
-    ld hl, $0000
-    ld ($C0A6), hl
--:  call _LABEL_259B_
---: ld hl, ($C0A6)
-    inc hl
-    or a
-    sbc hl, de
-    or a
-    sbc hl, bc
-    jp m, +
-    add hl, bc
-    or a
-    sbc hl, de
-    ld ($C0A6), hl
-    dec de
-    ld hl, ($C0A2)
-    dec hl
-    ld ($C0A2), hl
-    jp ++
+; Inputs:
+; a' = pen style
+; b = minor radius
+; de = centre coordinates
+; hl = ratio of radii (ry/rx), *256
+      ld a, $7F
+      ld (RAM_EllipseRatio+1), a ; ?
+      ld l, e
+      ld h, 0
+      ld (RAM_EllipseCurrentY), hl
+      ld l, d
+      ld e, b
+      ld d, h
+      add hl, de
+      ld (RAM_EllipseCurrentX), hl
+      ld bc, $0000
+      ld hl, $0000
+      ld (RAM_EllipseRadiusError), hl
 
-+:  add hl, de
-    or a
-    sbc hl, bc
-    ld ($C0A6), hl
-    dec bc
-    ld hl, (RAM_EllipseRatio)
-    ld a, h
-    sub l
-    ld ($C0A9), a
-    jp nc, +
-    ld hl, ($C0A4)
-    dec hl
-    ld ($C0A4), hl
-++: ld a, d
-    or e
-    jp nz, -
-    jp _LABEL_2353_
+      ; First quadrant
+-:    call Ellipse_DrawPoint
+--:   ld hl, (RAM_EllipseRadiusError)
+      inc hl
+      or a
+      sbc hl, de
+      or a
+      sbc hl, bc
+      jp m, +
+      add hl, bc
+      or a
+      sbc hl, de
+      ld (RAM_EllipseRadiusError), hl
+      dec de
+      ld hl, (RAM_EllipseCurrentX)
+      dec hl
+      ld (RAM_EllipseCurrentX), hl
+      jp ++
 
-+:  ld a, d
-    or e
-    jp nz, --
-    jp _LABEL_2356_
++:    add hl, de
+      or a
+      sbc hl, bc
+      ld (RAM_EllipseRadiusError), hl
+      dec bc
+      ld hl, (RAM_EllipseRatio)
+      ld a, h
+      sub l
+      ld (RAM_EllipseRatio+1), a
+      jp nc, +
+      ld hl, (RAM_EllipseCurrentY)
+      dec hl
+      ld (RAM_EllipseCurrentY), hl
+++:   ld a, d
+      or e
+      jp nz, -
+      jp _LABEL_2353_
+
++:    ld a, d
+      or e
+      jp nz, --
+      jp _LABEL_2356_
 
 _LABEL_2353_:
-    call _LABEL_259B_
+      call Ellipse_DrawPoint
 _LABEL_2356_:
-    ld hl, ($C0A6)
-    inc hl
-    add hl, bc
-    or a
-    sbc hl, de
-    jp p, +
-    or a
-    sbc hl, bc
-    or a
-    sbc hl, de
-    ld ($C0A6), hl
-    dec de
-    ld hl, ($C0A2)
-    dec hl
-    ld ($C0A2), hl
-    jp ++
+      ld hl, (RAM_EllipseRadiusError)
+      inc hl
+      add hl, bc
+      or a
+      sbc hl, de
+      jp p, +
+      or a
+      sbc hl, bc
+      or a
+      sbc hl, de
+      ld (RAM_EllipseRadiusError), hl
+      dec de
+      ld hl, (RAM_EllipseCurrentX)
+      dec hl
+      ld (RAM_EllipseCurrentX), hl
+      jp ++
 
-+:  add hl, bc
-    add hl, de
-    ld ($C0A6), hl
-    inc bc
-    ld hl, (RAM_EllipseRatio)
-    ld a, h
-    add a, l
-    ld ($C0A9), a
-    jp nc, +
-    ld hl, ($C0A4)
-    inc hl
-    ld ($C0A4), hl
-++: ld a, b
-    or c
-    jp nz, _LABEL_2353_
-    ld hl, $C0A9
-    inc (hl)
-    jp _LABEL_23A5_
++:    add hl, bc
+      add hl, de
+      ld (RAM_EllipseRadiusError), hl
+      inc bc
+      ld hl, (RAM_EllipseRatio)
+      ld a, h
+      add a, l
+      ld (RAM_EllipseRatio+1), a
+      jp nc, +
+      ld hl, (RAM_EllipseCurrentY)
+      inc hl
+      ld (RAM_EllipseCurrentY), hl
+++:   ld a, b
+      or c
+      jp nz, _LABEL_2353_
+      ld hl, RAM_EllipseRatio+1
+      inc (hl)
+      jp _LABEL_23A5_
 
-+:  ld a, b
-    or c
-    jp nz, _LABEL_2356_
-    ld hl, $C0A9
-    inc (hl)
-    jp _LABEL_23A8_
+  +:  ld a, b
+      or c
+      jp nz, _LABEL_2356_
+      ld hl, RAM_EllipseRatio+1
+      inc (hl)
+      jp _LABEL_23A8_
 
 _LABEL_23A5_:
-    call _LABEL_259B_
+      call Ellipse_DrawPoint
 _LABEL_23A8_:
-    ld hl, ($C0A6)
-    inc hl
-    add hl, bc
-    or a
-    adc hl, de
-    jp m, +
-    or a
-    sbc hl, bc
-    add hl, de
-    ld ($C0A6), hl
-    inc de
-    ld hl, ($C0A2)
-    inc hl
-    ld ($C0A2), hl
-    jp ++
+      ld hl, (RAM_EllipseRadiusError)
+      inc hl
+      add hl, bc
+      or a
+      adc hl, de
+      jp m, +
+      or a
+      sbc hl, bc
+      add hl, de
+      ld (RAM_EllipseRadiusError), hl
+      inc de
+      ld hl, (RAM_EllipseCurrentX)
+      inc hl
+      ld (RAM_EllipseCurrentX), hl
+      jp ++
 
-+:  or a
-    sbc hl, de
-    add hl, bc
-    ld ($C0A6), hl
-    inc bc
-    ld hl, (RAM_EllipseRatio)
-    ld a, h
-    add a, l
-    ld ($C0A9), a
-    jp nc, +
-    ld hl, ($C0A4)
-    inc hl
-    ld ($C0A4), hl
-++: ld a, d
-    or e
-    jp nz, _LABEL_23A5_
-    jp _LABEL_23EF_
+  +:  or a
+      sbc hl, de
+      add hl, bc
+      ld (RAM_EllipseRadiusError), hl
+      inc bc
+      ld hl, (RAM_EllipseRatio)
+      ld a, h
+      add a, l
+      ld (RAM_EllipseRatio+1), a
+      jp nc, +
+      ld hl, (RAM_EllipseCurrentY)
+      inc hl
+      ld (RAM_EllipseCurrentY), hl
+++:   ld a, d
+      or e
+      jp nz, _LABEL_23A5_
+      jp _LABEL_23EF_
 
-+:  ld a, d
-    or e
-    jp nz, _LABEL_23A8_
-    jp _LABEL_23F2_
++:    ld a, d
+      or e
+      jp nz, _LABEL_23A8_
+      jp _LABEL_23F2_
 
 _LABEL_23EF_:
-    call _LABEL_259B_
+      call Ellipse_DrawPoint
 _LABEL_23F2_:
-    ld hl, ($C0A6)
-    inc hl
-    add hl, de
-    or a
-    sbc hl, bc
-    jp p, +
-    add hl, bc
-    add hl, de
-    ld ($C0A6), hl
-    inc de
-    ld hl, ($C0A2)
-    inc hl
-    ld ($C0A2), hl
-    jp ++
+      ld hl, (RAM_EllipseRadiusError)
+      inc hl
+      add hl, de
+      or a
+      sbc hl, bc
+      jp p, +
+      add hl, bc
+      add hl, de
+      ld (RAM_EllipseRadiusError), hl
+      inc de
+      ld hl, (RAM_EllipseCurrentX)
+      inc hl
+      ld (RAM_EllipseCurrentX), hl
+      jp ++
 
 +:  or a
     sbc hl, de
     or a
     sbc hl, bc
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     dec bc
     ld hl, (RAM_EllipseRatio)
     ld a, h
     sub l
-    ld ($C0A9), a
+    ld (RAM_EllipseRatio+1), a
     jp nc, +
-    ld hl, ($C0A4)
+    ld hl, (RAM_EllipseCurrentY)
     dec hl
-    ld ($C0A4), hl
+    ld (RAM_EllipseCurrentY), hl
 ++: ld a, b
     or c
     jp nz, _LABEL_23EF_
@@ -3631,23 +3653,23 @@ DrawEllipse_Tall:
         jp nc, +
         inc b
 +:    pop de
-      ld ($C0A9), a
+      ld (RAM_EllipseRatio+1), a
       ld l, e
       ld h, $00
-      ld ($C0A4), hl
+      ld (RAM_EllipseCurrentY), hl
       ld l, d
       ld e, b
       ld d, h
       add hl, de
-      ld ($C0A2), hl
+      ld (RAM_EllipseCurrentX), hl
     pop de
     ld e, d
     ld d, $00
     ld bc, $0000
     ld hl, $0000
-    ld ($C0A6), hl
---: call _LABEL_259B_
--:  ld hl, ($C0A6)
+    ld (RAM_EllipseRadiusError), hl
+--: call Ellipse_DrawPoint
+-:  ld hl, (RAM_EllipseRadiusError)
     inc hl
     or a
     sbc hl, de
@@ -3657,44 +3679,44 @@ DrawEllipse_Tall:
     add hl, bc
     or a
     sbc hl, de
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     dec de
     ld hl, (RAM_EllipseRatio)
     ld a, h
     sub l
-    ld ($C0A9), a
+    ld (RAM_EllipseRatio+1), a
     jp nc, +++
-    ld hl, ($C0A2)
+    ld hl, (RAM_EllipseCurrentX)
     dec hl
-    ld ($C0A2), hl
+    ld (RAM_EllipseCurrentX), hl
     jp ++
 
 +:  add hl, de
     or a
     sbc hl, bc
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     dec bc
-    ld hl, ($C0A4)
+    ld hl, (RAM_EllipseCurrentY)
     dec hl
-    ld ($C0A4), hl
+    ld (RAM_EllipseCurrentY), hl
 ++: ld a, d
     or e
     jp nz, --
-    ld hl, $C0A9
+    ld hl, RAM_EllipseRatio+1
     dec (hl)
     jp _LABEL_24B9_
 
 +++:ld a, d
     or e
     jp nz, -
-    ld hl, $C0A9
+    ld hl, RAM_EllipseRatio+1
     dec (hl)
     jp _LABEL_24BC_
 
 _LABEL_24B9_:
-    call _LABEL_259B_
+    call Ellipse_DrawPoint
 _LABEL_24BC_:
-    ld hl, ($C0A6)
+    ld hl, (RAM_EllipseRadiusError)
     inc hl
     add hl, bc
     or a
@@ -3704,25 +3726,25 @@ _LABEL_24BC_:
     sbc hl, bc
     or a
     sbc hl, de
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     dec de
     ld hl, (RAM_EllipseRatio)
     ld a, h
     sub l
-    ld ($C0A9), a
+    ld (RAM_EllipseRatio+1), a
     jp nc, +++
-    ld hl, ($C0A2)
+    ld hl, (RAM_EllipseCurrentX)
     dec hl
-    ld ($C0A2), hl
+    ld (RAM_EllipseCurrentX), hl
     jp ++
 
 +:  add hl, bc
     add hl, de
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     inc bc
-    ld hl, ($C0A4)
+    ld hl, (RAM_EllipseCurrentY)
     inc hl
-    ld ($C0A4), hl
+    ld (RAM_EllipseCurrentY), hl
 ++: ld a, b
     or c
     jp nz, _LABEL_24B9_
@@ -3734,9 +3756,9 @@ _LABEL_24BC_:
     jp _LABEL_2506_
 
 _LABEL_2503_:
-    call _LABEL_259B_
+    call Ellipse_DrawPoint
 _LABEL_2506_:
-    ld hl, ($C0A6)
+    ld hl, (RAM_EllipseRadiusError)
     inc hl
     add hl, bc
     or a
@@ -3745,44 +3767,44 @@ _LABEL_2506_:
     or a
     sbc hl, bc
     add hl, de
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     inc de
     ld hl, (RAM_EllipseRatio)
     ld a, h
     add a, l
-    ld ($C0A9), a
+    ld (RAM_EllipseRatio+1), a
     jp nc, +++
-    ld hl, ($C0A2)
+    ld hl, (RAM_EllipseCurrentX)
     inc hl
-    ld ($C0A2), hl
+    ld (RAM_EllipseCurrentX), hl
     jp ++
 
 +:  or a
     sbc hl, de
     add hl, bc
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     inc bc
-    ld hl, ($C0A4)
+    ld hl, (RAM_EllipseCurrentY)
     inc hl
-    ld ($C0A4), hl
+    ld (RAM_EllipseCurrentY), hl
 ++: ld a, d
     or e
     jp nz, _LABEL_2503_
-    ld hl, $C0A9
+    ld hl, RAM_EllipseRatio+1
     inc (hl)
     jp _LABEL_2555_
 
 +++:ld a, d
     or e
     jp nz, _LABEL_2506_
-    ld hl, $C0A9
+    ld hl, RAM_EllipseRatio+1
     inc (hl)
     jp _LABEL_2558_
 
 _LABEL_2555_:
-    call _LABEL_259B_
+    call Ellipse_DrawPoint
 _LABEL_2558_:
-    ld hl, ($C0A6)
+    ld hl, (RAM_EllipseRadiusError)
     inc hl
     add hl, de
     or a
@@ -3790,27 +3812,27 @@ _LABEL_2558_:
     jp p, +
     add hl, bc
     add hl, de
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     inc de
     ld hl, (RAM_EllipseRatio)
     ld a, h
     sub l
-    ld ($C0A9), a
+    ld (RAM_EllipseRatio+1), a
     jp nc, +++
-    ld hl, ($C0A2)
+    ld hl, (RAM_EllipseCurrentX)
     inc hl
-    ld ($C0A2), hl
+    ld (RAM_EllipseCurrentX), hl
     jp ++
 
 +:  or a
     sbc hl, de
     or a
     sbc hl, bc
-    ld ($C0A6), hl
+    ld (RAM_EllipseRadiusError), hl
     dec bc
-    ld hl, ($C0A4)
+    ld hl, (RAM_EllipseCurrentY)
     dec hl
-    ld ($C0A4), hl
+    ld (RAM_EllipseCurrentY), hl
 ++: ld a, b
     or c
     jp nz, _LABEL_2555_
@@ -3821,21 +3843,35 @@ _LABEL_2558_:
     jp nz, _LABEL_2558_
     ret
 
-_LABEL_259B_:
+Ellipse_DrawPoint:
+    ; Inputs:
+    ; RAM_EllipseCurrentX
+    ; RAM_EllipseCurrentY
+    ; RAM_CircleEllipseCentre
+    ; Draws a point at X,Y using the current pen, or a line from X,Y to the centre
+    ; Truncates values outside the 8-bit range. These are outside the canvas anyway, so the work to draw them
+    ; is not saved, but it avoids dumb truncation from drawing into unwanted places on the canvas. You can see this if you
+    ; draw a large filled circle that would overlap 0,0 or 256,0 - the line rotation speed fluctuates as the destination
+    ; points get truncated, causing them either to snap to somewhere away from the radius being drawn. This doesn't seem to
+    ; cause any artefacts.
     push bc
     push de
     push hl
-      ld hl, ($C0A2)
+      ld hl, (RAM_EllipseCurrentX)
+      ; If hl<0, we set l=0
+      ; If hl>255, we set l=255
+      ; Else we leave l alone (it's the true value in the range 0..255)
       ld a, h
       or a
-      jp z, ++
-      xor a
-      bit 7, h
-      ld h, a
+      jp z, ++  ; Nothing to do when high byte is zero
+      xor a     ; Set l=0...
+      bit 7, h  ; ...unless it's positive...
+      ld h, a   ; (This is unused)
       jp nz, +
-      cpl
+      cpl       ; ...in which case set it to 255
 +:    ld l, a
-++:   ld de, ($C0A4)
+++:   ld de, (RAM_EllipseCurrentY)
+      ; Same for Y
       ld a, d
       or a
       jp z, ++
@@ -3846,12 +3882,14 @@ _LABEL_259B_:
       cpl
 +:    ld e, a
 ++:   ex af, af'
-      or a
-      jp nz, +
+        ; Check for line or fill mode
+        or a
+        jp nz, +
       ex af, af'
-      ld a, l
-      ld l, e
-      ld h, a
+      ; Line mode: draw using dots
+      ld a, l ; Could just ld h,l; ld l,e
+      ld l, e ; x
+      ld h, a ; y
       call DrawPenDot
     pop hl
     pop de
@@ -3866,8 +3904,9 @@ push af
 .asm
 
 +:    ex af, af'
-      ld d, l
-      ld hl, (RAM_CircleEllipseCentre)
+      ; Fill mode: draw a line from the centre to the point
+      ld d, l ; de = x1,y1
+      ld hl, (RAM_CircleEllipseCentre) ; hl = x2,y2
       call DrawLine
     pop hl
     pop de
@@ -3942,27 +3981,27 @@ NonVBlankMode8_PaintFunction:
     xor a
     ld (RAM_DrawingData.PenStyleForCurrentShape), a
     di
-    call _LABEL_2646_
+    call FloodFill
     ei
 +:  xor a
     ld (RAM_ActionStateFlags), a
     ret
 
-_LABEL_2646_:
+FloodFill:
     push af
     push bc
     push de
     push hl
       ld a, d
       cp $90
-      jp nc, +++
+      jp nc, FloodFill_Done
       ld a, e
       ld ($C0AB), a
       ld a, d
       ld (RAM_CircleEllipseCentre), a
       call _LABEL_2752_
       or a
-      jp nz, +++
+      jp nz, FloodFill_Done
       ld hl, $0000
       ld (RAM_EllipseMinorRadius), hl
 ---:
@@ -3982,8 +4021,7 @@ _LABEL_2646_:
 +:    ld a, $01
       ld ($C0B0), a
       ld ($C0B1), a
---:
-      ld a, ($C0B0)
+--:   ld a, ($C0B0)
       ld ($C0AE), a
       ld a, ($C0B1)
       ld ($C0AF), a
@@ -4063,7 +4101,7 @@ _LABEL_2646_:
 __:       ld hl, (RAM_EllipseMinorRadius)
           ld a, h
           or l
-          jr z, +++
+          jr z, FloodFill_Done
         pop hl
         ld a, l
         ld ($C0AB), a
@@ -4085,7 +4123,8 @@ __:       ld hl, (RAM_EllipseMinorRadius)
 pop hl
 .asm
 
-+++:pop hl
+FloodFill_Done:
+    pop hl
     pop de
     pop bc
     pop af
@@ -4149,7 +4188,7 @@ _LABEL_2792_:
         add hl, de
         ld d, (hl)
       pop hl
-      ld c, $00
+      ld c, 0
       ld a, (hl)
       and d
       jp z, +
@@ -5580,7 +5619,7 @@ Mode6_CircleGraphicBoardHandler:
     jp nc, +
     neg
 +:  ld (RAM_EllipseMinorRadius), a
-    ld hl, $0100 ; Circle ratio
+    ld hl, $0100 ; Circle ratio = 1.0
     ld (RAM_EllipseRatio), hl
     ex af, af'
     call nz, _CircleEllipseGraphicBoardHandler_Ellipse

@@ -78,8 +78,9 @@
 0000:c08d RAM_c08d
 0000:c08f RAM_c08f
 0000:c091 RAM_unusedC091
-0000:c0a4 RAM_c0a4
-0000:c0a6 RAM_c0a6
+0000:c0a2 RAM_EllipseCurrentX
+0000:c0a4 RAM_EllipseCurrentY
+0000:c0a6 RAM_EllipseRadiusError
 0000:c0a8 RAM_EllipseRatio
 0000:c0aa RAM_CircleEllipseCentre
 0000:c0ac RAM_EllipseMinorRadius
@@ -273,11 +274,12 @@
 0000:2506 _LABEL_2506_
 0000:2555 _LABEL_2555_
 0000:2558 _LABEL_2558_
-0000:259b _LABEL_259B_
+0000:259b Ellipse_DrawPoint
 0000:25dd Multiply_bc_de_hl
 0000:25f2 Reciprocal_de_a
 0000:2605 NonVBlankMode8_PaintFunction
-0000:2646 _LABEL_2646_
+0000:2646 FloodFill
+0000:274d FloodFill_Done
 0000:2752 _LABEL_2752_
 0000:2781 _LABEL_2752_0
 0000:2782 _LABEL_2752_1
