@@ -264,7 +264,7 @@ Start_AfterRAMClear:
     call InitialiseCursorSprites
     call ScreenOn
     LD_HL_LOCATION 88, 72
-    ld ($C03E), hl
+    ld (RAM_Pen_InMenus), hl
 
     ld a, 1
     ld (RAM_PenMode.IsSet), a
@@ -1632,6 +1632,7 @@ CallModeDrawingFunction:
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_CurrentMode)
 ; These are functions to perform drawing tasks for the current mode, e.g. drawing with the pen, drawing a circle, drawing a menu...
+; They sometimes do other stuff, e.g. mode 2 dispatches to some other mode.
 CallModeDrawingFunction_JumpTable:
 .dw NonVBlankMode0_DrawingFunction
 .dw NonVBlankMode1_MenuFunction
@@ -1677,12 +1678,12 @@ NonVBlankMode1_MenuFunction:
       call DrawTextToTilesWithBackup
 
       ld hl, (RAM_Pen_Smoothed)
-      ld ($C08D), hl
-      ld hl, (RAM_Pen_Backup)
-      ld ($C08F), hl
-      ld hl, ($C03E)
+      ld (RAM_Pen_Smoothed_Backup), hl
+      ld hl, (RAM_Pen_Smoothed_Previous)
+      ld (RAM_Pen_Smoothed_Previous_Backup), hl
+      ld hl, (RAM_Pen_InMenus)
       ld (RAM_Pen_Smoothed), hl
-      ld (RAM_Pen_Backup), hl
+      ld (RAM_Pen_Smoothed_Previous), hl
       ld a, 1
       ld (RAM_Beep), a
     ei
@@ -1699,12 +1700,12 @@ NonVBlankMode2_MenuItemSelectedFunction:
         cp l ; Y position
         jp c, +
         LD_HL_LOCATION 88, 72
-+:      ld ($C03E), hl
++:      ld (RAM_Pen_InMenus), hl
         call RestoreTileData
-        ld hl, ($C08D)
+        ld hl, (RAM_Pen_Smoothed_Backup)
         ld (RAM_Pen_Smoothed), hl
-        ld hl, ($C08F)
-        ld (RAM_Pen_Backup), hl
+        ld hl, (RAM_Pen_Smoothed_Previous_Backup)
+        ld (RAM_Pen_Smoothed_Previous), hl
       exx
       inc hl
       ld a, (hl) ; RAM_SelectedNextMode
@@ -1791,10 +1792,10 @@ NonVBlankMode12_DisplayFunction:
     ; Restore the missing parts of the screen
     di
       call DrawUIControls
-      ld hl, ($C08D)
+      ld hl, (RAM_Pen_Smoothed_Backup)
       ld (RAM_Pen_Smoothed), hl
-      ld hl, ($C08F)
-      ld (RAM_Pen_Backup), hl
+      ld hl, (RAM_Pen_Smoothed_Previous_Backup)
+      ld (RAM_Pen_Smoothed_Previous), hl
       ld a, Mode1_Menu
       ld (RAM_CurrentMode), a
     ei
@@ -1803,9 +1804,9 @@ NonVBlankMode12_DisplayFunction:
 +:  ; Enter "display mode"
     set 7, (hl) ; RAM_CurrentMode
     ld hl, (RAM_Pen_Smoothed)
-    ld ($C08D), hl
-    ld hl, (RAM_Pen_Backup)
-    ld ($C08F), hl
+    ld (RAM_Pen_Smoothed_Backup), hl
+    ld hl, (RAM_Pen_Smoothed_Previous)
+    ld (RAM_Pen_Smoothed_Previous_Backup), hl
     di
       call ScreenOff
       ; Sprites off
@@ -1838,10 +1839,10 @@ NonVBlankMode14_LinePaintMenuFunction:
       exx
         ; Restore the graphics state
         call RestoreTileData
-        ld hl, ($C08D)
+        ld hl, (RAM_Pen_Smoothed_Backup)
         ld (RAM_Pen_Smoothed), hl
-        ld hl, ($C08F)
-        ld (RAM_Pen_Backup), hl
+        ld hl, (RAM_Pen_Smoothed_Previous_Backup)
+        ld (RAM_Pen_Smoothed_Previous), hl
       exx
       ; Switch to the selected next mode
       inc hl ; RAM_SelectedNextMode
@@ -1861,12 +1862,12 @@ NonVBlankMode14_LinePaintMenuFunction:
       call DrawTextToTilesWithBackup
 
       ld hl, (RAM_Pen_Smoothed)
-      ld ($C08D), hl
-      ld hl, (RAM_Pen_Backup)
-      ld ($C08F), hl
+      ld (RAM_Pen_Smoothed_Backup), hl
+      ld hl, (RAM_Pen_Smoothed_Previous)
+      ld (RAM_Pen_Smoothed_Previous_Backup), hl
       LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
-      ld (RAM_Pen_Backup), hl
+      ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
 
@@ -1888,10 +1889,10 @@ NonVBlankMode15_ColourSelectionMenuFunction:
       exx
         ; Restore tiles
         call RestoreTileData
-        ld hl, ($C08D)
+        ld hl, (RAM_Pen_Smoothed_Backup)
         ld (RAM_Pen_Smoothed), hl
-        ld hl, ($C08F)
-        ld (RAM_Pen_Backup), hl
+        ld hl, (RAM_Pen_Smoothed_Previous_Backup)
+        ld (RAM_Pen_Smoothed_Previous), hl
       exx
       ; Switch to the selected next mode (Mode3_Colour)
       inc hl ; RAM_SelectedNextMode
@@ -1910,12 +1911,12 @@ NonVBlankMode15_ColourSelectionMenuFunction:
       LD_HL_LOCATION 5, 4
       call DrawTextToTilesWithBackup
       ld hl, (RAM_Pen_Smoothed)
-      ld ($C08D), hl
-      ld hl, (RAM_Pen_Backup)
-      ld ($C08F), hl
+      ld (RAM_Pen_Smoothed_Backup), hl
+      ld hl, (RAM_Pen_Smoothed_Previous)
+      ld (RAM_Pen_Smoothed_Previous_Backup), hl
       LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
-      ld (RAM_Pen_Backup), hl
+      ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
 
@@ -1937,10 +1938,10 @@ NonVBlankMode16_MirrorAxisMenuFunction:
       exx
         ; Restore tiles
         call RestoreTileData
-        ld hl, ($C08D)
+        ld hl, (RAM_Pen_Smoothed_Backup)
         ld (RAM_Pen_Smoothed), hl
-        ld hl, ($C08F)
-        ld (RAM_Pen_Backup), hl
+        ld hl, (RAM_Pen_Smoothed_Previous_Backup)
+        ld (RAM_Pen_Smoothed_Previous), hl
       exx
       ; Switch to the selected next mode
       inc hl ; RAM_SelectedNextMode
@@ -1959,13 +1960,13 @@ NonVBlankMode16_MirrorAxisMenuFunction:
       LD_HL_LOCATION 5, 4
       call DrawTextToTilesWithBackup
       ld hl, (RAM_Pen_Smoothed)
-      ld ($C08D), hl
-      ld hl, (RAM_Pen_Backup)
-      ld ($C08F), hl
+      ld (RAM_Pen_Smoothed_Backup), hl
+      ld hl, (RAM_Pen_Smoothed_Previous)
+      ld (RAM_Pen_Smoothed_Previous_Backup), hl
 
       LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
-      ld (RAM_Pen_Backup), hl
+      ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
 
@@ -1987,10 +1988,10 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
       exx
         ; Restore tiles
         call RestoreTileData
-        ld hl, ($C08D)
+        ld hl, (RAM_Pen_Smoothed_Backup)
         ld (RAM_Pen_Smoothed), hl
-        ld hl, ($C08F)
-        ld (RAM_Pen_Backup), hl
+        ld hl, (RAM_Pen_Smoothed_Previous_Backup)
+        ld (RAM_Pen_Smoothed_Previous), hl
       exx
       ; Switch to the selected next mode
       inc hl ; RAM_SelectedNextMode
@@ -2009,12 +2010,12 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
       LD_HL_LOCATION 5, 4
       call DrawTextToTilesWithBackup
       ld hl, (RAM_Pen_Smoothed)
-      ld ($C08D), hl
-      ld hl, (RAM_Pen_Backup)
-      ld ($C08F), hl
+      ld (RAM_Pen_Smoothed_Backup), hl
+      ld hl, (RAM_Pen_Smoothed_Previous)
+      ld (RAM_Pen_Smoothed_Previous_Backup), hl
       LD_HL_LOCATION 88, 72
       ld (RAM_Pen_Smoothed), hl
-      ld (RAM_Pen_Backup), hl
+      ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
 
@@ -2410,13 +2411,13 @@ NonVBlankMode0_DrawingFunction:
     bit GraphicBoardButtonBit_Pen, a
     ld a, (RAM_PenStyle)
     ld (RAM_DrawingData.PenStyleForCurrentShape), a
-    ld hl, (RAM_Pen_Backup)
+    ld hl, (RAM_Pen_Smoothed_Previous)
     ld de, (RAM_Pen_Smoothed)
     call nz, DrawLine
     ld a, (RAM_Pen_Smoothed.x)
-    ld (RAM_Pen_Backup.x), a
+    ld (RAM_Pen_Smoothed_Previous.x), a
     ld a, (RAM_Pen_Smoothed.y)
-    ld (RAM_Pen_Backup.y), a
+    ld (RAM_Pen_Smoothed_Previous.y), a
     ei
     ret
 
@@ -2429,9 +2430,9 @@ NonVBlankMode0_DrawingFunction:
       ld (RAM_DrawingData.PenStyleForCurrentShape), a
       call DrawPenDotIfButtonPressed
       ld a, (RAM_Pen_Smoothed.x)
-      ld (RAM_Pen_Backup.x), a
+      ld (RAM_Pen_Smoothed_Previous.x), a
       ld a, (RAM_Pen_Smoothed.y)
-      ld (RAM_Pen_Backup.y), a
+      ld (RAM_Pen_Smoothed_Previous.y), a
     ei
     ret
 

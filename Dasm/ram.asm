@@ -65,13 +65,13 @@ RAM_ButtonsPressed                          db ; $c02c buttons pressed last time
 RAM_ButtonsNewlyPressed                     db ; $c02d buttons pressed last time we looked which were'nt pressed in the previous frame
 RAM_Pen_Smoothed                            instanceof XY ; $c02e x and y are averages of themselves and the last raw value
 RAM_PenX                                    db ; $c030 raw
-RAM_Pen_Backup                              instanceof XY ; $c031 A backup? Not sure how that makes sense
+RAM_Pen_Smoothed_Previous                   instanceof XY ; $c031 A backup? Not sure how that makes sense
 RAM_PenY                                    db ; $C033
 RAM_Pressure                                db ; $C034 - never used
 RAM_unusedC035                              dsb 7
 RAM_CurrentMode                             db ; $C03C Current "mode". High bit set when just changed? Low 6 bits are mode number.
 RAM_SelectedNextMode                        db ; $C03D
-RAM_c03e                                    dw ; $C03E Yet another pen location copy? Not sure how it makes sense
+RAM_Pen_InMenus                             instanceof XY ; $C03E The pen position while in menus
 RAM_unusedC040                              dsb 2
 RAM_Palette                                 dsb 17 ; $C042
 RAM_ColourSelectionStartValue               db ; $c053 Palette value for start of 8-colour palette used when choosing new colours
@@ -88,8 +88,8 @@ RAM_ButtonStateShownOnScreen                db ; $C088 Holds the button bits as 
 RAM_ActionStateFlags                        db ; $c089 Bits indicate the phase of drawing. Bit 0 unset = step 1, set = step 2. Bit 1 set = doing it.
 RAM_PenStyle                                db ; $c08a 0-2 = thin, medium, wide; 3 = erase
 RAM_unusedC08B dsb 2
-RAM_c08d dw ; $c08d Yet another pen position backup?
-RAM_c08f dw ; $c08f Yet another pen position backup?
+RAM_Pen_Smoothed_Backup                     instanceof XY ; $c08d Backup of value for switching modes. When the pen can go off the screen, this is used to remember where it was while manipulating menus, allowing you go go back to where you were (to some extent).
+RAM_Pen_Smoothed_Previous_Backup            instanceof XY ; $c08f See RAM_Pen_Smoothed_Backup
 RAM_unusedC091 dsb 17
 RAM_EllipseCurrentX                         dw ; $c0a2 Circle current point x
 RAM_EllipseCurrentY                         dw ; $c0a4 Circle current point y
