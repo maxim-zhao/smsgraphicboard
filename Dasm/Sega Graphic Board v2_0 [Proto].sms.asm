@@ -3239,6 +3239,7 @@ Table_SetPixelsInRow: ; $219a
 
 ; 7th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode6_CircleAnd7_EllipseFunction:
+      ; Wait for beep to finish
       ld a, (RAM_Beep)
       or a
       ret nz
@@ -3319,11 +3320,44 @@ DrawEllipse:
       jp DrawEllipse_Tall
 
 DrawEllipse_Circle:      
-; Inputs:
-; a' = pen style
-; b = minor radius
-; de = centre coordinates
-; hl = ratio of radii (ry/rx), *256
+      ; Inputs:
+      ; a' = pen style
+      ; b = minor radius
+      ; de = centre coordinates
+      ; hl = ratio of radii (ry/rx), *256
+      ; This implements a slightly unusual algorithm, because it produces "fat" diagonals: 
+      ; each point is either one pixel movement in the x or y axis, never both.
+      ; Start from the line equation x^2 + y^2 = r^2
+      ; Then for a given point x, y that has been drawn, the error is
+      ; |x^2 + y^2 - r^2|
+      ; When drawing the first quadrant, we start at (r, 0) and have error 0.
+      ; Then, for each pixel, we decide to step up or left. We choose which to do by choosing which has the least error.
+      ; We start with the inequality for deciding to go left:
+      ;     Error(x-1, y) > Error(x, y-1)
+      ; Square both sides:
+      ;     Error^2(x-1, y) > Error^2(x, y-1)
+      ; This lets us replace the mod with the squared contents:
+      ;     ((x-1)^2 + y^2 - r^2)^2 > (x^2 + (y-1)^2 - r^2)^2
+      ; We expand it out a bit:
+      ;     (x^2 + y^2 - r^2 - 2x + 1)^2 > (x^2 + y^2 - r^2 - 2y + 1)^2
+      ; We factor for the contents of the right part on the left:
+      ;     ((x^2 + y^2 - r^2 - 2y + 1) + 2(y - x))^2 > (x^2 + y^2 - r^2 - 2y + 1)^2
+      ; Expand the square on the left:
+      ;     (x^2 + y^2 - r^2 - 2y + 1)^2 + 4(y - x)(x^2 + y^2 - r^2 - 2y + 1) + 4(y - x)^2 > (x^2 + y^2 - r^2 - 2y + 1)^2
+      ; Subtract the RHS from both sides:
+      ;     4(y - x)(x^2 + y^2 - r^2 + 2y + 1) + 4(y - x)^2 > 0
+      ; Divide through by 4(y - x). This is always negative, so the inequality flips.
+      ;     (x^2 + y^2 - r^2 - 2y + 1) + (y - x) < 0
+      ; Simplify:
+      ;     (x^2 + y^2 - r^2) - x - y + 1 < 0
+      ; Now we have the error value from the current point:
+      ;     Error(x, y) - x - y + 1 < 0
+      ; So we should go left if this is true, and up if it is not.
+      ; If it is true, we want to update the error:
+      ;     Error(x-1, y) = Error(x, y) - 2x + 1
+      ; If it is false:
+      ;     Error(x, y-1) = Error(x, y) - 2y + 1
+      ; The code has to operate in 16 bits because the accumulated values may exceed the 8-bit range.
       ld l, e
       ld h, 0
       ld (RAM_EllipseCurrentY), hl ; Centre y as 16 bits
@@ -3334,11 +3368,11 @@ DrawEllipse_Circle:
       ld (RAM_EllipseCurrentX), hl ; Initial x point as 16 bits
       ld bc, 0       ; y
       ld hl, 0
-      ld (RAM_EllipseRadiusError), hl ; radiusError
+      ld (RAM_EllipseLastPointError), hl
       
       ; First segment: upper-right quadrant
 -:    call Ellipse_DrawPoint ; Draw a point
-      ld hl, (RAM_EllipseRadiusError)  ; radiusError +=...
+      ld hl, (RAM_EllipseLastPointError)  ; radiusError +=...
       inc hl          ; ...1
       or a
       sbc hl, de      ; ...-x
@@ -3349,7 +3383,7 @@ DrawEllipse_Circle:
       add hl, bc      ; ...+y
       or a
       sbc hl, de      ; ...-x
-      ld (RAM_EllipseRadiusError), hl  ; So overall radiusError += 1-2x
+      ld (RAM_EllipseLastPointError), hl  ; So overall += 1-2x
       dec de          ; --x
       ld hl, (RAM_EllipseCurrentX)
       dec hl
@@ -3360,7 +3394,7 @@ DrawEllipse_Circle:
       add hl, de      ; ...+x
       or a
       sbc hl, bc      ; ...-y
-      ld (RAM_EllipseRadiusError), hl ; So overall radiusError += 1-2y
+      ld (RAM_EllipseLastPointError), hl ; So overall radiusError += 1-2y
       dec bc          ; ++y
       ld hl, (RAM_EllipseCurrentY)
       dec hl
@@ -3373,7 +3407,7 @@ DrawEllipse_Circle:
       ; Second segment: upper-left quadrant
       ; Similar to before, but with some things swapped around
 -:    call Ellipse_DrawPoint
-      ld hl, (RAM_EllipseRadiusError)
+      ld hl, (RAM_EllipseLastPointError)
       inc hl
       add hl, bc
       or a
@@ -3383,7 +3417,7 @@ DrawEllipse_Circle:
       sbc hl, bc
       or a
       sbc hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       dec de
       ld hl, (RAM_EllipseCurrentX)
       dec hl
@@ -3392,7 +3426,7 @@ DrawEllipse_Circle:
 
 +:    add hl, bc
       add hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc bc
       ld hl, (RAM_EllipseCurrentY)
       inc hl
@@ -3403,7 +3437,7 @@ DrawEllipse_Circle:
 
       ; Third segment: lower-left quadrant
 -:    call Ellipse_DrawPoint
-      ld hl, (RAM_EllipseRadiusError)
+      ld hl, (RAM_EllipseLastPointError)
       inc hl
       add hl, bc
       or a
@@ -3412,7 +3446,7 @@ DrawEllipse_Circle:
       or a
       sbc hl, bc
       add hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc de
       ld hl, (RAM_EllipseCurrentX)
       inc hl
@@ -3421,7 +3455,7 @@ DrawEllipse_Circle:
 +:    or a
       sbc hl, de
       add hl, bc
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc bc
       ld hl, (RAM_EllipseCurrentY)
       inc hl
@@ -3432,7 +3466,7 @@ DrawEllipse_Circle:
       
       ; Fourth segment: lower-right quadrant
 -:    call Ellipse_DrawPoint
-      ld hl, (RAM_EllipseRadiusError)
+      ld hl, (RAM_EllipseLastPointError)
       inc hl
       add hl, de
       or a
@@ -3440,7 +3474,7 @@ DrawEllipse_Circle:
       jp p, +
       add hl, bc
       add hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc de
       ld hl, (RAM_EllipseCurrentX)
       inc hl
@@ -3450,7 +3484,7 @@ DrawEllipse_Circle:
       sbc hl, de
       or a
       sbc hl, bc
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       dec bc
       ld hl, (RAM_EllipseCurrentY)
       dec hl
@@ -3478,11 +3512,11 @@ DrawEllipse_Wide:
       ld (RAM_EllipseCurrentX), hl
       ld bc, $0000
       ld hl, $0000
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
 
       ; First quadrant
 -:    call Ellipse_DrawPoint
---:   ld hl, (RAM_EllipseRadiusError)
+--:   ld hl, (RAM_EllipseLastPointError)
       inc hl
       or a
       sbc hl, de
@@ -3492,7 +3526,7 @@ DrawEllipse_Wide:
       add hl, bc
       or a
       sbc hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       dec de
       ld hl, (RAM_EllipseCurrentX)
       dec hl
@@ -3502,7 +3536,7 @@ DrawEllipse_Wide:
 +:    add hl, de
       or a
       sbc hl, bc
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       dec bc
       ld hl, (RAM_EllipseRatio)
       ld a, h
@@ -3525,7 +3559,7 @@ DrawEllipse_Wide:
 _LABEL_2353_:
       call Ellipse_DrawPoint
 _LABEL_2356_:
-      ld hl, (RAM_EllipseRadiusError)
+      ld hl, (RAM_EllipseLastPointError)
       inc hl
       add hl, bc
       or a
@@ -3535,7 +3569,7 @@ _LABEL_2356_:
       sbc hl, bc
       or a
       sbc hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       dec de
       ld hl, (RAM_EllipseCurrentX)
       dec hl
@@ -3544,7 +3578,7 @@ _LABEL_2356_:
 
 +:    add hl, bc
       add hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc bc
       ld hl, (RAM_EllipseRatio)
       ld a, h
@@ -3571,7 +3605,7 @@ _LABEL_2356_:
 _LABEL_23A5_:
       call Ellipse_DrawPoint
 _LABEL_23A8_:
-      ld hl, (RAM_EllipseRadiusError)
+      ld hl, (RAM_EllipseLastPointError)
       inc hl
       add hl, bc
       or a
@@ -3580,7 +3614,7 @@ _LABEL_23A8_:
       or a
       sbc hl, bc
       add hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc de
       ld hl, (RAM_EllipseCurrentX)
       inc hl
@@ -3590,7 +3624,7 @@ _LABEL_23A8_:
   +:  or a
       sbc hl, de
       add hl, bc
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc bc
       ld hl, (RAM_EllipseRatio)
       ld a, h
@@ -3613,7 +3647,7 @@ _LABEL_23A8_:
 _LABEL_23EF_:
       call Ellipse_DrawPoint
 _LABEL_23F2_:
-      ld hl, (RAM_EllipseRadiusError)
+      ld hl, (RAM_EllipseLastPointError)
       inc hl
       add hl, de
       or a
@@ -3621,7 +3655,7 @@ _LABEL_23F2_:
       jp p, +
       add hl, bc
       add hl, de
-      ld (RAM_EllipseRadiusError), hl
+      ld (RAM_EllipseLastPointError), hl
       inc de
       ld hl, (RAM_EllipseCurrentX)
       inc hl
@@ -3632,7 +3666,7 @@ _LABEL_23F2_:
     sbc hl, de
     or a
     sbc hl, bc
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     dec bc
     ld hl, (RAM_EllipseRatio)
     ld a, h
@@ -3678,9 +3712,9 @@ DrawEllipse_Tall:
     ld d, $00
     ld bc, $0000
     ld hl, $0000
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
 --: call Ellipse_DrawPoint
--:  ld hl, (RAM_EllipseRadiusError)
+-:  ld hl, (RAM_EllipseLastPointError)
     inc hl
     or a
     sbc hl, de
@@ -3690,7 +3724,7 @@ DrawEllipse_Tall:
     add hl, bc
     or a
     sbc hl, de
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     dec de
     ld hl, (RAM_EllipseRatio)
     ld a, h
@@ -3705,7 +3739,7 @@ DrawEllipse_Tall:
 +:  add hl, de
     or a
     sbc hl, bc
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     dec bc
     ld hl, (RAM_EllipseCurrentY)
     dec hl
@@ -3727,7 +3761,7 @@ DrawEllipse_Tall:
 _LABEL_24B9_:
     call Ellipse_DrawPoint
 _LABEL_24BC_:
-    ld hl, (RAM_EllipseRadiusError)
+    ld hl, (RAM_EllipseLastPointError)
     inc hl
     add hl, bc
     or a
@@ -3737,7 +3771,7 @@ _LABEL_24BC_:
     sbc hl, bc
     or a
     sbc hl, de
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     dec de
     ld hl, (RAM_EllipseRatio)
     ld a, h
@@ -3751,7 +3785,7 @@ _LABEL_24BC_:
 
 +:  add hl, bc
     add hl, de
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     inc bc
     ld hl, (RAM_EllipseCurrentY)
     inc hl
@@ -3769,7 +3803,7 @@ _LABEL_24BC_:
 _LABEL_2503_:
     call Ellipse_DrawPoint
 _LABEL_2506_:
-    ld hl, (RAM_EllipseRadiusError)
+    ld hl, (RAM_EllipseLastPointError)
     inc hl
     add hl, bc
     or a
@@ -3778,7 +3812,7 @@ _LABEL_2506_:
     or a
     sbc hl, bc
     add hl, de
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     inc de
     ld hl, (RAM_EllipseRatio)
     ld a, h
@@ -3793,7 +3827,7 @@ _LABEL_2506_:
 +:  or a
     sbc hl, de
     add hl, bc
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     inc bc
     ld hl, (RAM_EllipseCurrentY)
     inc hl
@@ -3815,7 +3849,7 @@ _LABEL_2506_:
 _LABEL_2555_:
     call Ellipse_DrawPoint
 _LABEL_2558_:
-    ld hl, (RAM_EllipseRadiusError)
+    ld hl, (RAM_EllipseLastPointError)
     inc hl
     add hl, de
     or a
@@ -3823,7 +3857,7 @@ _LABEL_2558_:
     jp p, +
     add hl, bc
     add hl, de
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     inc de
     ld hl, (RAM_EllipseRatio)
     ld a, h
@@ -3839,7 +3873,7 @@ _LABEL_2558_:
     sbc hl, de
     or a
     sbc hl, bc
-    ld (RAM_EllipseRadiusError), hl
+    ld (RAM_EllipseLastPointError), hl
     dec bc
     ld hl, (RAM_EllipseCurrentY)
     dec hl

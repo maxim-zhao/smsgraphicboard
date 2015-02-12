@@ -80,7 +80,7 @@
 0000:c091 RAM_unusedC091
 0000:c0a2 RAM_EllipseCurrentX
 0000:c0a4 RAM_EllipseCurrentY
-0000:c0a6 RAM_EllipseRadiusError
+0000:c0a6 RAM_EllipseLastPointError
 0000:c0a8 RAM_EllipseRatio
 0000:c0aa RAM_CircleEllipseCentre
 0000:c0ac RAM_EllipseMinorRadius

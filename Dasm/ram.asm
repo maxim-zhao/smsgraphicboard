@@ -93,7 +93,7 @@ RAM_c08f dw ; $c08f Yet another pen position backup?
 RAM_unusedC091 dsb 17
 RAM_EllipseCurrentX                         dw ; $c0a2 Circle current point x
 RAM_EllipseCurrentY                         dw ; $c0a4 Circle current point y
-RAM_EllipseRadiusError                      dw ; $c0a6 Part of circle drawing algorithm
+RAM_EllipseLastPointError                      dw ; $c0a6 Part of circle drawing algorithm
 RAM_EllipseRatio                            dw ; $c0a8 Fixed-point ellipse squashed-ness factor - $0100 = a circle
 RAM_CircleEllipseCentre                     dw ; $c0aa X, Y coordinate of the centre of a circle or ellipse
 RAM_EllipseMinorRadius                      db ; $c0ac Circle radius, or minor radius for ellipse
