@@ -131,7 +131,6 @@
 0000:0000 FullReset
 0000:0008 VDPAddressToDE
 0000:000f JumpToFunction
-0000:0038 InterruptHandler
 0000:003b VDPRegisterValues
 0000:0046 ScreenOff
 0000:004e ScreenOn
@@ -211,8 +210,8 @@
 0000:0c32 Tiles_Logo
 0000:14a2 Tilemap_SegaLogo
 0000:14ca Tiles_SegaLogo
-0000:164f CallNonVBlankModeSecondFunction
-0000:165c CallNonVBlankModeSecondFunction_JumpTable
+0000:164f CallModeDrawingFunction
+0000:165c CallModeDrawingFunction_JumpTable
 0000:1680 NonVBlankMode1_MenuFunction
 0000:16c0 NonVBlankMode2_MenuItemSelectedFunction
 0000:171e NonVBlankMode4_EraseFunction

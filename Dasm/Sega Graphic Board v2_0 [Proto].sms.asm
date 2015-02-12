@@ -93,19 +93,24 @@ VBlankFunctionControl_TitleScreen db
 
 .bank 0 slot 0
 .org $0000
+.section "Boot" force
 FullReset:
     jp Start
+.ends
 
 .dsb 5, 0 ; 5 bytes blank
 
 .org $0008
+.section "rst $08" force
 VDPAddressToDE:
     ld a, e
     out (Port_VDPAddress), a
     ld a, d
     out (Port_VDPAddress), a
     ret
+.ends
 
+.section "Helper function" force ; Could align it to a rst to save four bytes (!)
 JumpToFunction:
     ; Look up a'th entry in table at hl, and jump to it
     add a, a
@@ -116,13 +121,16 @@ JumpToFunction:
     ld h, (hl)
     ld l, a
     jp (hl)
+.ends
 
 .db "PROGRAM By K.WAKIHARA"
 
 .org $0038
-InterruptHandler:
+.section "Interrupt handler" force
     jp InterruptHandlerImpl
+.ends
 
+.section "VDP register intialisation data" force
 VDPRegisterValues: ; $003b
 .db VDPR0B0_VideoSync_ON | VDPR0B1_ExtraHeightModes_ON | VDPR0B2_SMSMode_ON | VDPR0B3_SpriteShift_OFF | VDPR0B4_LineInterrupts_OFF | VDPR0B5_BlankLeftColumn_OFF | VDPR0B6_FixTop2Rows_OFF | VDPR0B7_FixRight8Columns_OFF
 .db VDPR1B0_ZoomedSprites_OFF | VDPR1B1_DoubledSprites_OFF | VDPR1B2 | VDPR1B3_30RowMode_OFF | VDPR1B4_28RowMode_OFF | VDPR1B5_VBlankInterrupts_ON | VDPR1B6_EnableDisplay_OFF | VDPR1B7
@@ -134,7 +142,9 @@ VDPRegisterValues: ; $003b
 .db 0 ; Horizontal scroll
 .db 0 ; Vertical scroll
 .db 0 ; Line interrupt spacing ($ff to disable)
+.ends
 
+.section "Screen on/off control" force
 ScreenOff:
     ld a, (RAM_VDPReg1Value)
     and (1<<6) ~ $ff  ; unset bit 6 = screen off
@@ -147,11 +157,15 @@ ScreenOn:
     ld e, a
     ld d, $81
     jp VDPAddressToDE
+.ends
 
 .org $0066
+.section "Pause handler" force
 NMIHandler:
     retn
+.ends
 
+.section "Entry point" force
 Start:
     di
     im 1
@@ -260,12 +274,13 @@ Start_AfterRAMClear:
     ld a, 1<<VBlankFunctionControl_DrawingUIEnabled + 1<<VBlankFunctionControl_ReadGraphicBoard
     call SetVBlankFunctionAndWait
     call CallNonVBlankModeGraphicBoardHandler
-    call CallNonVBlankModeSecondFunction
+    call CallModeDrawingFunction
     call SpriteTable1to2
     jp -
+.ends
 
 ; Various functions for manipulating graphics
-
+.section "Graphics helpers 1" force
 InitialiseVDPRegisters:
     ld hl, VDPRegisterValues ; VDP register data
     ld b, 11 ; counter
@@ -623,10 +638,10 @@ DecompressBitplane:
     or a
     ret z
     ld c, a
-    and $7F
+    and %01111111
     ld b, a
     ld a, c
-    and $80
+    and %10000000
 -:  VDP_ADDRESS_TO_DE
     ld a, (hl)
     out (Port_VDPData), a
@@ -642,7 +657,9 @@ DecompressBitplane:
     jp nz, --
     inc hl
     jp --
+.ends
 
+.section "Sprite table handlers including flicker helper" force
 CopySpriteTable2ToVRAM:
     ld a, (RAM_SpriteTable2DirtyFlag)
     or a
@@ -716,7 +733,9 @@ SpriteTable1to2:
     ld a, $01
     ld (RAM_SpriteTable2DirtyFlag), a
     ret
+.ends
 
+.section "Startup delay loop" force
 DelayLoop1:
     ; Delay (including call) = 3145810 cycles = ~879ms
     ld e, $02
@@ -728,7 +747,9 @@ DelayLoop1:
     dec e
     jp nz, --
     ret
+.ends
 
+.section "UI initialisatiomn" force
 DrawUIControls:
     ld hl, BottomStatusBarTiles ; tilemap data: MENU | DO | PEN | mode text bar
     LD_DE_TILEMAP 4, 21
@@ -765,7 +786,9 @@ SetDrawingAreaTilemap:
     pop bc
     djnz -- ; Loop down rows
     ret
+.ends
 
+.section "Sound driver (!)" force
 Beep:
     ld a, (RAM_Beep)
     or a
@@ -797,7 +820,9 @@ SilencePSG:
     cpl ; results in zero - could use "or a" to be clear
     ld (RAM_Beep), a ; Disable counter
     ret
+.ends
 
+.section "Drawing-time palettes" force
 ; Unused palette? Black with blue and white
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
   COLOUR 0, 0, 3
@@ -840,7 +865,9 @@ DrawingPalette:
   COLOUR 0, 0, 0
   COLOUR 0, 0, 0
   COLOUR 3, 0, 0 ; Cycling colour
+.ends
 
+.section "Tilemap data for UI" force
 ;.org $053d
 TopBarPaletteTiles: ; 22x1
 .dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c ; Palette colours
@@ -854,7 +881,9 @@ BottomStatusBarTiles: ; 24x3
 .dw $09A2, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0BA2 ; .______________________.
 .dw $0BA3, $09AA, $09AB, $09AC, $09AD, $09AE, $09AF, $09B0, $09B1, $09B2, $09B3, $09B4, $09B5, $09B6, $09B7, $09B8, $09B9, $09BA, $09BB, $09BC, $09BD, $09BE, $09BF, $09A3 ; |                      | <-- with stuff in it
 .dw $0DA2, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $0FA2 ; '^^^^^^^^^^^^^^^^^^^^^^'
+.ends
 
+.section "VBlank handler implementation" force
 InterruptHandlerImpl:
     di
     push af
@@ -967,8 +996,7 @@ VBlank_CheckResetAndExit:
     ei
     ret
 
-.endasm
-; Some pushes to match the pops below - ignore!
+.endasm ; Some pushes to match the pops below - ignore!
 push af
 push af
 push af
@@ -1008,6 +1036,9 @@ HandleReset:
     ; Then go to the usual startup code
     jp Start_AfterRAMClear
 
+.ends
+
+.section "Title screen VBlank handler" force
 VBlank_TitleScreen:
     ld a, (RAM_VBlankFunctionControl)
     or a
@@ -1022,14 +1053,18 @@ VBlank_TitleScreen:
     bit VBlankFunctionControl_TitleScreen_UpdateText, a ; Bit 2 set -> update title screen text
     call nz, TitleScreenTextUpdate
     jp VBlank_CheckResetAndExit
+.ends
 
+.section "VBlank function set and wait" force
 SetVBlankFunctionAndWait:
     ld (RAM_VBlankFunctionControl), a
 -:  ld a, (RAM_VBlankFunctionControl)
     or a
     jp nz, -
     ret
+.ends
 
+.section "Reset button handler" force
 CheckForReset:
     push hl
     push af
@@ -1048,11 +1083,17 @@ CheckForReset:
     pop af
     pop hl
     ret
+.ends
 
+.section "Graphic board" force
 .include "graphicboard.asm"
+.ends
 
+.section "MAths 1" force
 .include "maths.asm"
+.ends
 
+.section "Title screen main loop" force
 TitleScreen: ; $865
     ; blank RAM for title screen animation?
     ld hl, $C15D
@@ -1266,7 +1307,9 @@ TitleScreenTextUpdate:
     ld bc, 20 ; 20 tiles
     ld hl, 9
     jp FillVRAMWithHL ; and ret
+.ends
 
+.section "Title screen data" force
 ; This mapping only applies to the title screen font.
 .asciitable
 map ' ' = 0
@@ -1291,7 +1334,9 @@ Palette_TitleScreen:
 .db %00110000 ; Bright blue
 .db %00000000 ; Black
 .db %00111111 ; White
+.ends
 
+.section "Title screen animation" force
 TitleScreenAnimate_Bit0Zero:
     set 7, (ix+1) ; set high bit of $c15e
     inc (ix+2) ; increment $c15f
@@ -1549,7 +1594,9 @@ TitleScreenAnimation_Part2:
     ld b, a
     call _LABEL_ACC_
 +:  ret
+.ends
 
+.section "Title screen data 2" force
 ;.orga $b8a
 Tilemap_Logo:
 .incbin "Graphics/Logo tilemap.bin"
@@ -1572,17 +1619,20 @@ Tilemap_SegaLogo:
 ;.orga $14ca
 Tiles_SegaLogo:
 .incbin "Graphics/Sega logo.pscompr"
+.ends
 
-CallNonVBlankModeSecondFunction:
+.section "Non-VBlank drawing handlers dispatch" force
+CallModeDrawingFunction:
     ld hl, RAM_CurrentMode
     ld a, (hl)
     and %00111111
     exx
-      ld hl, CallNonVBlankModeSecondFunction_JumpTable
+      ld hl, CallModeDrawingFunction_JumpTable
       jp JumpToFunction
 
 ; Jump Table from 165C to 167F (18 entries, indexed by RAM_CurrentMode)
-CallNonVBlankModeSecondFunction_JumpTable:
+; These are functions to perform drawing tasks for the current mode, e.g. drawing with the pen, drawing a circle, drawing a menu...
+CallModeDrawingFunction_JumpTable:
 .dw NonVBlankMode0_DrawingFunction
 .dw NonVBlankMode1_MenuFunction
 .dw NonVBlankMode2_MenuItemSelectedFunction
@@ -1601,7 +1651,7 @@ CallNonVBlankModeSecondFunction_JumpTable:
 .dw NonVBlankMode15_ColourSelectionMenuFunction
 .dw NonVBlankMode16_MirrorAxisMenuFunction
 .dw NonVBlankMode17_EraseConfirmationMenuFunction
-
+.ends
 ; Note: menu-showing handlers could be refactored as they are all the same except for the parameters...
 
 ; 2nd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
