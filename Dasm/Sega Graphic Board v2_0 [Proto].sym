@@ -83,7 +83,10 @@
 0000:c08f RAM_Pen_Smoothed_Previous_Backup
 0000:c08f RAM_Pen_Smoothed_Previous_Backup.y
 0000:c090 RAM_Pen_Smoothed_Previous_Backup.x
-0000:c091 RAM_unusedC091
+0000:c091 RAM_PaintStartingPoint
+0000:c091 RAM_PaintStartingPoint.y
+0000:c092 RAM_PaintStartingPoint.x
+0000:c093 RAM_unusedC093
 0000:c0a2 RAM_EllipseCurrentX
 0000:c0a4 RAM_EllipseCurrentY
 0000:c0a6 RAM_EllipseLastPointError
@@ -91,6 +94,8 @@
 0000:c0aa RAM_CircleEllipseCentre
 0000:c0ac RAM_EllipseMinorRadius
 0000:c0ad RAM_unusedC0ad
+0000:c0b2 RAM_SelectedPixelColour
+0000:c0b3 RAM_unusedC0b3
 0000:c0ba RAM_SubmenuSelectionIndex
 0000:c0bb RAM_BytesPerRow
 0000:c0bd RAM_unusedc0bd
@@ -282,7 +287,7 @@
 0000:2786 _LABEL_2752_5
 0000:2787 _LABEL_2752_6
 0000:2788 _LABEL_2752_7
-0000:2792 _LABEL_2792_
+0000:2792 GetPixelColour
 0000:27cd _LABEL_27CD_
 0000:27d8 _LABEL_27D8_
 0000:2812 _LABEL_2812_

@@ -4042,42 +4042,46 @@ Reciprocal_de_a:
 
 ; 9th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode8_PaintFunction:
-    ld a, (RAM_Beep)
-    or a
-    ret nz
-    ld a, (RAM_ActionStateFlags)
-    or a
-    ret z
-    ld de, ($C091)
-    ld a, d
-    sub $28
-    ld d, a
-    ld a, e
-    sub $40
-    cp $90
-    jp nc, +
-    ld h, a
-    ld a, d
-    cp $B0
-    jp nc, +
-    ld l, a
-    ex de, hl
-    di
-    call _LABEL_2792_
-    ei
-    ld a, ($C0B2)
-    ld b, a
-    ld a, (RAM_DrawingData.CurrentlySelectedPaletteIndex)
-    cp b
-    jp z, +
-    xor a
-    ld (RAM_DrawingData.PenStyleForCurrentShape), a
-    di
-    call FloodFill
-    ei
-+:  xor a
-    ld (RAM_ActionStateFlags), a
-    ret
+      ; Wait for the beep to finish
+      ld a, (RAM_Beep)
+      or a
+      ret nz
+      ; Wait for the action state flags to be non-zero
+      ld a, (RAM_ActionStateFlags)
+      or a
+      ret z
+      ; Convert the selected point to canvas coordinates, taking into account the cursor size. Do nothing if out of bounds.
+      ld de, (RAM_PaintStartingPoint)
+      ld a, d
+      sub DRAWING_AREA_MIN_X_PIXELS+4
+      ld d, a
+      ld a, e
+      sub DRAWING_AREA_MIN_Y_PIXELS+4
+      cp DRAWING_AREA_HEIGHT_PIXELS
+      jp nc, +
+      ld h, a
+      ld a, d
+      cp DRAWING_AREA_WIDTH_PIXELS
+      jp nc, +
+      ld l, a
+      ex de, hl
+      di
+        call GetPixelColour
+      ei
+      ld a, (RAM_SelectedPixelColour)
+      ld b, a
+      ld a, (RAM_DrawingData.CurrentlySelectedPaletteIndex)
+      cp b
+      jp z, +
+      xor a
+      ld (RAM_DrawingData.PenStyleForCurrentShape), a
+      di
+        call FloodFill
+      ei
++:    ; Clear the action statew
+      xor a
+      ld (RAM_ActionStateFlags), a
+      ret
 
 FloodFill:
     push af
@@ -4268,7 +4272,7 @@ _LABEL_2752_7: rlca
     ld a, 1
     ret
 
-_LABEL_2792_:
+GetPixelColour:
     push de
       call _LABEL_2812_
       ld a, l
@@ -4301,13 +4305,13 @@ _LABEL_2792_:
       jp z, +
       set 3, c
 +:    ld a, c
-      ld ($C0B2), a
+      ld (RAM_SelectedPixelColour), a
     pop de
     ret
 
 _LABEL_27CD_:
     call _LABEL_2812_
-    ld a, ($C0B2)
+    ld a, (RAM_SelectedPixelColour)
     call _LABEL_27D8_
     cpl
     ret
@@ -4316,7 +4320,7 @@ _LABEL_27D8_:
     ld hl, RAM_TileModificationBuffer
     push bc
       ld b, 4
-      ld a, ($C0B2)
+      ld a, (RAM_SelectedPixelColour)
       or a
       jp z, ++
       ld c, a
@@ -5780,28 +5784,34 @@ _CircleEllipseGraphicBoardHandler_Ellipse:
 ; 9th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode8_PaintGraphicBoardHandler:
       call CheckMenuButton
+      ; Only when action state = 0
       ld hl, RAM_ActionStateFlags
       ld a, (hl)
       or a
       ret nz
     exx
-      ld a, b
-      ld (RAM_SpriteTable1.y), a
-      ld a, (RAM_Pen_Smoothed.x)
-      ld (RAM_SpriteTable1.xn + 0), a
-      ld a, CursorIndex_ArrowTopLeft
-      call SetCursorIndex
-      bit 1, (hl)
-      ret z
-      ld a, 1
-      ld (RAM_Beep), a
-      ld a, (RAM_Pen_Smoothed.x)
-      ld h, a
-      ld a, (RAM_Pen_Smoothed.y)
-      ld l, a
-      ld ($C091), hl
+    ; Update the cursor
+    ld a, b ; Pen Y
+    ld (RAM_SpriteTable1.y), a
+    ld a, (RAM_Pen_Smoothed.x)
+    ld (RAM_SpriteTable1.xn + 0), a
+    ld a, CursorIndex_ArrowTopLeft
+    call SetCursorIndex
+    ; Wait for DO
+    bit GraphicBoardButtonBit_Do, (hl)
+    ret z
+    ; Beep
+    ld a, 1
+    ld (RAM_Beep), a
+    ; Save the point
+    ld a, (RAM_Pen_Smoothed.x)
+    ld h, a
+    ld a, (RAM_Pen_Smoothed.y)
+    ld l, a
+    ld (RAM_PaintStartingPoint), hl
     exx
-    ld (hl), $FF
+      ; Set all the action state bits
+      ld (hl), %11111111
     ret
 
 ; 10th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)

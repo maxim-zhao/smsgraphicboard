@@ -90,14 +90,17 @@ RAM_PenStyle                                db ; $c08a 0-2 = thin, medium, wide;
 RAM_unusedC08B dsb 2
 RAM_Pen_Smoothed_Backup                     instanceof XY ; $c08d Backup of value for switching modes. When the pen can go off the screen, this is used to remember where it was while manipulating menus, allowing you go go back to where you were (to some extent).
 RAM_Pen_Smoothed_Previous_Backup            instanceof XY ; $c08f See RAM_Pen_Smoothed_Backup
-RAM_unusedC091 dsb 17
+RAM_PaintStartingPoint                      instanceof XY ; $c091 Point where paint was invoked
+RAM_unusedC093 dsb 15
 RAM_EllipseCurrentX                         dw ; $c0a2 Circle current point x
 RAM_EllipseCurrentY                         dw ; $c0a4 Circle current point y
-RAM_EllipseLastPointError                      dw ; $c0a6 Part of circle drawing algorithm
+RAM_EllipseLastPointError                   dw ; $c0a6 Part of circle drawing algorithm
 RAM_EllipseRatio                            dw ; $c0a8 Fixed-point ellipse squashed-ness factor - $0100 = a circle
 RAM_CircleEllipseCentre                     dw ; $c0aa X, Y coordinate of the centre of a circle or ellipse
 RAM_EllipseMinorRadius                      db ; $c0ac Circle radius, or minor radius for ellipse
-RAM_unusedC0ad dsb 13
+RAM_unusedC0ad dsb 5
+RAM_SelectedPixelColour                     db ; $c0b2 Selected colour (palette index) in paint mode
+RAM_unusedC0b3 dsb 7
 RAM_SubmenuSelectionIndex                   db ; $c0ba Index of item last selected in a submenu
 RAM_BytesPerRow                             dw ; $c0bb Used during RAM<->VRAM tile copies
 RAM_unusedc0bd dsb 1
