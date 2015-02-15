@@ -1655,6 +1655,7 @@ CallModeDrawingFunction_JumpTable:
 .ends
 ; Note: menu-showing handlers could be refactored as they are all the same except for the parameters...
 
+.section "Menu show/hide implementation" force
 ; 2nd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode1_MenuFunction:
     exx
@@ -1688,7 +1689,9 @@ NonVBlankMode1_MenuFunction:
       ld (RAM_Beep), a
     ei
     ret
+.ends
 
+.section "Menu item selected implementation" force
 ; 3rd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode2_MenuItemSelectedFunction:
       di
@@ -1747,7 +1750,9 @@ NonVBlankMode2_MenuItemSelectedFunction:
       ld (RAM_Beep), a
     ei
     ret
+.ends
 
+.section "Erase implementation" force
 ; 5th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode4_EraseFunction:
       ; Only do it if "yes" was selected (2nd option)
@@ -1763,7 +1768,7 @@ NonVBlankMode4_EraseFunction:
       di
         LD_DE_TILE 0
         ld h, 0
-        ld bc, 18 * 22 * SizeOfTile ; All tiles
+        ld bc, DRAWING_AREA_TOTAL_BYTES ; All tiles
         call FillVRAMWithH
       ei
     ; fall through
@@ -1772,7 +1777,9 @@ NonVBlankMode4_EraseFunction:
     ld a, 1 ; Blank text
     ld (RAM_StatusBarTextIndex), a
     ret
+.ends
 
+.section "Display implementation" force
 ; 13th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode12_DisplayFunction:
       ld a, (RAM_Beep)
@@ -1820,7 +1827,9 @@ NonVBlankMode12_DisplayFunction:
       call SetDrawingAreaTilemap
     ei
     jp ScreenOn ; and ret
+.ends
 
+.section "Line/Paint menu implementation" force
 ; 15th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode14_LinePaintMenuFunction:
       ld a, (RAM_Beep)
@@ -1870,7 +1879,9 @@ NonVBlankMode14_LinePaintMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
+.ends
 
+.section "Colour selection menu implementation" force
 ; 16th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode15_ColourSelectionMenuFunction:
       ld a, (RAM_Beep)
@@ -1919,7 +1930,9 @@ NonVBlankMode15_ColourSelectionMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
+.ends
 
+.section "Mirror axis menu implementation" force
 ; 17th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode16_MirrorAxisMenuFunction:
       ld a, (RAM_Beep)
@@ -1969,7 +1982,9 @@ NonVBlankMode16_MirrorAxisMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
+.ends
 
+.section "Erase confirmation implementation" force
 ; 18th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode17_EraseConfirmationMenuFunction:
       ld a, (RAM_Beep)
@@ -2018,7 +2033,9 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
+.ends
 
+.section "End implementation" force
 ; 14th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode13_EndFunction:
     exx
@@ -2044,7 +2061,9 @@ NonVBlankMode13_EndFunction:
     ld a, SpriteTableYTerminator
     ld (RAM_SpriteTable1.y), a
     ret
+.ends
 
+.section "Menu button handler" force
 CheckMenuButton:
     ; Check for Menu button
     ld a, (RAM_ButtonsNewlyPressed)
@@ -2059,24 +2078,27 @@ CheckMenuButton:
     cp Mode1_Menu
     ret z ; Not if we are already showing it
     cp Mode2_MenuItemSelected
-    ret z ; And not if we are just hiding it
+    ret z ; And not if we just chose something in it
 
     ; Otherwise, show it
     ld a, Mode1_Menu
     ld (RAM_CurrentMode), a
     ret
+.ends
 
+.section "Menu drawing" force
 DrawTextToTilesWithBackup:
 ; h = y offset (within drawing area)
 ; l = x offset (within drawing area)
 ; b = rows
 ; c = columns
+; de = pointer to data
 
-    ld a, ($C082)
+    ld a, (RAM_MenuShowing)
     or a
     call nz, RestoreTileData_SaveRegisters
-    ld a, $80
-    ld ($C082), a
+    ld a, 1<<7
+    ld (RAM_MenuShowing), a
     ld (RAM_GraphicsDataBuffer_Dimensions), bc
     push de
       ; Set the tile attribute
@@ -2169,7 +2191,9 @@ DrawTextToTilesWithBackup:
     pop hl
     VDP_ADDRESS_TO_DE
     jp --
+.ends
 
+.section "Menu un-drawing" force
 RestoreTileData_SaveRegisters:
     ; Register-protecting version of the below
     push bc
@@ -2189,7 +2213,7 @@ RestoreTileData:
     ; Uses RAM_BytesPerRow
     ; Data comes from RAM_GraphicsDataBuffer
     xor a                     ; Zero ???
-    ld ($C082), a
+    ld (RAM_MenuShowing), a
     ld de, (RAM_GraphicsDataBuffer_VRAMAddress_Tilemap)
     ld bc, (RAM_GraphicsDataBuffer_Dimensions)
     ld h, TileAttribute_None  ; attributes
@@ -2230,7 +2254,9 @@ RestoreTileData:
     pop de
     pop bc
     ret
+.ends
 
+.section "Menu drawing data backup" force
 BackupTilesToGraphicsDataBuffer:
     ; Args:
     ; RAM_GraphicsDataBuffer_VRAMAddress_Tiles = VRAM address to start at
@@ -2276,7 +2302,9 @@ BackupTilesToGraphicsDataBuffer:
     pop de
     pop bc
     ret
+.ends
 
+;.section "Menu data"
 ; This is the ASCII mapping for the regular font (outside the title screen).
 .asciitable
 map ' ' = 0
@@ -2288,96 +2316,63 @@ map '-' = 30
 ; Menu borders
 map '/' = 31      ; /^^^^^, 
 map '^' = 32      ; [     ]
-map ', ' = 33      ; `_____'
+map ',' = 33      ; `_____'
 map ']' = 34
 map ''' = 35
 map '_' = 36
 map '`' = 37
 map '[' = 38
+map '$' = $ff ; end of line
 .enda
 
 MenuText: ; $1a10
-.db $B6
-.asc "/^^ MENU ^^,"
-.db $FF
-.asc "[  EXIT    ]"
-.db $FF
-.asc "[  COLOR   ]"
-.db $FF
-.asc "[  ERASE   ]"
-.db $FF
-.asc "[  SQUARE  ]"
-.db $FF
-.asc "[  CIRCLE  ]"
-.db $FF
-.asc "[  ELLIPSE ]"
-.db $FF
-.asc "[  PAINT   ]"
-.db $FF
-.asc "[  COPY    ]"
-.db $FF
-.asc "[  MIRROR  ]"
-.db $FF
-.asc "[  MAGNIFY ]"
-.db $FF
-.asc "[  DISPLAY ]"
-.db $FF
-.asc "[  END     ]"
-.db $FF
-.asc "`__________'"
-.db $FF
+.db 13*14
+.asc "/^^ MENU ^^,$"
+.asc "[  EXIT    ]$"
+.asc "[  COLOR   ]$"
+.asc "[  ERASE   ]$"
+.asc "[  SQUARE  ]$"
+.asc "[  CIRCLE  ]$"
+.asc "[  ELLIPSE ]$"
+.asc "[  PAINT   ]$"
+.asc "[  COPY    ]$"
+.asc "[  MIRROR  ]$"
+.asc "[  MAGNIFY ]$"
+.asc "[  DISPLAY ]$"
+.asc "[  END     ]$"
+.asc "`__________'$"
 
 ModeMenuText: ; $1ac7
-.db $2C
-.asc "/^ MODE ^,"
-.db $FF
-.asc "[  LINE  ]"
-.db $FF
-.asc "[  PAINT ]"
-.db $FF
-.asc "`________'"
-.db $FF
+.db 11*4
+.asc "/^ MODE ^,$"
+.asc "[  LINE  ]$"
+.asc "[  PAINT ]$"
+.asc "`________'$"
 
 ColorMenuText: ; $1af4
-.db $44
-.asc "/^ COLOR MENU ^,"
-.db $FF
-.asc "[  COLOR SET   ]"
-.db $FF
-.asc "[  BACK COLOR  ]"
-.db $FF
-.asc "`______________'"
-.db $FF
+.db 17*4
+.asc "/^ COLOR MENU ^,$"
+.asc "[  COLOR SET   ]$"
+.asc "[  BACK COLOR  ]$"
+.asc "`______________'$"
 
 MirrorMenuText: ; $1b39
-.db $3C
-.asc "/^ MODE SET ^,"
-.db $FF
-.asc "[  V-REVERSE ]"
-.db $FF
-.asc "[  H-REVERSE ]"
-.db $FF
-.asc "`____________'"
-.db $FF
+.db 15*4
+.asc "/^ MODE SET ^,$"
+.asc "[  V-REVERSE ]$"
+.asc "[  H-REVERSE ]$"
+.asc "`____________'$"
 
 ColorPageMenuText: ; $1b76
-.db $70
-.asc "/^^ COLOR ^^,"
-.db $FF
-.asc "[           ]"
-.db $FF
-.asc "[           ]"
-.db $FF
-.asc "[           ]"
-.db $FF
-.asc "[           ]"
-.db $FF
-.asc "[  PAGE UP  ]"
-.db $FF
-.asc "[  PAGE DOWN]"
-.db $FF
-.asc "`___________'"
-.db $FF
+.db 14*8
+.asc "/^^ COLOR ^^,$"
+.asc "[           ]$"
+.asc "[           ]$"
+.asc "[           ]$"
+.asc "[           ]$"
+.asc "[  PAGE UP  ]$"
+.asc "[  PAGE DOWN]$"
+.asc "`___________'$"
 
 ColourSelectionTilemap: ; $1be7
 ; Tiles showing selectable colours
@@ -2386,15 +2381,12 @@ ColourSelectionTilemap: ; $1be7
 .dw $0995 $098E $0996 $098E $0997 $098E $0998
 
 EraseMenuText: ; $1c11
-.db $38
-.asc "/^ ERASE ? ^,"
-.db $FF
-.asc "[  NO       ]"
-.db $FF
-.asc "[  YES      ]"
-.db $FF
-.asc "`___________'"
-.db $FF
+.db 14*4
+.asc "/^ ERASE ? ^,$"
+.asc "[  NO       ]$"
+.asc "[  YES      ]$"
+.asc "`___________'$"
+;.ends
 
 ; 1st entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode0_DrawingFunction:

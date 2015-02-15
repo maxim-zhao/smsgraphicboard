@@ -68,7 +68,7 @@
 0000:c071 RAM_DrawingData.SquareCorner2_x
 0000:c072 RAM_DrawingData.SquareHeight
 0000:c073 RAM_TileModificationBuffer
-0000:c082 RAM_c082
+0000:c082 RAM_MenuShowing
 0000:c083 RAM_CurrentCursorIndex
 0000:c084 RAM_CurrentCursorDataAddress
 0000:c086 RAM_CursorColourCycle_Delay

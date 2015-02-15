@@ -79,7 +79,7 @@ RAM_NeedToUpdatePalette                     db ; $c054 Non-zero when we need to 
 RAM_unusedC055                              dsb 13
 RAM_DrawingData                             instanceof DrawingData ; $c062 A bunch of variables, referenced using index registers starting at this address
 RAM_TileModificationBuffer                  dsb 15 ; $C073 ; 4b+?
-RAM_c082 db ; $c082
+RAM_MenuShowing                             db ; $c082 High bit is set when a menu has been drawn into the tiles
 RAM_CurrentCursorIndex                      db ; $C083 Low bits are the cursor index, high bits are ??? TODO
 RAM_CurrentCursorDataAddress                dw ; $C084 Pointer to cursor tile data
 RAM_CursorColourCycle_Delay                 db ; $C086 Counter for frame between colour changes
