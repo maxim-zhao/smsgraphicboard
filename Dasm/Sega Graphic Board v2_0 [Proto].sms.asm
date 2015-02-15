@@ -1881,7 +1881,7 @@ NonVBlankMode14_LinePaintMenuFunction:
     ret
 .ends
 
-.section "Colour selection menu implementation" force
+.section "Colour selection menu show/hide" force
 ; 16th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode15_ColourSelectionMenuFunction:
       ld a, (RAM_Beep)
@@ -2304,7 +2304,7 @@ BackupTilesToGraphicsDataBuffer:
     ret
 .ends
 
-;.section "Menu data"
+.section "Menu data" force
 ; This is the ASCII mapping for the regular font (outside the title screen).
 .asciitable
 map ' ' = 0
@@ -2386,8 +2386,9 @@ EraseMenuText: ; $1c11
 .asc "[  NO       ]$"
 .asc "[  YES      ]$"
 .asc "`___________'$"
-;.ends
+.ends
 
+.section "Drawing implementation" force
 ; 1st entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode0_DrawingFunction:
     exx
@@ -2427,7 +2428,9 @@ NonVBlankMode0_DrawingFunction:
       ld (RAM_Pen_Smoothed_Previous.y), a
     ei
     ret
+.ends
 
+.section "Line drawing" force
 DrawLine:
     ; params: 
     ; hl = x1,y1
@@ -2566,7 +2569,9 @@ _DrawLine_NextX:
 
 ; $1D3F
     ret ; Unused
+.ends
 
+.section "Dot drawing" force
 DrawPenDotIfButtonPressed:
     ld a, (RAM_DrawingData.ButtonsPressed_virtual) ; Do nothing if pen bit is not set
     bit GraphicBoardButtonBit_Pen, a
@@ -2682,7 +2687,9 @@ DrawPenDot:
     ld a, (RAM_DrawingData.PixelYPlus1)
     ld (RAM_DrawingData.PixelYToDraw), a
     jp DrawPixel ; ### Unnecessary, could fall through
+.ends
 
+.section "Pixel drawing" force
 DrawPixel:
     ld a, (RAM_DrawingData.PixelYToDraw) ; y
     cp DRAWING_AREA_HEIGHT_PIXELS
@@ -2789,7 +2796,9 @@ Table_BitInPixelRowFromX: ; Table_BitInPixelRowFromX
 .db %00000100
 .db %00000010
 .db %00000001
+.ends
 
+.section "Colour selection menu implementation" force
 ; 4th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode3_ColourFunction:
     exx
@@ -2885,7 +2894,9 @@ UpdateColourSelectionLabels_TileOffsets:
  DIGIT_OFFSET 14
  DIGIT_OFFSET 15
  DIGIT_OFFSET 16
+.ends
 
+.section "Rectangle drawing implementation" force
 ; 6th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode5_SquareFunction:
       ld a, (RAM_ActionStateFlags)
@@ -3279,7 +3290,9 @@ Table_SetPixelsInRow: ; $219a
 .db %00000111
 .db %00000011
 .db %00000001
+.ends
 
+.section "Ellipse drawing implementation" force
 ; 7th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode6_CircleAnd7_EllipseFunction:
       ; Wait for beep to finish
@@ -3843,7 +3856,7 @@ DrawEllipse_Tall:
       jp nz, -
       jp +
 
-++:   ; Third wuadrant
+++:   ; Third quadrant
 --:   call Ellipse_DrawPoint
 -:
 +:    ld hl, (RAM_EllipseLastPointError)
@@ -4031,7 +4044,9 @@ Reciprocal_de_a:
     add hl, de
 +:  djnz -
     ret
+.ends
 
+.section "Flood filling implementation" force
 ; 9th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode8_PaintFunction:
       ; Wait for the beep to finish
@@ -4487,6 +4502,7 @@ FloodFill_DrawPixel:
     pop hl
     pop de
     ret
+.ends
 
 ; 10th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode9_CopyFunction:
