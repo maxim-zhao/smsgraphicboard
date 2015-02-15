@@ -96,7 +96,7 @@
 0000:c0aa RAM_FloodFillXY.y
 0000:c0ab RAM_FloodFillXY.x
 0000:c0ac RAM_EllipseMinorRadius
-0000:c0ac RAM_FloodFill_RecursionCounter
+0000:c0ac RAM_FloodFill_StackCounter
 0000:c0ae RAM_FloodFill_PreviousPixelAboveMatches
 0000:c0af RAM_FloodFill_PreviousPixelBelowMatches
 0000:c0b0 RAM_FloodFill_PixelAboveMatches

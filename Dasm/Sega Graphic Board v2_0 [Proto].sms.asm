@@ -4088,7 +4088,21 @@ NonVBlankMode8_PaintFunction:
       ret
 
 FloodFill:
-    ; Uses a lot of recursion. Presumably one could blow the stack with a carefully crafted picture.
+    ; Inputs:
+    ; de = pixel x,y on canvas
+    ; RAM_SelectedPixelColour = colour at that location ("From" colour)
+    ; RAM_DrawingData.CurrentlySelectedPaletteIndex = colour to replace it with ("To" colour)
+    ; Finds all pixels of the same colour that are connected by an edge, and changes their colour.
+    ; Algorithm:
+    ; 1. Move left until you find the last pixel of the "From" colour
+    ; 2. If the pixel above is the "From" colour, and is either at the left edge or the one to its left 
+    ;    is a different colour, push its location onto the stack
+    ; 3. If the pixel below is the "From" colour, and is either at the left edge or the one to its left 
+    ;    is a different colour, push its location onto the stack
+    ; 4. Set this pixel to the "To" colour
+    ; 5. If the pixel to the right is the "From" colour, move right and go to #1
+    ; 6. Pop a location from the stack and go to #1
+    ; Uses a lot of stack. Presumably one could blow the stack with a carefully crafted picture.
     push af
     push bc
     push de
@@ -4108,7 +4122,7 @@ FloodFill:
       jp nz, FloodFill_Done
 
       ld hl, 0
-      ld (RAM_FloodFill_RecursionCounter), hl
+      ld (RAM_FloodFill_StackCounter), hl
 ---:
 -:    ; Move left until we find the leftmost pixel
       ld a, (RAM_FloodFillXY.x)
@@ -4169,9 +4183,9 @@ FloodFill:
       and b
       jr z, +
       ; We found a fork. We push its location onto the stack so we can come back to it.
-      ld hl, (RAM_FloodFill_RecursionCounter)
+      ld hl, (RAM_FloodFill_StackCounter)
       inc hl
-      ld (RAM_FloodFill_RecursionCounter), hl
+      ld (RAM_FloodFill_StackCounter), hl
       ld a, (RAM_FloodFillXY.x)
       ld l, a
       ld a, (RAM_FloodFillXY.y)
@@ -4190,9 +4204,9 @@ FloodFill:
       and b
       jr z, +
       ; We found a fork. We push its location onto the stack so we can come back to it.
-      ld hl, (RAM_FloodFill_RecursionCounter)
+      ld hl, (RAM_FloodFill_StackCounter)
       inc hl
-      ld (RAM_FloodFill_RecursionCounter), hl
+      ld (RAM_FloodFill_StackCounter), hl
       ld a, (RAM_FloodFillXY.x)
       ld l, a
       ld a, (RAM_FloodFillXY.y)
@@ -4229,7 +4243,7 @@ FloodFill:
 
 FloodFill_EndOfRow:
       ; If we've finished recursing, we are done
-      ld hl, (RAM_FloodFill_RecursionCounter)
+      ld hl, (RAM_FloodFill_StackCounter)
       ld a, h
       or l
       jr z, FloodFill_Done
@@ -4243,9 +4257,9 @@ FloodFill_EndOfRow:
       ld (RAM_FloodFillXY.x), a
       ld a, h
       ld (RAM_FloodFillXY.y), a
-      ld hl, (RAM_FloodFill_RecursionCounter)
+      ld hl, (RAM_FloodFill_StackCounter)
       dec hl
-      ld (RAM_FloodFill_RecursionCounter), hl
+      ld (RAM_FloodFill_StackCounter), hl
       ; We check the pixel colour again, in case we already got to this area
       ld a, (RAM_FloodFillXY.x)
       ld e, a
