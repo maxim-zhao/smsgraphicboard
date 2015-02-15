@@ -4065,159 +4065,198 @@ NonVBlankMode8_PaintFunction:
       jp nc, +
       ld l, a
       ex de, hl
+      ; Get the selected pixel colour
       di
         call GetPixelColour
       ei
       ld a, (RAM_SelectedPixelColour)
       ld b, a
+      ; If we are flood filling the same colour, then there's nothing to do
       ld a, (RAM_DrawingData.CurrentlySelectedPaletteIndex)
       cp b
       jp z, +
+      ; Use the thin pen
       xor a
       ld (RAM_DrawingData.PenStyleForCurrentShape), a
+      ; Do it...
       di
         call FloodFill
       ei
-+:    ; Clear the action statew
++:    ; Clear the action state
       xor a
       ld (RAM_ActionStateFlags), a
       ret
 
 FloodFill:
+    ; Uses a lot of recursion. Presumably one could blow the stack with a carefully crafted picture.
     push af
     push bc
     push de
     push hl
-      ld a, d
-      cp $90
+      ld a, d ; pixel y
+      cp DRAWING_AREA_HEIGHT_PIXELS
       jp nc, FloodFill_Done
-      ld a, e
-      ld ($C0AB), a
-      ld a, d
-      ld (RAM_CircleEllipseCentre), a
-      call _LABEL_2752_
+      ld a, e ; pixel x
+      ld (RAM_FloodFillXY.x), a
+      ld a, d ; pixel y
+      ld (RAM_FloodFillXY.y), a
+
+      ; If the selected pixel is already our colour, there's nothing to do
+      ; (We already ruled this out...)
+      call FloodFill_DoesPixelMatch
       or a
       jp nz, FloodFill_Done
-      ld hl, $0000
-      ld (RAM_EllipseMinorRadius), hl
+
+      ld hl, 0
+      ld (RAM_FloodFill_RecursionCounter), hl
 ---:
--:    ld a, ($C0AB)
+-:    ; Move left until we find the leftmost pixel
+      ld a, (RAM_FloodFillXY.x)
       or a
       jr z, +
       dec a
       ld e, a
-      ld a, (RAM_CircleEllipseCentre)
+      ld a, (RAM_FloodFillXY.y)
       ld d, a
-      call _LABEL_2752_
+      call FloodFill_DoesPixelMatch
       or a
       jr nz, +
       ld a, e
-      ld ($C0AB), a
+      ld (RAM_FloodFillXY.x), a
       jr -
-+:    ld a, $01
-      ld ($C0B0), a
-      ld ($C0B1), a
---:   ld a, ($C0B0)
-      ld ($C0AE), a
-      ld a, ($C0B1)
-      ld ($C0AF), a
-      ld a, (RAM_CircleEllipseCentre)
-      cp $8F
-      ld a, $01
+
++:    ; Initialise variables so the "previous" values are sensible
+      ld a, 1
+      ld (RAM_FloodFill_PixelAboveMatches), a
+      ld (RAM_FloodFill_PixelBelowMatches), a
+-:    ; Copy last colour check results to "previous" values
+      ld a, (RAM_FloodFill_PixelAboveMatches)
+      ld (RAM_FloodFill_PreviousPixelAboveMatches), a
+      ld a, (RAM_FloodFill_PixelBelowMatches)
+      ld (RAM_FloodFill_PreviousPixelBelowMatches), a
+      ; Does the pixel below match? Say no if we are at the bottom
+      ld a, (RAM_FloodFillXY.y)
+      cp DRAWING_AREA_HEIGHT_PIXELS-1
+      ld a, 1
       jr z, +
-      ld a, ($C0AB)
+      ld a, (RAM_FloodFillXY.x)
       ld e, a
-      ld a, (RAM_CircleEllipseCentre)
+      ld a, (RAM_FloodFillXY.y)
       inc a
       ld d, a
-      call _LABEL_2752_
-+:    ld ($C0B1), a
-      ld a, (RAM_CircleEllipseCentre)
-      cp $00
-      ld a, $01
+      call FloodFill_DoesPixelMatch
++:    ld (RAM_FloodFill_PixelBelowMatches), a
+      ; Does the pixel above match? Say no if we are at the top
+      ld a, (RAM_FloodFillXY.y)
+      cp 0 ; optimise: or a
+      ld a, 1
       jr z, +
-      ld a, ($C0AB)
+      ld a, (RAM_FloodFillXY.x)
       ld e, a
-      ld a, (RAM_CircleEllipseCentre)
+      ld a, (RAM_FloodFillXY.y)
       dec a
       ld d, a
-      call _LABEL_2752_
-+:    ld ($C0B0), a
-      ld a, ($C0AE)
+      call FloodFill_DoesPixelMatch
++:    ld (RAM_FloodFill_PixelAboveMatches), a
+      ; Check if:
+      ; - The previous pixel above didn't match
+      ; - AND the current pixel above does
+      ; That means we found the left edge of a "fork".
+      ld a, (RAM_FloodFill_PreviousPixelAboveMatches)
       ld b, a
-      ld a, ($C0B0)
-      xor $01
+      ld a, (RAM_FloodFill_PixelAboveMatches)
+      xor 1
       and b
       jr z, +
-      ld hl, (RAM_EllipseMinorRadius)
+      ; We found a fork. We push its location onto the stack so we can come back to it.
+      ld hl, (RAM_FloodFill_RecursionCounter)
       inc hl
-      ld (RAM_EllipseMinorRadius), hl
-      ld a, ($C0AB)
+      ld (RAM_FloodFill_RecursionCounter), hl
+      ld a, (RAM_FloodFillXY.x)
       ld l, a
-      ld a, (RAM_CircleEllipseCentre)
+      ld a, (RAM_FloodFillXY.y)
       dec a
       ld h, a
       push hl
-+:      ld a, ($C0AF)
-        ld b, a
-        ld a, ($C0B1)
-        xor $01
-        and b
-        jr z, +
-        ld hl, (RAM_EllipseMinorRadius)
-        inc hl
-        ld (RAM_EllipseMinorRadius), hl
-        ld a, ($C0AB)
-        ld l, a
-        ld a, (RAM_CircleEllipseCentre)
-        inc a
-        ld h, a
-        push hl
-+:        ld a, ($C0AB)
-          ld e, a
-          ld a, (RAM_CircleEllipseCentre)
-          ld d, a
-          ld a, $01
-          call _LABEL_2850_
-          ld a, ($C0AB)
-          cp $AF
-          jr z, _f
-          inc a
-          ld e, a
-          ld a, (RAM_CircleEllipseCentre)
-          ld d, a
-          call _LABEL_2752_
-          or a
-          jr nz, _f
-          ld a, ($C0AB)
-          inc a
-          ld ($C0AB), a
-          jp --
-
-__:       ld hl, (RAM_EllipseMinorRadius)
-          ld a, h
-          or l
-          jr z, FloodFill_Done
-        pop hl
-        ld a, l
-        ld ($C0AB), a
-        ld a, h
-        ld (RAM_CircleEllipseCentre), a
-        ld hl, (RAM_EllipseMinorRadius)
-        dec hl
-        ld (RAM_EllipseMinorRadius), hl
-        ld a, ($C0AB)
-        ld e, a
-        ld a, (RAM_CircleEllipseCentre)
-        ld d, a
-        call _LABEL_2752_
-        or a
-        jr nz, _b
-        jp ---
-
-.endasm ; push/pop matching
-pop hl
+.endasm
+      pop hl ; For push/pop matching
 .asm
+
++:    ; Then check for "forks" below as well
+      ld a, (RAM_FloodFill_PreviousPixelBelowMatches)
+      ld b, a
+      ld a, (RAM_FloodFill_PixelBelowMatches)
+      xor 1
+      and b
+      jr z, +
+      ; We found a fork. We push its location onto the stack so we can come back to it.
+      ld hl, (RAM_FloodFill_RecursionCounter)
+      inc hl
+      ld (RAM_FloodFill_RecursionCounter), hl
+      ld a, (RAM_FloodFillXY.x)
+      ld l, a
+      ld a, (RAM_FloodFillXY.y)
+      inc a
+      ld h, a
+      push hl
+.endasm
+      pop hl ; For push/pop matching
+.asm
++:    ld a, (RAM_FloodFillXY.x)
+      ld e, a
+      ld a, (RAM_FloodFillXY.y)
+      ld d, a
+      ld a, 1 ; Unused
+      call FloodFill_DrawPixel ; Set the pixel
+      ; If we've got to the right margin, go check for more work to do
+      ld a, (RAM_FloodFillXY.x)
+      cp DRAWING_AREA_WIDTH_PIXELS-1
+      jr z, FloodFill_EndOfRow
+      ; Else, check the pixel to the right
+      inc a
+      ; If the colour doesn't match, we have finished this run
+      ld e, a
+      ld a, (RAM_FloodFillXY.y)
+      ld d, a
+      call FloodFill_DoesPixelMatch
+      or a
+      jr nz, FloodFill_EndOfRow
+      ; Else move right and loop
+      ld a, (RAM_FloodFillXY.x)
+      inc a
+      ld (RAM_FloodFillXY.x), a
+      jp -
+
+FloodFill_EndOfRow:
+      ; If we've finished recursing, we are done
+      ld hl, (RAM_FloodFill_RecursionCounter)
+      ld a, h
+      or l
+      jr z, FloodFill_Done
+      
+      ; Else pop one of the locations we pushed earlier (if any) and check if it still needs to be filled
+.endasm
+      push hl ; For push/pop matching
+.asm
+      pop hl
+      ld a, l
+      ld (RAM_FloodFillXY.x), a
+      ld a, h
+      ld (RAM_FloodFillXY.y), a
+      ld hl, (RAM_FloodFill_RecursionCounter)
+      dec hl
+      ld (RAM_FloodFill_RecursionCounter), hl
+      ; We check the pixel colour again, in case we already got to this area
+      ld a, (RAM_FloodFillXY.x)
+      ld e, a
+      ld a, (RAM_FloodFillXY.y)
+      ld d, a
+      call FloodFill_DoesPixelMatch
+      or a
+      jr nz, FloodFill_EndOfRow
+      ; Else start again
+      ; TODO: this includes looking left from X,Y to see if we have the leftmost point, but is that necessary? We only captured left edges...
+      jp ---
 
 FloodFill_Done:
     pop hl
@@ -4226,126 +4265,141 @@ FloodFill_Done:
     pop af
     ret
 
-_LABEL_2752_:
+FloodFill_DoesPixelMatch:
+    ; Inputs: de = x,y location in canvas
+    ; Reads the pixel at RAM_FloodFillXY and returns 0 if the pixel matches the originally selected pixel, 1 if not
+    ; This seems terribly inefficient!
     push bc
     push de
     push hl
       push de
-        call _LABEL_27CD_
-        ex af, af'
+        call GetPixelColour_GetRowColourMismatchBitmask
+        ex af, af' ; Save it
       pop de
-      ld a, e
-      cpl
+      ; We want to check the state of the bit corresponding to the x coordinate...
+      ld a, e ; Pixel x
+      cpl     ; Calculate 7 - (x % 8) = number of pixels in the row to the right of x (0..7)
       and 7
       ld c, a
-      ex af, af'
+      ex af, af' ; Get the bitmask back
+      ; Rotate left through carry 8 - (7 - x % 8) times. That's the same as 1 + x % 8, so the relevant bit is the last to go into carry.
       inc c
       dec c
-      jp z, _LABEL_2752_0
+      jp z, Rotates+0
       dec c
-      jp z, _LABEL_2752_1
+      jp z, Rotates+1
       dec c
-      jp z, _LABEL_2752_2
+      jp z, Rotates+2
       dec c
-      jp z, _LABEL_2752_3
+      jp z, Rotates+3
       dec c
-      jp z, _LABEL_2752_4
+      jp z, Rotates+4
       dec c
-      jp z, _LABEL_2752_5
+      jp z, Rotates+5
       dec c
-      jp z, _LABEL_2752_6
-      jp _LABEL_2752_7
-
-_LABEL_2752_0: rlca
-_LABEL_2752_1: rlca
-_LABEL_2752_2: rlca
-_LABEL_2752_3: rlca
-_LABEL_2752_4: rlca
-_LABEL_2752_5: rlca
-_LABEL_2752_6: rlca
-_LABEL_2752_7: rlca
+      jp z, Rotates+6
+      jp Rotates+7
+Rotates:
+.rept 8
+      rlca
+.endr
     pop hl
     pop de
     pop bc
+    ; Then we examine the carry, which is the same as the LSB, and set a to 1 or 0 accordingly.
     ld a, 0
     ret nc
     ld a, 1
     ret
 
 GetPixelColour:
+    ; Inputs: de = x,y location
+    ; Outputs: RAM_SelectedPixelColour holds the colour (palette index) of that pixel
+    ; Trashes: hl, bc, af (notably, not de)
     push de
-      call _LABEL_2812_
-      ld a, l
+      call GetPixelColour_LoadTileRow
+      ld a, l ; pixel x
       ld hl, RAM_TileModificationBuffer
       push hl
-        and $07
+        and $07 ; Modulo 8
+        ; Get the relevant bitmask in d
         ld de, Table_BitInPixelRowFromX
         LD_HL_A
         add hl, de
         ld d, (hl)
       pop hl
-      ld c, 0
-      ld a, (hl)
+      ld c, 0 ; We accumulate the bits frmo the bitplanes into c
+      ld a, (hl) ; Bitplane 1
       and d
       jp z, +
       set 0, c
 +:    inc hl
-      ld a, (hl)
+      ld a, (hl) ; Bitplane 2
       and d
       jp z, +
       set 1, c
 +:    inc hl
-      ld a, (hl)
+      ld a, (hl) ; Bitplane 3
       and d
       jp z, +
       set 2, c
 +:    inc hl
-      ld a, (hl)
+      ld a, (hl) ; Bitplane 4
       and d
       jp z, +
       set 3, c
 +:    ld a, c
-      ld (RAM_SelectedPixelColour), a
+      ld (RAM_SelectedPixelColour), a ; Save it
     pop de
     ret
 
-_LABEL_27CD_:
-    call _LABEL_2812_
+GetPixelColour_GetRowColourMismatchBitmask:
+    ; Inputs: de = x,y location in canvas
+    ; Returns a bitmask in a, containing 0 for each pixel in the tile row containing x,y which matches the originally selected pixel
+    ; Trashes everything but bc?
+    ; Load the data
+    call GetPixelColour_LoadTileRow
+    ; Analyse it
     ld a, (RAM_SelectedPixelColour)
-    call _LABEL_27D8_
+    call GetPixelColour_GetRowColourMatchBitmask
+    ; Invert the logic so 1 = mismatch
     cpl
     ret
 
-_LABEL_27D8_:
+GetPixelColour_GetRowColourMatchBitmask:
+    ; Returns a bitmask in a, containing 1 for each pixel in RAM_TileModificationBuffer which is of the given colour
     ld hl, RAM_TileModificationBuffer
     push bc
-      ld b, 4
+      ld b, 4 ; Bitplane count
       ld a, (RAM_SelectedPixelColour)
       or a
-      jp z, ++
+      jp z, ++ ; Special case zero
       ld c, a
+      ; First we check for matching zeroes
       push bc
       push hl
-        xor a
--:      rrc c
-        jp c, +
+        xor a     ; Initialise result
+-:      rrc c     ; Get a bit out
+        jp c, +   ; If it's a 0, then we OR the bitplane, as that will set the bit for mismatches
         or (hl)
 +:      inc hl
         djnz -
       pop hl
       pop bc
-      cpl
-      ld d, a
-      ld a, $FF
--:    rrc c
-      jp nc, +
+      cpl         ; Invert
+      ld d, a     ; Save
+      ; Then we check for matching ones
+      ld a, $FF   ; Initialise result again
+-:    rrc c       ; Get a bit out
+      jp nc, +    ; If it's a 1, then we AND the bitplane, as that will unset the bit for mismatches
       and (hl)
 +:    inc hl
       djnz -
-      and d
+      and d       ; Then we combine the two halves
       jp +
 
 ++:   push hl
+        ; We OR all four bytes together. Any non-zero pixel will become 1.
         xor a
         or (hl)
         inc hl
@@ -4355,14 +4409,17 @@ _LABEL_27D8_:
         inc hl
         or (hl)
       pop hl
-      cpl
+      cpl ; We invert the bits
 +:  pop bc
     ret
 
-_LABEL_2812_:
-    ld a, d
-    and $F8
-    ld h, $00
+GetPixelColour_LoadTileRow:
+    ; Inputs: de = x,y location in canvas
+    ; Outputs: RAM_TileModificationBuffer is filled from the appropriate row and a is the pixel offset within it
+    ; Trashes: af, hl, bc
+    ld a, d ; y
+    and $F8 ; Round down
+    ld h, 0 ; Multiply by 88 to make a tile row address
     ld l, a
     add hl, hl
     add hl, hl
@@ -4377,21 +4434,23 @@ _LABEL_2812_:
     pop bc
     add hl, bc
     push hl
-      ld a, e
-      and $F8
+      ld a, e ; x
+      and $F8 ; Round down
       LD_HL_A
-      add hl, hl
+      add hl, hl ; Multiply by 4 to make an offset within the row
       add hl, hl
     pop bc
+    ; Add it on to tmake the tile address
     add hl, bc
-    ld a, d
-    and $07
+    ld a, d ; y
+    and $07 ; Row within tile
     add a, a
     add a, a
     ld c, a
-    ld b, $00
+    ld b, 0
     add hl, bc
-    ex de, hl
+    ex de, hl ; now de = address of row data
+    ; Read it into RAM
     push hl
     push de
     push bc
@@ -4401,14 +4460,15 @@ _LABEL_2812_:
     pop bc
     pop de
     pop hl
-    ld a, l
-    and $F8
-    or l
-    cpl
-    and $07
+    ld a, l ; x
+    and $F8 ; clear low 3 bits
+    or l ; set them again?!
+    cpl ; Invert
+    and $07 ; Mask to just the low 3 bits. Could just ld a,l; and $07? Does the calling code even care?
     ret
 
-_LABEL_2850_:
+FloodFill_DrawPixel:
+    ; Draws into pixel at de
     push de
     push hl
     push bc

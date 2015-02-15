@@ -96,9 +96,14 @@ RAM_EllipseCurrentX                         dw ; $c0a2 Circle current point x
 RAM_EllipseCurrentY                         dw ; $c0a4 Circle current point y
 RAM_EllipseLastPointError                   dw ; $c0a6 Part of circle drawing algorithm
 RAM_EllipseRatio                            dw ; $c0a8 Fixed-point ellipse squashed-ness factor - $0100 = a circle
-RAM_CircleEllipseCentre                     dw ; $c0aa X, Y coordinate of the centre of a circle or ellipse
-RAM_EllipseMinorRadius                      db ; $c0ac Circle radius, or minor radius for ellipse
-RAM_unusedC0ad dsb 5
+RAM_CircleEllipseCentre                     .dw ; $c0aa X, Y coordinate of the centre of a circle or ellipse
+RAM_FloodFillXY                             instanceof XY ; $c0aa X,Y coordinates used during flood fills
+RAM_EllipseMinorRadius                      .db ; $c0ac Circle radius, or minor radius for ellipse
+RAM_FloodFill_RecursionCounter              dw ; $c0ac Counter for pushed X,Y pairs that we need to come back to
+RAM_FloodFill_PreviousPixelAboveMatches     db ; $c0ae 0 if the pixel at (x-1, y-1) is the right colour, 1 otherwise
+RAM_FloodFill_PreviousPixelBelowMatches     db ; $c0af 0 if the pixel at (x-1, y+1) is the right colour, 1 otherwise
+RAM_FloodFill_PixelAboveMatches             db ; $c0b0 0 if the pixel at (x, y-1) is the right colour, 1 otherwise
+RAM_FloodFill_PixelBelowMatches             db ; $c0b1 0 if the pixel at (x, y+1) is the right colour, 1 otherwise
 RAM_SelectedPixelColour                     db ; $c0b2 Selected colour (palette index) in paint mode
 RAM_unusedC0b3 dsb 7
 RAM_SubmenuSelectionIndex                   db ; $c0ba Index of item last selected in a submenu
