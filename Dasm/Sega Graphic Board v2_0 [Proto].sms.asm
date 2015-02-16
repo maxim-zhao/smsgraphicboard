@@ -238,6 +238,7 @@ Start_AfterRAMClear:
     ; Maybe a holdover from an original design to use RAM for the bitmap?
     ; Maybe just to clear out the RAM devcart, to make sure it's not used?
     ; Maybe a sneaky way to make a 32KB RAM cart kill itself?
+    ; Maybe a holdover from a time when you could save your images to save RAM?
     ld a, $02
     ld ($FFFF), a
     ld hl, $8000
@@ -1089,7 +1090,7 @@ CheckForReset:
 .include "graphicboard.asm"
 .ends
 
-.section "MAths 1" force
+.section "Maths 1" force
 .include "maths.asm"
 .ends
 
@@ -2322,6 +2323,16 @@ map ''' = 35
 map '_' = 36
 map '`' = 37
 map '[' = 38
+; "Magnify" mode borders
+map '~' = 39      ; Same order as above... ran out of sensible characters to use
+map '*' = 40      ; ~*****;
+map ';' = 41      ; (     )
+map ')' = 42      ; %#####@
+map '@' = 43
+map '#' = 44
+map '%' = 45
+map '(' = 46
+; Second space
 map '$' = $ff ; end of line
 .enda
 
@@ -4504,12 +4515,13 @@ FloodFill_DrawPixel:
     ret
 .ends
 
+.section "Copy implementation" force
 ; 10th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode9_CopyFunction:
-    exx
+      exx
     ld a, (RAM_ActionStateFlags)
     bit 3, a
-    jp z, _LABEL_3932_
+    jp z, NotLocal_LABEL_3932_
     ld a, (RAM_Beep)
     or a
     ret nz
@@ -4542,7 +4554,7 @@ NonVBlankMode9_CopyFunction:
     ld (RAM_TitleScreenAndEndTimeout), a
     di
     bit 0, (ix+0)
-    call z, _LABEL_2BD8_
+    call z, NotLoca_LABEL_2BD8_
     ld b, (ix+3)
     ld c, (ix+4)
     ld a, (ix+1)
@@ -4567,8 +4579,8 @@ NonVBlankMode9_CopyFunction:
       add a, $08
 +:    ld ($C166), a
       push bc
-        call _LABEL_2AB1_
-        call _LABEL_2ADC_
+        call NotLocal_LABEL_2AB1_
+        call NotLocal_LABEL_2ADC_
       pop bc
       inc e
       inc l
@@ -4590,18 +4602,20 @@ NonVBlankMode9_CopyFunction:
     and $06
     ld (RAM_ActionStateFlags), a
     ret
+.ends
 
+.section "Mirror implementation" force
 ; 11th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode10_MirrorFunction:
     exx
     xor a
     ld a, (RAM_ActionStateFlags)
     rra
-    jp nc, _LABEL_3ACE_
+    jp nc, NotLocal_LABEL_3ACE_
     rra
     ret nc
     rra
-    jp nc, _LABEL_3932_
+    jp nc, NotLocal_LABEL_3932_
     ld a, (RAM_Beep)
     or a
     ret nz
@@ -4676,7 +4690,7 @@ _LABEL_29A1_:
 _LABEL_29B3_:
     di
       bit 0, (ix+0)
-      call z, _LABEL_2BD8_
+      call z, NotLoca_LABEL_2BD8_
       ld b, (ix+3)
       ld c, (ix+4)
       ld a, (ix+1)
@@ -4706,8 +4720,8 @@ _LABEL_29B3_:
         add a, 8
 +:      ld ($c166), a
         push bc
-          call _LABEL_2AB1_
-          call _LABEL_2ADC_
+          call NotLocal_LABEL_2AB1_
+          call NotLocal_LABEL_2ADC_
         pop bc
         inc e
         inc l
@@ -4762,7 +4776,7 @@ pop hl
 _LABEL_2A52_:
     di
       bit 0, (ix+0)
-      call z, _LABEL_2BD8_
+      call z, NotLoca_LABEL_2BD8_
       ld b, (ix+3)
       ld c, (ix+4)
       ld a, (ix+1)
@@ -4792,8 +4806,8 @@ _LABEL_2A52_:
         cp $b0
         jp nc, +
         push bc
-          call _LABEL_2AB1_
-          call _LABEL_2ADC_
+          call NotLocal_LABEL_2AB1_
+          call NotLocal_LABEL_2ADC_
         pop bc
 +:      dec e
         inc l
@@ -4813,7 +4827,7 @@ _LABEL_2AA9_:
     ld ($c089), a
     jp EnableOnlyThreeSprites ; and ret
 
-_LABEL_2AB1_:
+NotLocal_LABEL_2AB1_:
     push hl
     push de
       push bc
@@ -4850,7 +4864,7 @@ _LABEL_2AB1_:
     pop hl
     ret
 
-_LABEL_2ADC_:
+NotLocal_LABEL_2ADC_:
     call CheckForReset
     push hl
     push de
@@ -5049,7 +5063,7 @@ _LABEL_2BD0_:
 .db %00000010
 .db %00000001
 
-_LABEL_2BD8_:
+NotLoca_LABEL_2BD8_:
     set 0, (ix+0)
     push hl
     push de
@@ -5129,13 +5143,15 @@ _LABEL_2BD8_:
     pop de
     pop hl
     ret
+.ends
 
+.section "Magnify implementation" force
 ; 12th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode11_MagnifyFunction:
     exx
     bit 7, (hl)
     jp z, _LABEL_2D05_
-    call _LABEL_3932_
+    call NotLocal_LABEL_3932_
     ld ix, $C15D
     ld a, (RAM_ActionStateFlags)
     bit 2, a
@@ -5225,7 +5241,7 @@ _LABEL_2D05_:
     ld (RAM_ActionStateFlags), a
     ret
 
-_LABEL_2D0D_: ; magnify mode?
+_LABEL_2D0D_:
     ex af, af'
       ld a, (RAM_Beep)
       or a
@@ -5296,7 +5312,7 @@ _LABEL_2D0D_: ; magnify mode?
     ld hl, $D000
     ld ($C171), hl
     bit 0, (ix+0)
-    call z, _LABEL_2BD8_
+    call z, NotLoca_LABEL_2BD8_
     ld b, (ix+3)
     ld c, (ix+4)
     ld a, (ix+1)
@@ -5314,21 +5330,21 @@ _LABEL_2D0D_: ; magnify mode?
 -:    push bc
       push hl
         call _LABEL_2DED_
-        call _LABEL_2AB1_
-        call _LABEL_2ADC_
+        call NotLocal_LABEL_2AB1_
+        call NotLocal_LABEL_2ADC_
         inc l
         call _LABEL_2DED_
-        call _LABEL_2AB1_
-        call _LABEL_2ADC_
+        call NotLocal_LABEL_2AB1_
+        call NotLocal_LABEL_2ADC_
         dec l
         inc h
         call _LABEL_2DED_
-        call _LABEL_2AB1_
-        call _LABEL_2ADC_
+        call NotLocal_LABEL_2AB1_
+        call NotLocal_LABEL_2ADC_
         inc l
         call _LABEL_2DED_
-        call _LABEL_2AB1_
-        call _LABEL_2ADC_
+        call NotLocal_LABEL_2AB1_
+        call NotLocal_LABEL_2ADC_
       pop hl
       pop bc
       inc e
@@ -5364,34 +5380,55 @@ _LABEL_2DED_:
     ret
 
 ; Data from 2DFE to 2F91 (404 bytes)
-; Unused? Looks a bit like graphics data?
-.db $5A $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00 $00
-.db $00 $00 $00 $2A $FF $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00
-.db $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00 $00 $00 $00
-.db $00 $2A $FF $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00
-.db $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00 $00 $00 $00 $00 $2A
-.db $FF $2C $2C $2C $2C $2C $2C $2C $2C $2B $FF $5A $28 $28 $28 $28
-.db $28 $28 $28 $28 $29 $FF $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF
-.db $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00 $00 $00
-.db $00 $00 $2A $FF $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00
-.db $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00 $00 $00 $00 $00
-.db $2A $FF $00 $00 $00 $00 $00 $00 $00 $00 $2A $FF $00 $00 $00 $00
-.db $00 $00 $00 $00 $2A $FF $5A $2E $00 $00 $00 $00 $00 $00 $00 $00
-.db $FF $2E $00 $00 $00 $00 $00 $00 $00 $00 $FF $2E $00 $00 $00 $00
-.db $00 $00 $00 $00 $FF $2E $00 $00 $00 $00 $00 $00 $00 $00 $FF $2E
-.db $00 $00 $00 $00 $00 $00 $00 $00 $FF $2E $00 $00 $00 $00 $00 $00
-.db $00 $00 $FF $2E $00 $00 $00 $00 $00 $00 $00 $00 $FF $2E $00 $00
-.db $00 $00 $00 $00 $00 $00 $FF $2D $2C $2C $2C $2C $2C $2C $2C $2C
-.db $FF $5A $27 $28 $28 $28 $28 $28 $28 $28 $28 $FF $2E $00 $00 $00
-.db $00 $00 $00 $00 $00 $FF $2E $00 $00 $00 $00 $00 $00 $00 $00 $FF
-.db $2E $00 $00 $00 $00 $00 $00 $00 $00 $FF $2E $00 $00 $00 $00 $00
-.db $00 $00 $00 $FF $2E $00 $00 $00 $00 $00 $00 $00 $00 $FF $2E $00
-.db $00 $00 $00 $00 $00 $00 $00 $FF $2E $00 $00 $00 $00 $00 $00 $00
-.db $00 $FF $2E $00 $00 $00 $00 $00 $00 $00 $00 $FF $18 $57 $28 $67
-.db $CB $38 $FE $2D $00 $00 $68 $A7 $28 $67 $4B $3B $59 $2E $00 $09
-.db $18 $57 $98 $D7 $E7 $38 $B4 $2E $0D $00 $68 $A7 $98 $D7 $67 $3B
-.db $0F $2F $0D $09
+MagnifyBoxData:
+.db 10*9
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "########@$"
+.db 10*9
+.asc "********;$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.asc "        )$"
+.db 10*9
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "%########$"
+.db 10*9
+.asc "~********$"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.asc "(        $"
+.ends
 
+; TBC
+.db $18 $57 $28 $67 $CB $38 
+.dw $2DFE 
+.db $00 $00 $68 $A7 $28 $67 $4B $3B $59 $2E $00 $09 $18 $57 $98 $D7 $E7 $38 $B4 $2E $0D $00 $68 $A7 $98 $D7 $67 $3B $0F $2F $0D $09
+
+.section "Graphic board/sprite update handlers dispatcher" force
 CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen position and buttons
     ld hl, RAM_ButtonsNewlyPressed ; used in functions later
     ld a, (RAM_Pen_Smoothed.y)
@@ -5409,7 +5446,7 @@ CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen positio
 +:  ; Function 0-8 or 14+ only
     ld a, b ; Pen Y
     cp 47
-    jp c, _LABEL_36A5_ ; Less than 47 = near top of screen
+    jp c, NotLocal_LABEL_36A5_ ; Less than 47 = near top of screen
 ++: ld a, b
     sub 40
     jp nc, +
@@ -5451,6 +5488,7 @@ ModeGraphicBoardHandlerJumpTable:
 .dw SubmenuGraphicBoardHandler
 .dw SubmenuGraphicBoardHandler
 .dw SubmenuGraphicBoardHandler
+.ends
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode0_DrawingGraphicBoardHandler:
@@ -6437,7 +6475,7 @@ SubmenuGraphicBoardHandler:
     ld (RAM_CurrentMode), a
     ret
 
-_LABEL_36A5_:
+NotLocal_LABEL_36A5_:
     ld a, $0F
     ld (RAM_SpriteTable1.y), a
     ld a, (RAM_Pen_Smoothed.x)
@@ -6776,7 +6814,7 @@ PenModeNotChanged:
     LD_HL_PEN_TILE_GRAPHICS PenTile_DotMode_Off
     jp FillTiles2bpp ; and ret
 
-_LABEL_3932_:
+NotLocal_LABEL_3932_:
     ld a, (RAM_ActionStateFlags)
     and $07
     ret z
@@ -7030,7 +7068,7 @@ _LABEL_3ABA_:
     pop bc
     ret
 
-_LABEL_3ACE_:
+NotLocal_LABEL_3ACE_:
     ld b, $0C
     ld a, (RAM_SubmenuSelectionIndex)
     rrca
