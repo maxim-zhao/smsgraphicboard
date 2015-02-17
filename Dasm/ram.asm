@@ -116,9 +116,8 @@ RAM_c0c1 db ; $c0c1
 RAM_c0c2 db ; $c0c2
 RAM_c0c3 db ; $c0c3
 RAM_Copy_FirstPoint                         instanceof XY ; $c0c4 First point clicked in copy mode
-RAM_Copy_SecondPoint                        instanceof XY ; $c0c6 First point clicked in copy mode
-RAM_c0c8 db ; $c0c8
-RAM_c0c9 db ; $c0c9
+RAM_Copy_SecondPoint                        instanceof XY ; $c0c6 Second point clicked in copy mode
+RAM_Copy_Destination                        instanceof XY ; $c0c8 Third+ point clicked in copy mode
 RAM_unusedC0CA dsb 147 ; Is used... a buffer of some sort?
 RAM_c15d db ; $c15d
 RAM_c15e db ; $c15e

@@ -4519,84 +4519,89 @@ FloodFill_DrawPixel:
 ; 10th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode9_CopyFunction:
       exx
+    ; Wait for the signal that there is work to be done
     ld a, (RAM_ActionStateFlags)
     bit 3, a
-    jp z, NotLocal_LABEL_3932_
+    jp z, NotLocal_LABEL_3932_ ; If not, ???
+    ; Wait for the beep to end
     ld a, (RAM_Beep)
     or a
     ret nz
+
+    ; Get dimensions
     ld ix, $C15D
     ld a, (RAM_Copy_FirstPoint.y)
-    sub $17
+    sub 23
     ld d, a
-    ld ($C15E), a
+    ld ($C15E), a ; Source Y
     ld a, (RAM_Copy_SecondPoint.y)
-    sub $17
+    sub 23
     sub d
     inc a
-    ld ($C160), a
+    ld ($C160), a ; Height in pixels
     ld a, (RAM_Copy_FirstPoint.x)
-    sub $28
-    ld ($C15F), a
+    sub 40
+    ld ($C15F), a ; Source X
     ld e, a
     ld a, (RAM_Copy_SecondPoint.x)
-    sub $28
+    sub 40
     sub e
     inc a
-    ld ($C161), a
+    ld ($C161), a ; Width in pixels
+
     ld hl, RAM_GraphicsDataBuffer
-    ld ($C171), hl
-    ld a, ($C0C8)
-    sub $17
-    ld ($C162), a
-    ld a, ($C0C9)
-    sub $28
-    ld (RAM_TitleScreenAndEndTimeout), a
+    ld ($C171), hl ; Buffer pointer
+    ld a, (RAM_Copy_Destination.y)
+    sub 23
+    ld ($C162), a ; Destination y
+    ld a, (RAM_Copy_Destination.x)
+    sub 40
+    ld (RAM_TitleScreenAndEndTimeout), a ; Destination X
     di
-    bit 0, (ix+0)
-    call z, NotLoca_LABEL_2BD8_
-    ld b, (ix+3)
-    ld c, (ix+4)
-    ld a, (ix+1)
-    and $07
-    ld d, a
-    ld a, (ix+2)
-    and $07
-    ld e, a
-    ld h, (ix+5)
-    ld l, (ix+6)
---: push bc
-    push de
-    push hl
-      ld b, c
--:    ld a, e
+      bit 0, (ix+0)
+      call z, NotLoca_LABEL_2BD8_
+      ld b, (ix+3)
+      ld c, (ix+4)
+      ld a, (ix+1)
       and $07
-      ld c, a
-      ld a, l
+      ld d, a
+      ld a, (ix+2)
       and $07
-      sub c
-      jp nc, +
-      add a, $08
-+:    ld ($C166), a
-      push bc
-        call NotLocal_LABEL_2AB1_
-        call NotLocal_LABEL_2ADC_
+      ld e, a
+      ld h, (ix+5)
+      ld l, (ix+6)
+--:   push bc
+      push de
+      push hl
+        ld b, c
+-:      ld a, e
+        and $07
+        ld c, a
+        ld a, l
+        and $07
+        sub c
+        jp nc, +
+        add a, $08
++:      ld ($C166), a
+        push bc
+          call NotLocal_LABEL_2AB1_
+          call NotLocal_LABEL_2ADC_
+        pop bc
+        inc e
+        inc l
+        ld a, l
+        cp $B0
+        jp nc, +
+        djnz -
++:    pop hl
+      pop de
       pop bc
-      inc e
-      inc l
-      ld a, l
-      cp $B0
+      inc d
+      inc h
+      ld a, h
+      cp $90
       jp nc, +
-      djnz -
-+:  pop hl
-    pop de
-    pop bc
-    inc d
-    inc h
-    ld a, h
-    cp $90
-    jp nc, +
-    djnz --
+      djnz --
 +:  ei
     ld a, (RAM_ActionStateFlags)
     and $06
@@ -5064,53 +5069,56 @@ _LABEL_2BD0_:
 .db %00000001
 
 NotLoca_LABEL_2BD8_:
+    ; Set the flag to say this function has been called
     set 0, (ix+0)
     push hl
     push de
     push bc
+      ; Get the Y points
       ld a, (RAM_Copy_FirstPoint.y)
-      sub $17
-      ld d, a
+      sub 23
+      ld d, a ; Y1
       ld a, (RAM_Copy_SecondPoint.y)
-      sub $18
-      ld e, a
+      sub 24
+      ld e, a ; Y2
       sub d
       and $F8
       rrca
       rrca
       rrca
       inc a
-      ld b, a
+      ld b, a ; Height in tiles
       ld a, d
       and $07
       jp z, +
       inc b
-+:    ld a, (RAM_Copy_FirstPoint.x)
-      sub $28
-      ld e, a
++:    ; Then the X points
+      ld a, (RAM_Copy_FirstPoint.x)
+      sub 40
+      ld e, a ; X1
       ld a, (RAM_Copy_SecondPoint.x)
-      sub $29
-      ld d, a
+      sub 41
+      ld d, a ; X2
       sub e
       and $F8
       rrca
       rrca
       rrca
       inc a
-      ld c, a
+      ld c, a ; Width in tiles
       ld a, e
       and $07
       jp z, +
       inc c
-+:    ld a, (ix+1)
++:    ld a, (ix+1) ; Source Y
       and $F8
       ld d, a
-      ld e, (ix+2)
+      ld e, (ix+2) ; Source X
       call _LABEL_2B74_
       ld hl, ($C171)
 --:   VDP_ADDRESS_TO_DE
       push bc
-        ld b, $00
+        ld b, 0
         sla c
         rl b
         sla c
@@ -5950,23 +5958,23 @@ Mode9_CopyGraphicBoardHandler:
     jp nz, Mode9_CopyGraphicBoardHandler_SecondPoint
     ; No bits set = selecting first point
     ; Clamp Y to 16..152
-    ld c, $10
+    ld c, 16
     ld a, b ; Pen Y
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $98
++:  ld c, 152
     cp c
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1.y), a
     ; Clamp X to 33..201
     ld a, (RAM_Pen_Smoothed.x)
-    ld c, $21
+    ld c, 33
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $C9
++:  ld c, 201
     cp c
     jp c, +
     ld a, c
@@ -6019,13 +6027,13 @@ Mode9_CopyGraphicBoardHandler_SecondPoint:
 +:  ld a, c
     add a, COPY_MAXIMUM_SIZE
     jp nc, +
-    ld a, $FF
+    ld a, 255
 +:  ld c, a
     cp b
     jp nc, +
     ld b, c
 +:  ld a, b ; Thnen we also limit it to 166? Not sure why
-    ld c, $A6 ; 166 = screen coordinate of bottom of canvas?
+    ld c, 166 ; 166 = screen coordinate of bottom of canvas?
     cp c
     jp c, +
     ld a, c
@@ -6043,13 +6051,13 @@ Mode9_CopyGraphicBoardHandler_SecondPoint:
 +:  ld a, c
     add a, COPY_MAXIMUM_SIZE
     jp nc, +
-    ld a, $FF
+    ld a, 255
 +:  ld c, a
     cp b
     jp nc, +
     ld b, c
 +:  ld a, b
-    ld c, $D7
+    ld c, 215
     cp c
     jp c, +
     ld a, c
@@ -6105,14 +6113,18 @@ Mode9_CopyGraphicBoardHandler_ChooseDestination:
     ; Beep
     ld a, 1
     ld (RAM_Beep), a
-    ; 
-    ld a, (RAM_SpriteTable1.y)
-    add a, $07
-    ld ($C0C8), a
-    ld a, (RAM_SpriteTable1.xn)
-    add a, $07
-    ld ($C0C9), a
+    ; Retrieve the cursor position
+    ld a, (RAM_SpriteTable1.y + 0)
+    ; Offset to the pointed pixel
+    add a, 7
+    ; Save it
+    ld (RAM_Copy_Destination.y), a
+    ; Same for X
+    ld a, (RAM_SpriteTable1.xn + 0)
+    add a, 7
+    ld (RAM_Copy_Destination.x), a
     ld a, (RAM_ActionStateFlags)
+    ; Signal for work to be done
     set 3, a
     ld (RAM_ActionStateFlags), a
     ret
@@ -6913,73 +6925,73 @@ NotLocal_LABEL_3932_:
     call _LABEL_3A35_
 _LABEL_39C0_:
     di
-    ld ix, $C210
-    ld iy, $C260
-    ld a, ($C0BF)
-    add a, a
-    ld b, a
-    ld a, ($C0C2)
-    add a, a
-    add a, b
-    ld b, a
-    ld a, $30
-    sub b
-    ld c, a
-    ld de, $C0FA
-    ld hl, $C0CA
--:  ld a, (hl)
-    ld (ix+0), a
-    inc ix
-    inc hl
-    ld a, (de)
-    ld (iy+0), a
-    inc iy
-    inc de
-    ld a, (de)
-    ld (iy+0), a
-    inc iy
-    inc de
-    djnz -
-    jp +
+      ld ix, $C210
+      ld iy, $C260
+      ld a, ($C0BF)
+      add a, a
+      ld b, a
+      ld a, ($C0C2)
+      add a, a
+      add a, b
+      ld b, a
+      ld a, $30
+      sub b
+      ld c, a
+      ld de, $C0FA
+      ld hl, $C0CA
+-:    ld a, (hl)
+      ld (ix+0), a
+      inc ix
+      inc hl
+      ld a, (de)
+      ld (iy+0), a
+      inc iy
+      inc de
+      ld a, (de)
+      ld (iy+0), a
+      inc iy
+      inc de
+      djnz -
+      jp +
 
 ; Skipped-over code?
-    push bc
-      ld a, b
-      dec a
-      ld c, a
-      ld b, 0
-      ld hl, $c0ca
-      add hl, bc
-      ex de, hl
       push bc
-      pop hl
-      add hl, hl
-      ld bc, $c0fa
-      add hl, bc
-      inc hl
-      ex de, hl
-    pop bc
--:  ld a, (hl)
-    ld (ix+0), a
-    inc ix
-    dec hl
-    ld a, (de)
-    ld (iy+1), a
-    dec de
-    ld a, (de)
-    ld (iy+0), a
-    inc iy
-    inc iy
-    dec de
-    djnz   -
+        ld a, b
+        dec a
+        ld c, a
+        ld b, 0
+        ld hl, $c0ca
+        add hl, bc
+        ex de, hl
+        push bc
+        pop hl
+        add hl, hl
+        ld bc, $c0fa
+        add hl, bc
+        inc hl
+        ex de, hl
+      pop bc
+  -:  ld a, (hl)
+      ld (ix+0), a
+      inc ix
+      dec hl
+      ld a, (de)
+      ld (iy+1), a
+      dec de
+      ld a, (de)
+      ld (iy+0), a
+      inc iy
+      inc iy
+      dec de
+      djnz -
 
-+:  ld a, c
-    or a
-    jp z, +
--:  ld (ix+0), $E0
-    inc ix
-    dec a
-    jp nz, -
++:    ld a, c
+      or a
+      jp z, +
+-:    ld (ix+0), $E0
+      inc ix
+      dec a
+      jp nz, -
 +:  ei
     ret
 
