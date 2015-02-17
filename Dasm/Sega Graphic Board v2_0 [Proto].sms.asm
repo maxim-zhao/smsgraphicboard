@@ -4526,20 +4526,20 @@ NonVBlankMode9_CopyFunction:
     or a
     ret nz
     ld ix, $C15D
-    ld a, ($C0C4)
+    ld a, (RAM_Copy_FirstPoint.y)
     sub $17
     ld d, a
     ld ($C15E), a
-    ld a, ($C0C6)
+    ld a, (RAM_Copy_SecondPoint.y)
     sub $17
     sub d
     inc a
     ld ($C160), a
-    ld a, ($C0C5)
+    ld a, (RAM_Copy_FirstPoint.x)
     sub $28
     ld ($C15F), a
     ld e, a
-    ld a, ($C0C7)
+    ld a, (RAM_Copy_SecondPoint.x)
     sub $28
     sub e
     inc a
@@ -4627,20 +4627,20 @@ NonVBlankMode10_MirrorFunction:
     ld a, (ix+19)
     sub $28
     ld (ix+19), a
-    ld a, ($C0C4)
+    ld a, (RAM_Copy_FirstPoint.y)
     sub $17
     ld d, a
     ld ($C15E), a
-    ld a, ($C0C6)
+    ld a, (RAM_Copy_SecondPoint.y)
     sub $17
     sub d
     inc a
     ld ($C160), a
-    ld a, ($C0C5)
+    ld a, (RAM_Copy_FirstPoint.x)
     sub $28
     ld ($C15F), a
     ld e, a
-    ld a, ($C0C7)
+    ld a, (RAM_Copy_SecondPoint.x)
     sub $28
     sub e
     inc a
@@ -5068,10 +5068,10 @@ NotLoca_LABEL_2BD8_:
     push hl
     push de
     push bc
-      ld a, ($C0C4)
+      ld a, (RAM_Copy_FirstPoint.y)
       sub $17
       ld d, a
-      ld a, ($C0C6)
+      ld a, (RAM_Copy_SecondPoint.y)
       sub $18
       ld e, a
       sub d
@@ -5085,10 +5085,10 @@ NotLoca_LABEL_2BD8_:
       and $07
       jp z, +
       inc b
-+:    ld a, ($C0C5)
++:    ld a, (RAM_Copy_FirstPoint.x)
       sub $28
       ld e, a
-      ld a, ($C0C7)
+      ld a, (RAM_Copy_SecondPoint.x)
       sub $29
       ld d, a
       sub e
@@ -5293,19 +5293,19 @@ _LABEL_2D0D_:
     ld h, TileAttribute_None
     LD_BC_AREA 8, 8
     call SetAreaTileAttributes
-    ld a, ($C0C4)
+    ld a, (RAM_Copy_FirstPoint.y)
     sub $16
     ld d, a
     ld ($C15E), a
-    ld a, ($C0C6)
+    ld a, (RAM_Copy_SecondPoint.y)
     sub $17
     sub d
     ld ($C160), a
-    ld a, ($C0C5)
+    ld a, (RAM_Copy_FirstPoint.x)
     sub $27
     ld ($C15F), a
     ld e, a
-    ld a, ($C0C7)
+    ld a, (RAM_Copy_SecondPoint.x)
     sub $28
     sub e
     ld ($C161), a
@@ -5858,7 +5858,7 @@ _CircleEllipseGraphicBoardHandler_GetCentre:
     ld (RAM_SpriteTable1.y + 3), a
     ld a, (RAM_SpriteTable1.xn + 0)
     ld (RAM_SpriteTable1.xn + 3*2), a
-    ld a, $A9 ; Second cursor tile
+    ld a, $A9 ; Second cursor tile index
     ld (RAM_SpriteTable1.xn + 3*2+1), a
 
     ; Store the location
@@ -5939,14 +5939,19 @@ Mode9_CopyGraphicBoardHandler:
       call CheckMenuButton
     exx
     ld a, (RAM_ActionStateFlags)
+    ; Only if bit 3 is unset...
     bit 3, a
     ret nz
+    ; Bit 2 set = choosing destination
     bit 2, a
-    jp nz, _LABEL_3385_
+    jp nz, Mode9_CopyGraphicBoardHandler_ChooseDestination
+    ; Bit 1 set = selecting second point
     bit 1, a
-    jp nz, _LABEL_3311_
+    jp nz, Mode9_CopyGraphicBoardHandler_SecondPoint
+    ; No bits set = selecting first point
+    ; Clamp Y to 16..152
     ld c, $10
-    ld a, b
+    ld a, b ; Pen Y
     cp c
     jp nc, +
     ld a, c
@@ -5955,6 +5960,7 @@ Mode9_CopyGraphicBoardHandler:
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1.y), a
+    ; Clamp X to 33..201
     ld a, (RAM_Pen_Smoothed.x)
     ld c, $21
     cp c
@@ -5967,65 +5973,75 @@ Mode9_CopyGraphicBoardHandler:
 +:  ld (RAM_SpriteTable1.xn + 0), a
     ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
+    ; Wait for the Do button
     bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    ; Go to the next state
     ld a, (RAM_ActionStateFlags)
     set 1, a
     ld (RAM_ActionStateFlags), a
+    ; Copy the sprite to slot 3
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_SpriteTable1.y + 3), a
-    add a, $07
-    ld ($C0C4), a
-    add a, $08
+    ; Save Y+7 = bottom of sprite
+    add a, 7
+    ld (RAM_Copy_FirstPoint.y), a
+    ; Start next cursor 8px away
+    add a, 8
     ld (RAM_SpriteTable1.y), a
+    ; Same for X
     ld a, (RAM_SpriteTable1.xn + 0)
     ld (RAM_SpriteTable1.xn + 3*2), a
-    add a, $07
-    ld ($C0C5), a
-    add a, $08
+    add a, 7
+    ld (RAM_Copy_FirstPoint.x), a
+    add a, 8
     ld (RAM_SpriteTable1.xn + 0), a
-    ld a, $A9
+    ld a, $A9 ; Second cursor tile index
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
-    ld ($C15D), a
+    ld ($C15D), a ; ???
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
 
-_LABEL_3311_:
-    ld a, ($C0C4)
-    add a, $07
+Mode9_CopyGraphicBoardHandler_SecondPoint:
+.define COPY_MAXIMUM_SIZE 88
+    ; Clamp Y to (point 1 Y)+7..min((point 1 Y)+7+88, 255)
+    ; to enforce a "positive" area, in the screen bounds, no more than 88px tall
+    ld a, (RAM_Copy_FirstPoint.y)
+    add a, 7
     ld c, a
     cp b
     jp c, +
     ld b, c
 +:  ld a, c
-    add a, $58
+    add a, COPY_MAXIMUM_SIZE
     jp nc, +
     ld a, $FF
 +:  ld c, a
     cp b
-    jp nc, _LABEL_332A_
+    jp nc, +
     ld b, c
-_LABEL_332A_:
-    ld a, b
-    ld c, $A6
++:  ld a, b ; Thnen we also limit it to 166? Not sure why
+    ld c, $A6 ; 166 = screen coordinate of bottom of canvas?
     cp c
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1.y), a
-    ld ($C0C6), a
+    ld (RAM_Copy_SecondPoint.y), a
+    ; Similar for X TODO
     ld a, (RAM_Pen_Smoothed.x)
     ld b, a
-    ld a, ($C0C5)
-    add a, $07
+    ld a, (RAM_Copy_FirstPoint.x)
+    add a, 7
     ld c, a
     cp b
     jp c, +
     ld b, c
 +:  ld a, c
-    add a, $58
+    add a, COPY_MAXIMUM_SIZE
     jp nc, +
     ld a, $FF
 +:  ld c, a
@@ -6038,49 +6054,58 @@ _LABEL_332A_:
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1.xn + 0), a
-    ld ($C0C7), a
+    ld (RAM_Copy_SecondPoint.x), a
     ld a, CursorIndex_ArrowTopLeft
     call SetCursorIndex
-    bit 1, (hl)
+    ; Wait for the Do button
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    ; Enter the third phase
     ld a, (RAM_ActionStateFlags)
     set 2, a
     ld (RAM_ActionStateFlags), a
+    ; This is unnecessary?
     ld a, (RAM_SpriteTable1.y)
-    ld ($C0C6), a
+    ld (RAM_Copy_SecondPoint.y), a
     ld a, (RAM_SpriteTable1.xn + 0)
-    ld ($C0C7), a
+    ld (RAM_Copy_SecondPoint.x), a
     ret
 
-_LABEL_3385_:
-    ld c, $10
+Mode9_CopyGraphicBoardHandler_ChooseDestination:
+    ; Clamp y to the range 16..151
+    ld c, 16
     ld a, b
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $97
++:  ld c, 151
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1.y), a
++:  ld (RAM_SpriteTable1.y + 0), a ; Sprite 0 there
+    ; Clamp X to the range 33..201
     ld a, (RAM_Pen_Smoothed.x)
-    ld c, $21
+    ld c, 33
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $C9
++:  ld c, 201
     cp c
     jp c, +
     ld a, c
-+:  ld (RAM_SpriteTable1.xn), a
++:  ld (RAM_SpriteTable1.xn + 0), a ; Sprite 0 there
     ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
-    bit 1, (hl)
+    ; Wait for the Do button
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    ; 
     ld a, (RAM_SpriteTable1.y)
     add a, $07
     ld ($C0C8), a
@@ -6105,7 +6130,7 @@ Mode10_MirrorGraphicBoardHandler:
     jp nc, _LABEL_3469_
     rrca
     ret c
-    ld a, ($C0C4)
+    ld a, (RAM_Copy_FirstPoint.y)
     add a, $07
     ld c, a
     cp b
@@ -6127,10 +6152,10 @@ Mode10_MirrorGraphicBoardHandler:
 +:  bit 0, (iy+0)
     call nz, _LABEL_34E0_
     ld (RAM_SpriteTable1.y), a
-    ld ($C0C6), a
+    ld (RAM_Copy_SecondPoint.y), a
     ld a, (RAM_Pen_Smoothed.x)
     ld b, a
-    ld a, ($C0C5)
+    ld a, (RAM_Copy_FirstPoint.x)
     add a, $07
     ld c, a
     cp b
@@ -6152,7 +6177,7 @@ Mode10_MirrorGraphicBoardHandler:
 +:  bit 0, (iy+0)
     call z, _LABEL_3501_
     ld (RAM_SpriteTable1.xn), a
-    ld ($C0C7), a
+    ld (RAM_Copy_SecondPoint.x), a
     ld a, CursorIndex_ArrowTopLeft
     call SetCursorIndex
     bit 1, (hl)
@@ -6163,9 +6188,9 @@ Mode10_MirrorGraphicBoardHandler:
     set 2, a
     ld (RAM_ActionStateFlags), a
     ld a, (RAM_SpriteTable1.y)
-    ld ($C0C6), a
+    ld (RAM_Copy_SecondPoint.y), a
     ld a, (RAM_SpriteTable1.xn)
-    ld ($C0C7), a
+    ld (RAM_Copy_SecondPoint.x), a
     ret
 
 _LABEL_3469_:
@@ -6205,13 +6230,13 @@ _LABEL_3469_:
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_SpriteTable1.y + 3), a
     add a, $07
-    ld ($C0C4), a
+    ld (RAM_Copy_FirstPoint.y), a
     add a, $08
     ld (RAM_SpriteTable1.y), a
     ld a, (RAM_SpriteTable1.xn)
     ld (RAM_SpriteTable1.xn + 3*2), a
     add a, $07
-    ld ($C0C5), a
+    ld (RAM_Copy_FirstPoint.x), a
     add a, $08
     ld (RAM_SpriteTable1.xn), a
     ld a, $A9
@@ -6347,9 +6372,9 @@ Mode11_MagnifyGraphicBoardHandler:
     ld a, c
 +:  ld (RAM_SpriteTable1.y), a
     add a, $07
-    ld ($C0C4), a
+    ld (RAM_Copy_FirstPoint.y), a
     add a, $21
-    ld ($C0C6), a
+    ld (RAM_Copy_SecondPoint.y), a
     ld a, (RAM_Pen_Smoothed.x)
     ld c, $20
     cp c
@@ -6361,9 +6386,9 @@ Mode11_MagnifyGraphicBoardHandler:
     ld a, c
 +:  ld (RAM_SpriteTable1.xn), a
     add a, $07
-    ld ($C0C5), a
+    ld (RAM_Copy_FirstPoint.x), a
     add a, $21
-    ld ($C0C7), a
+    ld (RAM_Copy_SecondPoint.x), a
     ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
     bit 1, (hl)
@@ -6820,9 +6845,9 @@ NotLocal_LABEL_3932_:
     ret z
     cp $07
     jp nc, _LABEL_39C0_
-    ld a, ($C0C4)
+    ld a, (RAM_Copy_FirstPoint.y)
     ld b, a
-    ld a, ($C0C6)
+    ld a, (RAM_Copy_SecondPoint.y)
     sub b
     ret c
     ld ($C0BE), a
@@ -6839,9 +6864,9 @@ NotLocal_LABEL_3932_:
     ld a, b
     and $07
     ld ($C0C0), a
-    ld a, ($C0C5)
+    ld a, (RAM_Copy_FirstPoint.x)
     ld b, a
-    ld a, ($C0C7)
+    ld a, (RAM_Copy_SecondPoint.x)
     sub b
     ret c
     ld ($C0C1), a
@@ -6860,27 +6885,27 @@ NotLocal_LABEL_3932_:
     ld ($C0C3), a
     ld ix, $C0FA
     ld de, $C0CA
-    ld a, ($C0C5)
+    ld a, (RAM_Copy_FirstPoint.x)
     ld c, a
     ld a, ($C0C2)
     ld b, a
-    ld a, ($C0C4)
+    ld a, (RAM_Copy_FirstPoint.y)
     call _LABEL_3A83_
     exx
-      ld a, ($C0C4)
+      ld a, (RAM_Copy_FirstPoint.y)
       ld b, a
       ld a, ($C0BE)
       add a, b
     exx
     call _LABEL_3A83_
-    ld a, ($C0C4)
+    ld a, (RAM_Copy_FirstPoint.y)
     ld c, a
     ld a, ($C0BF)
     ld b, a
-    ld a, ($C0C5)
+    ld a, (RAM_Copy_FirstPoint.x)
     call _LABEL_3A35_
     exx
-      ld a, ($C0C5)
+      ld a, (RAM_Copy_FirstPoint.x)
       ld b, a
       ld a, ($C0C1)
       add a, b
