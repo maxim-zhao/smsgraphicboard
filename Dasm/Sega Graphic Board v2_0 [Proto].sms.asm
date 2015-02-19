@@ -93,24 +93,24 @@ VBlankFunctionControl_TitleScreen db
 
 .bank 0 slot 0
 .org $0000
-.section "Boot" force
+;.section "Boot" force
 FullReset:
     jp Start
-.ends
+;.ends
 
 .dsb 5, 0 ; 5 bytes blank
 
 .org $0008
-.section "rst $08" force
+;.section "rst $08" force
 VDPAddressToDE:
     ld a, e
     out (Port_VDPAddress), a
     ld a, d
     out (Port_VDPAddress), a
     ret
-.ends
+;.ends
 
-.section "Helper function" force ; Could align it to a rst to save four bytes (!)
+;.section "Helper function" force ; Could align it to a rst to save four bytes (!)
 JumpToFunction:
     ; Look up a'th entry in table at hl, and jump to it
     add a, a
@@ -121,16 +121,16 @@ JumpToFunction:
     ld h, (hl)
     ld l, a
     jp (hl)
-.ends
+;.ends
 
 .db "PROGRAM By K.WAKIHARA"
 
 .org $0038
-.section "Interrupt handler" force
+;.section "Interrupt handler" force
     jp InterruptHandlerImpl
-.ends
+;.ends
 
-.section "VDP register intialisation data" force
+;.section "VDP register intialisation data" force
 VDPRegisterValues: ; $003b
 .db VDPR0B0_VideoSync_ON | VDPR0B1_ExtraHeightModes_ON | VDPR0B2_SMSMode_ON | VDPR0B3_SpriteShift_OFF | VDPR0B4_LineInterrupts_OFF | VDPR0B5_BlankLeftColumn_OFF | VDPR0B6_FixTop2Rows_OFF | VDPR0B7_FixRight8Columns_OFF
 .db VDPR1B0_ZoomedSprites_OFF | VDPR1B1_DoubledSprites_OFF | VDPR1B2 | VDPR1B3_30RowMode_OFF | VDPR1B4_28RowMode_OFF | VDPR1B5_VBlankInterrupts_ON | VDPR1B6_EnableDisplay_OFF | VDPR1B7
@@ -142,9 +142,9 @@ VDPRegisterValues: ; $003b
 .db 0 ; Horizontal scroll
 .db 0 ; Vertical scroll
 .db 0 ; Line interrupt spacing ($ff to disable)
-.ends
+;.ends
 
-.section "Screen on/off control" force
+;.section "Screen on/off control" force
 ScreenOff:
     ld a, (RAM_VDPReg1Value)
     and (1<<6) ~ $ff  ; unset bit 6 = screen off
@@ -157,15 +157,15 @@ ScreenOn:
     ld e, a
     ld d, $81
     jp VDPAddressToDE
-.ends
+;.ends
 
 .org $0066
-.section "Pause handler" force
+;.section "Pause handler" force
 NMIHandler:
     retn
-.ends
+;.ends
 
-.section "Entry point" force
+;.section "Entry point" force
 Start:
     di
     im 1
@@ -227,9 +227,10 @@ Start_AfterRAMClear:
     LD_DE_PALETTE 0
     ld bc, 32
     call RawDataToVRAM
-    ; Blank ???
-    ld hl, $C15D
-    ld de, $C15E
+
+    ; Blank title screen data again..?
+    ld hl, RAM_TitleScreen
+    ld de, RAM_TitleScreen+1
     ld bc, 8
     ld (hl), 0
     ldir
@@ -278,10 +279,10 @@ Start_AfterRAMClear:
     call CallModeDrawingFunction
     call SpriteTable1to2
     jp -
-.ends
+;.ends
 
 ; Various functions for manipulating graphics
-.section "Graphics helpers 1" force
+;.section "Graphics helpers 1" force
 InitialiseVDPRegisters:
     ld hl, VDPRegisterValues ; VDP register data
     ld b, 11 ; counter
@@ -658,9 +659,9 @@ DecompressBitplane:
     jp nz, --
     inc hl
     jp --
-.ends
+;.ends
 
-.section "Sprite table handlers including flicker helper" force
+;.section "Sprite table handlers including flicker helper" force
 CopySpriteTable2ToVRAM:
     ld a, (RAM_SpriteTable2DirtyFlag)
     or a
@@ -734,9 +735,9 @@ SpriteTable1to2:
     ld a, $01
     ld (RAM_SpriteTable2DirtyFlag), a
     ret
-.ends
+;.ends
 
-.section "Startup delay loop" force
+;.section "Startup delay loop" force
 DelayLoop1:
     ; Delay (including call) = 3145810 cycles = ~879ms
     ld e, $02
@@ -748,9 +749,9 @@ DelayLoop1:
     dec e
     jp nz, --
     ret
-.ends
+;.ends
 
-.section "UI initialisatiomn" force
+;.section "UI initialisatiomn" force
 DrawUIControls:
     ld hl, BottomStatusBarTiles ; tilemap data: MENU | DO | PEN | mode text bar
     LD_DE_TILEMAP 4, 21
@@ -787,9 +788,9 @@ SetDrawingAreaTilemap:
     pop bc
     djnz -- ; Loop down rows
     ret
-.ends
+;.ends
 
-.section "Sound driver (!)" force
+;.section "Sound driver (!)" force
 Beep:
     ld a, (RAM_Beep)
     or a
@@ -821,9 +822,9 @@ SilencePSG:
     cpl ; results in zero - could use "or a" to be clear
     ld (RAM_Beep), a ; Disable counter
     ret
-.ends
+;.ends
 
-.section "Drawing-time palettes" force
+;.section "Drawing-time palettes" force
 ; Unused palette? Black with blue and white
 .db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
   COLOUR 0, 0, 3
@@ -866,9 +867,9 @@ DrawingPalette:
   COLOUR 0, 0, 0
   COLOUR 0, 0, 0
   COLOUR 3, 0, 0 ; Cycling colour
-.ends
+;.ends
 
-.section "Tilemap data for UI" force
+;.section "Tilemap data for UI" force
 ;.org $053d
 TopBarPaletteTiles: ; 22x1
 .dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c ; Palette colours
@@ -882,9 +883,9 @@ BottomStatusBarTiles: ; 24x3
 .dw $09A2, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0BA2 ; .______________________.
 .dw $0BA3, $09AA, $09AB, $09AC, $09AD, $09AE, $09AF, $09B0, $09B1, $09B2, $09B3, $09B4, $09B5, $09B6, $09B7, $09B8, $09B9, $09BA, $09BB, $09BC, $09BD, $09BE, $09BF, $09A3 ; |                      | <-- with stuff in it
 .dw $0DA2, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $0FA2 ; '^^^^^^^^^^^^^^^^^^^^^^'
-.ends
+;.ends
 
-.section "VBlank handler implementation" force
+;.section "VBlank handler implementation" force
 InterruptHandlerImpl:
     di
     push af
@@ -1037,9 +1038,9 @@ HandleReset:
     ; Then go to the usual startup code
     jp Start_AfterRAMClear
 
-.ends
+;.ends
 
-.section "Title screen VBlank handler" force
+;.section "Title screen VBlank handler" force
 VBlank_TitleScreen:
     ld a, (RAM_VBlankFunctionControl)
     or a
@@ -1054,18 +1055,18 @@ VBlank_TitleScreen:
     bit VBlankFunctionControl_TitleScreen_UpdateText, a ; Bit 2 set -> update title screen text
     call nz, TitleScreenTextUpdate
     jp VBlank_CheckResetAndExit
-.ends
+;.ends
 
-.section "VBlank function set and wait" force
+;.section "VBlank function set and wait" force
 SetVBlankFunctionAndWait:
     ld (RAM_VBlankFunctionControl), a
 -:  ld a, (RAM_VBlankFunctionControl)
     or a
     jp nz, -
     ret
-.ends
+;.ends
 
-.section "Reset button handler" force
+;.section "Reset button handler" force
 CheckForReset:
     push hl
     push af
@@ -1084,28 +1085,28 @@ CheckForReset:
     pop af
     pop hl
     ret
-.ends
+;.ends
 
-.section "Graphic board" force
+;.section "Graphic board" force
 .include "graphicboard.asm"
-.ends
+;.ends
 
-.section "Maths 1" force
+;.section "Maths 1" force
 .include "maths.asm"
-.ends
+;.ends
 
-.section "Title screen main loop" force
+;.section "Title screen main loop" force
 TitleScreen: ; $865
-    ; blank RAM for title screen animation?
-    ld hl, $C15D
-    ld de, $C15E
+    ; blank RAM for title screen animation
+    ld hl, RAM_TitleScreen
+    ld de, RAM_TitleScreen+1
     ld bc, 8
     ld (hl), 0
     ldir
 
     ; Initialise timeout counter
-    ld hl, $0200 ; 8533ms
-    ld (RAM_TitleScreenAndEndTimeout), hl
+    ld hl, 8.54*60 ; $0200 ; 8533ms
+    ld (RAM_TitleScreen.Timeout), hl
 
     ld hl, TitleScreenFont ; $3C02 ; compressed tile data: font
     LD_DE_TILE 0
@@ -1136,10 +1137,11 @@ TitleScreen: ; $865
     ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_bit3 + 1<<VBlankFunctionControl_ReadGraphicBoard ; $8A
     jp z, +
     ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_bit3
-+:  ld ($C15D), a ; gets either $8a or $88 accordingly
++:  ld (RAM_TitleScreen.VBlankControl), a ; gets either $8a or $88 accordingly
 
-    ld b, $00   ; Draw into tilemap for splash screen animation
-    ld c, $23
+    ; Draw into tilemap for splash screen animation
+    ld b, 0   ; Draw into line 0
+    ld c, $23 ; Pixel height of logo - draw all lines
 -:  push bc
       call UpdateSplashScreenAnimationTilesLine
     pop bc
@@ -1147,13 +1149,13 @@ TitleScreen: ; $865
     dec c
     jp p, -
 
-    ld a, $1F
-    ld ($C160), a
+    ld a, 31
+    ld (RAM_TitleScreen.BlindsCounter), a
 
     call ScreenOn
 
     ei
--:  ld a, ($C15D)
+-:  ld a, (RAM_TitleScreen.VBlankControl)
     call SetVBlankFunctionAndWait
 
     ld a, (RAM_ButtonsNewlyPressed)
@@ -1161,14 +1163,14 @@ TitleScreen: ; $865
     jp nz, TitleScreenButtonPressed
 
     ; No button pressed
-    ; Update title screen state?
+    ; Update title screen state
     ld hl, - ; push loop address
     push hl
-      ld ix, $C15D
-      bit 0, (ix+1) ; $c15e
-      jp z, TitleScreenAnimate_Bit0Zero ; Blinds slide animation
-      bit 1, (ix+1) ; $c15e
-      jp z, TitleScreenAnimate_Bit1Zero ; Pixel slide/flip animation
+      ld ix, RAM_TitleScreen
+      bit 0, (ix+TitleScreen.Flags)
+      jp z, TitleScreenAnimate_Blinds ; Blinds slide animation
+      bit 1, (ix+TitleScreen.Flags)
+      jp z, TitleScreenAnimate_Roll ; Pixel slide/flip animation
     inc sp ; Discard loop address - could have popped it...
     inc sp
     di
@@ -1179,32 +1181,32 @@ pop hl
 .asm
 
 TitleScreen_PostAnimationLoop:
-    ld hl, $14A2 ; data: Sega logo tilemap data
+    ld hl, Tilemap_SegaLogo
     LD_DE_TILEMAP 11, 3
-    ld bc, $040A ; 10x4
+    LD_BC_AREA 10, 4
     ld a, $01
     ld (RAM_VRAMFillHighByte), a
     call WriteAreaToTilemap_1byte
 
-    ld hl, Text_CopyrightSega1987 ; $0A08 ; data: (c) Sega 1987
+    ld hl, Text_CopyrightSega1987
     LD_DE_TILEMAP 10, 22
-    ld b, $0C
+    ld b, $0C ; length
     xor a
     call RawDataToVRAM_Interleaved1
     call ScreenOn
     ei
 
-CheckForGraphicsBoard:
+_CheckForGraphicsBoard:
     in a, (Port_IOPort1)
-    and $EF
-    cp $E0
+    and %11101111 ; $EF ; Ignore TL
+    cp  %11100000 ; $E0 ; Expect UDLR lines low, rest high
 .ifdef BypassDetection
     jp GraphicsBoardDetected
 .else
     jp z, GraphicsBoardDetected
 .endif
 
-    ld hl, Text_NotGraphicBoard ; $09E8 ; Data: "NOT GRAPHIC BOARD !!"
+    ld hl, Text_NotGraphicBoard
     ld (RAM_TitleScreenTextPointer), hl
     LD_DE_TILEMAP 6, 16
     ld (RAM_TitleScreenTextLocation), de
@@ -1214,13 +1216,13 @@ CheckForGraphicsBoard:
     call SetVBlankFunctionAndWait
 
     ; decrement timeout counter
-    ld hl, (RAM_TitleScreenAndEndTimeout)
+    ld hl, (RAM_TitleScreen.Timeout)
     dec hl
-    ld (RAM_TitleScreenAndEndTimeout), hl
+    ld (RAM_TitleScreen.Timeout), hl
     ld a, l
     or h
     jp z, TitleScreenTimedOut
-    jp CheckForGraphicsBoard
+    jp _CheckForGraphicsBoard
 
 GraphicsBoardDetected:
     ld hl, Text_PushButton ; $09FC ; Data: "PUSH  BUTTON"
@@ -1237,15 +1239,15 @@ GraphicsBoardDetected:
     and $EF
     cp $E0
 .ifdef BypassDetection
-    jp z, CheckForGraphicsBoard
+    jp z, _CheckForGraphicsBoard
 .else
-    jp nz, CheckForGraphicsBoard
+    jp nz, _CheckForGraphicsBoard
 .endif
 
     ; decrement title screen counter again
-    ld hl, (RAM_TitleScreenAndEndTimeout)
+    ld hl, (RAM_TitleScreen.Timeout)
     dec hl
-    ld (RAM_TitleScreenAndEndTimeout), hl
+    ld (RAM_TitleScreen.Timeout), hl
     ld a, l
     or h
     jp z, TitleScreenTimedOut
@@ -1308,9 +1310,9 @@ TitleScreenTextUpdate:
     ld bc, 20 ; 20 tiles
     ld hl, 9
     jp FillVRAMWithHL ; and ret
-.ends
+;.ends
 
-.section "Title screen data" force
+;.section "Title screen data" force
 ; This mapping only applies to the title screen font.
 .asciitable
 map ' ' = 0
@@ -1335,20 +1337,20 @@ Palette_TitleScreen:
 .db %00110000 ; Bright blue
 .db %00000000 ; Black
 .db %00111111 ; White
-.ends
+;.ends
 
-.section "Title screen animation" force
-TitleScreenAnimate_Bit0Zero:
-    set 7, (ix+1) ; set high bit of $c15e
-    inc (ix+2) ; increment $c15f
-    dec (ix+3) ; decrement $c160
+;.section "Title screen animation" force
+TitleScreenAnimate_Blinds:
+    set 7, (ix+TitleScreen.Flags) ; set high flag
+    inc (ix+TitleScreen.BlindsOffset) ; increment blinds offset
+    dec (ix+TitleScreen.BlindsCounter) ; decrement BlindsCounter
     ret p      ; if it's reached -1:
-    set 0, (ix+1) ; set low bit of $c15e
+    set 0, (ix+TitleScreen.Flags) ; set flag 0 for phase 2
     ret
 
 UpdateTilemap_RightToLeftRow:
-    ; get animation control value
-    ld a, (ix+2)
+    ; Offset by 
+    ld a, (ix+TitleScreen.BlindsOffset)
     push hl
       ; de += 31 - n
       ld c, a
@@ -1360,41 +1362,42 @@ UpdateTilemap_RightToLeftRow:
       add hl, de
       ex de, hl
     pop hl
-    ld b, (ix+2)
+    ld b, (ix+TitleScreen.BlindsOffset)
     inc b
     jp RawDataToVRAM_Interleaved2
 
 UpdateTilemap_LeftToRightRow:
     ; get animation control value
-    ld c, (ix+2)
+    ld c, (ix+TitleScreen.BlindsOffset)
     ; hl += 31 - n
-    ld a, $1F
+    ld a, 31
     sub c
     ld c, a
-    ld b, $00
+    ld b, 0
     add hl, bc
-    ld b, (ix+2)
+    ld b, (ix+TitleScreen.BlindsOffset)
     inc b
     jp RawDataToVRAM_Interleaved2
 
-TitleScreenAnimate_Bit1Zero:
-    set 7, (ix+1) ; Set high bit of $c15e
-    inc (ix+4)    ; Increment $c161
-    ld a, (ix+4)  ; check if it's reached 36
+TitleScreenAnimate_Roll:
+    set 7, (ix+TitleScreen.Flags) ; Set high bit of flags
+    inc (ix+TitleScreen.RollPixelCount)    ; Increment RollPixelCount
+    ld a, (ix+TitleScreen.RollPixelCount)  ; check if it's reached 36
     cp 36 ; $24
     ret nz
-    set 1, (ix+1) ; Set bit 1 of $c15e when it does
+    set 1, (ix+TitleScreen.Flags) ; Set flag 1 when it does to go to phase 3
     ret
 
 UpdateSplashScreenAnimationTilesLine:
     ; parameters = b, c
-    ; b determines VRAM address, c determines data source written there
+    ; b = pixel row to draw into
+    ; c = logo row to draw there
 
     ; get b
     ld a, b
     ; get high 5 bits
     and %11111000
-    ; multiply by 108
+    ; multiply by 108 = width in tiles * 4
     LD_HL_A
     add hl, hl  ; x2
     add hl, hl  ; x4
@@ -1451,7 +1454,7 @@ UpdateSplashScreenAnimationTilesLine:
       add hl, de
     pop de
 
-    ld b, 27 ; counter
+    ld b, 27 ; counter: number of tiles per row
     ld c, Port_VDPData
 -:  push bc
     push de
@@ -1480,7 +1483,8 @@ UpdateSplashScreenAnimationTilesLine:
     djnz - ; repeat for 27x2 bytes
     ret
 
-_LABEL_ACC_:
+UpdateSplashScreenAnimationTilesBlankLine:
+    ; Draws a blank line (palette entry 0) into the tiles at row b
     ld a, b
     and $F8
     LD_HL_A
@@ -1515,7 +1519,7 @@ _LABEL_ACC_:
       out (Port_VDPAddress), a
       ld a, h
       out (Port_VDPAddress), a
-      xor a
+      xor a ; We write zeroes...
       push de
       pop de
       out (Port_VDPData), a
@@ -1528,18 +1532,19 @@ _LABEL_ACC_:
     ret
 
 TitleScreenAnimationVBlankEntry:
-    ld a, ($C15E) ; check for high bit = new write
+    ld a, (RAM_TitleScreen.Flags) ; check for high bit = new write
     bit 7, a
     ret z
     and %01111111 ; clear high bit
-    ld ($C15E), a
+    ld (RAM_TitleScreen.Flags), a
     bit 0, a
-    jp z, TitleScreenAnimation_Part1
+    jp z, TitleScreenVBlank_Blinds
     bit 1, a
-    jp z, TitleScreenAnimation_Part2
+    jp z, TitleScreenVBlank_Roll
     ret
 
-TitleScreenAnimation_Part1:
+TitleScreenVBlank_Blinds:
+    ; Update the five rows of tilemap
     ld a, $09
     ld (RAM_VRAMFillHighByte), a
     ld hl, Tilemap_Logo + 32 * 0 ; $0B8A
@@ -1558,9 +1563,10 @@ TitleScreenAnimation_Part1:
     LD_DE_TILEMAP 0, 12
     jp UpdateTilemap_RightToLeftRow ; and ret
 
-TitleScreenAnimation_Part2:
-    ld c, $23
-    ld b, (ix+4)
+TitleScreenVBlank_Roll:
+    ; Draw the "down" part of the animation (from the top)
+    ld c, $23 ; Pixel height of the logo
+    ld b, (ix+TitleScreen.RollPixelCount)
 -:  push bc
       call UpdateSplashScreenAnimationTilesLine
     pop bc
@@ -1568,16 +1574,18 @@ TitleScreenAnimation_Part2:
     dec b
     jp p, -
 
-    ld a, (ix+4)
-    cp $11
+    ; After the 17th frame, we no longer need to draw the "up" part
+    ld a, (ix+TitleScreen.RollPixelCount)
+    cp $11 ; Pixel height of the logo / 2
     jp nc, +
 
+    ; Draw the "up" part of the animation (down to the bottom)
     inc a
     ld d, a
-    ld a, $23
+    ld a, $23 ; Pixel height of the logo
     sub d
     ld b, a
-    ld c, $00
+    ld c, 0
     dec d
 -:  push de
     push bc
@@ -1590,14 +1598,14 @@ TitleScreenAnimation_Part2:
     cp d
     jp nz, -
 
-    ld a, $23
-    sub (ix+4)
+    ld a, $23 ; Pixel height of the logo
+    sub (ix+TitleScreen.RollPixelCount)
     ld b, a
-    call _LABEL_ACC_
+    call UpdateSplashScreenAnimationTilesBlankLine
 +:  ret
-.ends
+;.ends
 
-.section "Title screen data 2" force
+;.section "Title screen data 2" force
 ;.orga $b8a
 Tilemap_Logo:
 .incbin "Graphics/Logo tilemap.bin"
@@ -1620,9 +1628,9 @@ Tilemap_SegaLogo:
 ;.orga $14ca
 Tiles_SegaLogo:
 .incbin "Graphics/Sega logo.pscompr"
-.ends
+;.ends
 
-.section "Non-VBlank drawing handlers dispatch" force
+;.section "Non-VBlank drawing handlers dispatch" force
 CallModeDrawingFunction:
     ld hl, RAM_CurrentMode
     ld a, (hl)
@@ -1653,10 +1661,10 @@ CallModeDrawingFunction_JumpTable:
 .dw NonVBlankMode15_ColourSelectionMenuFunction
 .dw NonVBlankMode16_MirrorAxisMenuFunction
 .dw NonVBlankMode17_EraseConfirmationMenuFunction
-.ends
+;.ends
 ; Note: menu-showing handlers could be refactored as they are all the same except for the parameters...
 
-.section "Menu show/hide implementation" force
+;.section "Menu show/hide implementation" force
 ; 2nd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode1_MenuFunction:
     exx
@@ -1690,9 +1698,9 @@ NonVBlankMode1_MenuFunction:
       ld (RAM_Beep), a
     ei
     ret
-.ends
+;.ends
 
-.section "Menu item selected implementation" force
+;.section "Menu item selected implementation" force
 ; 3rd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode2_MenuItemSelectedFunction:
       di
@@ -1751,9 +1759,9 @@ NonVBlankMode2_MenuItemSelectedFunction:
       ld (RAM_Beep), a
     ei
     ret
-.ends
+;.ends
 
-.section "Erase implementation" force
+;.section "Erase implementation" force
 ; 5th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode4_EraseFunction:
       ; Only do it if "yes" was selected (2nd option)
@@ -1778,9 +1786,9 @@ NonVBlankMode4_EraseFunction:
     ld a, 1 ; Blank text
     ld (RAM_StatusBarTextIndex), a
     ret
-.ends
+;.ends
 
-.section "Display implementation" force
+;.section "Display implementation" force
 ; 13th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode12_DisplayFunction:
       ld a, (RAM_Beep)
@@ -1828,9 +1836,9 @@ NonVBlankMode12_DisplayFunction:
       call SetDrawingAreaTilemap
     ei
     jp ScreenOn ; and ret
-.ends
+;.ends
 
-.section "Line/Paint menu implementation" force
+;.section "Line/Paint menu implementation" force
 ; 15th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode14_LinePaintMenuFunction:
       ld a, (RAM_Beep)
@@ -1880,9 +1888,9 @@ NonVBlankMode14_LinePaintMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
-.ends
+;.ends
 
-.section "Colour selection menu show/hide" force
+;.section "Colour selection menu show/hide" force
 ; 16th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode15_ColourSelectionMenuFunction:
       ld a, (RAM_Beep)
@@ -1931,9 +1939,9 @@ NonVBlankMode15_ColourSelectionMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
-.ends
+;.ends
 
-.section "Mirror axis menu implementation" force
+;.section "Mirror axis menu implementation" force
 ; 17th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode16_MirrorAxisMenuFunction:
       ld a, (RAM_Beep)
@@ -1983,9 +1991,9 @@ NonVBlankMode16_MirrorAxisMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
-.ends
+;.ends
 
-.section "Erase confirmation implementation" force
+;.section "Erase confirmation implementation" force
 ; 18th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode17_EraseConfirmationMenuFunction:
       ld a, (RAM_Beep)
@@ -2034,9 +2042,9 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
       ld (RAM_Pen_Smoothed_Previous), hl
     ei
     ret
-.ends
+;.ends
 
-.section "End implementation" force
+;.section "End implementation" force
 ; 14th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode13_EndFunction:
     exx
@@ -2046,7 +2054,7 @@ NonVBlankMode13_EndFunction:
     jp z, +
 
     ; Wait for timeout to expire
-    ld hl, RAM_TitleScreenAndEndTimeout
+    ld hl, RAM_CopyData.EndTimeout ; TODO: naming improvement?
     dec (hl)
     ret p
 
@@ -2055,16 +2063,16 @@ NonVBlankMode13_EndFunction:
     jp FullReset
 
 +:  set 7, (hl)
-    ; Start waiting (2133ms)
-    ld a, 128
-    ld (RAM_TitleScreenAndEndTimeout), a
+    ; Start waiting (2.14s)
+    ld a, 2.14*60
+    ld (RAM_CopyData.EndTimeout), a
     ; Turn off sprites
     ld a, SpriteTableYTerminator
-    ld (RAM_SpriteTable1.y), a
+    ld (RAM_SpriteTable1), a
     ret
-.ends
+;.ends
 
-.section "Menu button handler" force
+;.section "Menu button handler" force
 CheckMenuButton:
     ; Check for Menu button
     ld a, (RAM_ButtonsNewlyPressed)
@@ -2085,9 +2093,9 @@ CheckMenuButton:
     ld a, Mode1_Menu
     ld (RAM_CurrentMode), a
     ret
-.ends
+;.ends
 
-.section "Menu drawing" force
+;.section "Menu drawing" force
 DrawTextToTilesWithBackup:
 ; h = y offset (within drawing area)
 ; l = x offset (within drawing area)
@@ -2192,9 +2200,9 @@ DrawTextToTilesWithBackup:
     pop hl
     VDP_ADDRESS_TO_DE
     jp --
-.ends
+;.ends
 
-.section "Menu un-drawing" force
+;.section "Menu un-drawing" force
 RestoreTileData_SaveRegisters:
     ; Register-protecting version of the below
     push bc
@@ -2255,9 +2263,9 @@ RestoreTileData:
     pop de
     pop bc
     ret
-.ends
+;.ends
 
-.section "Menu drawing data backup" force
+;.section "Menu drawing data backup" force
 BackupTilesToGraphicsDataBuffer:
     ; Args:
     ; RAM_GraphicsDataBuffer_VRAMAddress_Tiles = VRAM address to start at
@@ -2303,9 +2311,9 @@ BackupTilesToGraphicsDataBuffer:
     pop de
     pop bc
     ret
-.ends
+;.ends
 
-.section "Menu data" force
+;.section "Menu data" force
 ; This is the ASCII mapping for the regular font (outside the title screen).
 .asciitable
 map ' ' = 0
@@ -2397,9 +2405,9 @@ EraseMenuText: ; $1c11
 .asc "[  NO       ]$"
 .asc "[  YES      ]$"
 .asc "`___________'$"
-.ends
+;.ends
 
-.section "Drawing implementation" force
+;.section "Drawing implementation" force
 ; 1st entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode0_DrawingFunction:
     exx
@@ -2407,7 +2415,7 @@ NonVBlankMode0_DrawingFunction:
     and $03
     ret nz
     di
-    ld a, ($C062)
+    ld a, (RAM_DrawingData.DotsOrLines)
     or a
     jp nz, +
     ld a, (RAM_ButtonsPressed)
@@ -2439,9 +2447,9 @@ NonVBlankMode0_DrawingFunction:
       ld (RAM_Pen_Smoothed_Previous.y), a
     ei
     ret
-.ends
+;.ends
 
-.section "Line drawing" force
+;.section "Line drawing" force
 DrawLine:
     ; params: 
     ; hl = x1,y1
@@ -2580,9 +2588,9 @@ _DrawLine_NextX:
 
 ; $1D3F
     ret ; Unused
-.ends
+;.ends
 
-.section "Dot drawing" force
+;.section "Dot drawing" force
 DrawPenDotIfButtonPressed:
     ld a, (RAM_DrawingData.ButtonsPressed_virtual) ; Do nothing if pen bit is not set
     bit GraphicBoardButtonBit_Pen, a
@@ -2698,9 +2706,9 @@ DrawPenDot:
     ld a, (RAM_DrawingData.PixelYPlus1)
     ld (RAM_DrawingData.PixelYToDraw), a
     jp DrawPixel ; ### Unnecessary, could fall through
-.ends
+;.ends
 
-.section "Pixel drawing" force
+;.section "Pixel drawing" force
 DrawPixel:
     ld a, (RAM_DrawingData.PixelYToDraw) ; y
     cp DRAWING_AREA_HEIGHT_PIXELS
@@ -2807,9 +2815,9 @@ Table_BitInPixelRowFromX: ; Table_BitInPixelRowFromX
 .db %00000100
 .db %00000010
 .db %00000001
-.ends
+;.ends
 
-.section "Colour selection menu implementation" force
+;.section "Colour selection menu implementation" force
 ; 4th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode3_ColourFunction:
     exx
@@ -2905,9 +2913,9 @@ UpdateColourSelectionLabels_TileOffsets:
  DIGIT_OFFSET 14
  DIGIT_OFFSET 15
  DIGIT_OFFSET 16
-.ends
+;.ends
 
-.section "Rectangle drawing implementation" force
+;.section "Rectangle drawing implementation" force
 ; 6th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode5_SquareFunction:
       ld a, (RAM_ActionStateFlags)
@@ -3301,9 +3309,9 @@ Table_SetPixelsInRow: ; $219a
 .db %00000111
 .db %00000011
 .db %00000001
-.ends
+;.ends
 
-.section "Ellipse drawing implementation" force
+;.section "Ellipse drawing implementation" force
 ; 7th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode6_CircleAnd7_EllipseFunction:
       ; Wait for beep to finish
@@ -4055,9 +4063,9 @@ Reciprocal_de_a:
     add hl, de
 +:  djnz -
     ret
-.ends
+;.ends
 
-.section "Flood filling implementation" force
+;.section "Flood filling implementation" force
 ; 9th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode8_PaintFunction:
       ; Wait for the beep to finish
@@ -4513,9 +4521,9 @@ FloodFill_DrawPixel:
     pop hl
     pop de
     ret
-.ends
+;.ends
 
-.section "Copy implementation" force
+;.section "Copy implementation" force
 ; 10th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode9_CopyFunction:
       exx
@@ -4529,59 +4537,59 @@ NonVBlankMode9_CopyFunction:
     ret nz
 
     ; Get dimensions
-    ld ix, $C15D
+    ld ix, RAM_CopyData
     ld a, (RAM_Copy_FirstPoint.y)
     sub 23
     ld d, a
-    ld ($C15E), a ; Source Y
+    ld (RAM_CopyData.Source_Y), a ; Source Y
     ld a, (RAM_Copy_SecondPoint.y)
     sub 23
     sub d
     inc a
-    ld ($C160), a ; Height in pixels
+    ld (RAM_CopyData.Dimensions_Y), a ; Height in pixels
     ld a, (RAM_Copy_FirstPoint.x)
     sub 40
-    ld ($C15F), a ; Source X
+    ld (RAM_CopyData.Source_X), a ; Source X
     ld e, a
     ld a, (RAM_Copy_SecondPoint.x)
     sub 40
     sub e
     inc a
-    ld ($C161), a ; Width in pixels
+    ld (RAM_CopyData.Dimensions_X), a ; Width in pixels
 
     ld hl, RAM_GraphicsDataBuffer
     ld ($C171), hl ; Buffer pointer
     ld a, (RAM_Copy_Destination.y)
     sub 23
-    ld ($C162), a ; Destination y
+    ld (RAM_CopyData.Destination_Y), a ; Destination y
     ld a, (RAM_Copy_Destination.x)
     sub 40
-    ld (RAM_TitleScreenAndEndTimeout), a ; Destination X
+    ld (RAM_CopyData.Destination_X), a
     di
-      bit 0, (ix+0)
+      bit 0, (ix+CopyData.Flags)
       call z, NotLoca_LABEL_2BD8_
-      ld b, (ix+3)
-      ld c, (ix+4)
-      ld a, (ix+1)
-      and $07
+      ld b, (ix+CopyData.Dimensions_Y)
+      ld c, (ix+CopyData.Dimensions_X)
+      ld a, (ix+CopyData.Source_Y)
+      and 7
       ld d, a
-      ld a, (ix+2)
-      and $07
+      ld a, (ix+CopyData.Source_X)
+      and 7
       ld e, a
-      ld h, (ix+5)
-      ld l, (ix+6)
+      ld h, (ix+CopyData.Destination_Y)
+      ld l, (ix+CopyData.Destination_X)
 --:   push bc
       push de
       push hl
         ld b, c
 -:      ld a, e
-        and $07
+        and 7
         ld c, a
         ld a, l
-        and $07
+        and 7
         sub c
         jp nc, +
-        add a, $08
+        add a, 8
 +:      ld ($C166), a
         push bc
           call NotLocal_LABEL_2AB1_
@@ -4603,13 +4611,14 @@ NonVBlankMode9_CopyFunction:
       jp nc, +
       djnz --
 +:  ei
+    ; Go back to "pick a destination" mode
     ld a, (RAM_ActionStateFlags)
-    and $06
+    and %00000110
     ld (RAM_ActionStateFlags), a
     ret
-.ends
+;.ends
 
-.section "Mirror implementation" force
+;.section "Mirror implementation" force
 ; 11th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode10_MirrorFunction:
     exx
@@ -4624,8 +4633,8 @@ NonVBlankMode10_MirrorFunction:
     ld a, (RAM_Beep)
     or a
     ret nz
-    ld ix, $C15D
-    ld (ix+0), $00
+    ld ix, RAM_CopyData
+    ld (ix+0), 0
     ld a, (ix+18)
     sub $17
     ld (ix+18), a
@@ -4635,21 +4644,21 @@ NonVBlankMode10_MirrorFunction:
     ld a, (RAM_Copy_FirstPoint.y)
     sub $17
     ld d, a
-    ld ($C15E), a
+    ld (RAM_CopyData.Source_Y), a
     ld a, (RAM_Copy_SecondPoint.y)
     sub $17
     sub d
     inc a
-    ld ($C160), a
+    ld (RAM_CopyData.Dimensions_Y), a
     ld a, (RAM_Copy_FirstPoint.x)
     sub $28
-    ld ($C15F), a
+    ld (RAM_CopyData.Source_X), a
     ld e, a
     ld a, (RAM_Copy_SecondPoint.x)
     sub $28
     sub e
     inc a
-    ld ($C161), a
+    ld (RAM_CopyData.Dimensions_X), a
     ld hl, RAM_GraphicsDataBuffer
     ld ($C171), hl
     ld a, (RAM_SubmenuSelectionIndex)
@@ -4657,18 +4666,18 @@ NonVBlankMode10_MirrorFunction:
     jp nz, _LABEL_2A0B_
     ld hl, _LABEL_29B3_ ; will ret to here
     push hl
-      ld a, ($C15E)
+      ld a, (RAM_CopyData.Source_Y)
       cp (ix+18)
       jp nc, _LABEL_29A1_
       add a, (ix+3)
       cp (ix+18)
       jp nc, _LABEL_2994_
-      ld a, ($C15E)
+      ld a, (RAM_CopyData.Source_Y)
       add a, (ix+3)
       sub (ix+18)
       neg
       add a, (ix+18)
-      ld ($C162), a
+      ld (RAM_CopyData.Destination_Y), a
       ret
 
 .endasm ; Unmatched push matching
@@ -4677,19 +4686,19 @@ pop hl
 
 _LABEL_2994_:
       ld a, ($C16F)
-      ld ($C162), a
+      ld (RAM_CopyData.Destination_Y), a
       sub (ix+1)
-      ld ($C160), a
+      ld (RAM_CopyData.Dimensions_Y), a
       ret
 
 _LABEL_29A1_:
-      ld a, ($C15E)
+      ld a, (RAM_CopyData.Source_Y)
       add a, (ix+3)
       sub (ix+18)
       ld b, a
       ld a, ($C16F)
       sub b
-      ld ($C162), a
+      ld (RAM_CopyData.Destination_Y), a
       ret
 
 _LABEL_29B3_:
@@ -4745,33 +4754,33 @@ _LABEL_29B3_:
 _LABEL_2A0B_:
     ld hl, _LABEL_2A52_ ; will ret to here
     push hl
-      ld a, ($C15F)
+      ld a, (RAM_CopyData.Source_X)
       cp (ix+19)
       jp nc, ++
       add a, (ix+4)
       cp (ix+19)
       jp nc, +
-      ld a, ($C15F)
+      ld a, (RAM_CopyData.Source_X)
       add a, (ix+4)
       sub (ix+19)
       neg
       add a, (ix+19)
-      ld (RAM_TitleScreenAndEndTimeout), a
+      ld (RAM_CopyData.Destination_X), a
       ret
 
 +:    ld a, ($C170)
-      ld (RAM_TitleScreenAndEndTimeout), a
+      ld (RAM_CopyData.Destination_X), a
       sub (ix+2)
-      ld ($C161), a
+      ld (RAM_CopyData.Dimensions_X), a
       ret
 
-++:   ld a, ($C15F)
+++:   ld a, (RAM_CopyData.Source_X)
       add a, (ix+4)
       sub (ix+19)
       ld b, a
       ld a, ($C170)
       sub b
-      ld (RAM_TitleScreenAndEndTimeout), a
+      ld (RAM_CopyData.Destination_X), a
       ret
 
 .endasm ; Unmatched push matching
@@ -5151,16 +5160,16 @@ NotLoca_LABEL_2BD8_:
     pop de
     pop hl
     ret
-.ends
+;.ends
 
-.section "Magnify implementation" force
+;.section "Magnify implementation" force
 ; 12th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode11_MagnifyFunction:
     exx
     bit 7, (hl)
     jp z, _LABEL_2D05_
     call NotLocal_LABEL_3932_
-    ld ix, $C15D
+    ld ix, RAM_CopyData
     ld a, (RAM_ActionStateFlags)
     bit 2, a
     ret z
@@ -5304,19 +5313,19 @@ _LABEL_2D0D_:
     ld a, (RAM_Copy_FirstPoint.y)
     sub $16
     ld d, a
-    ld ($C15E), a
+    ld (RAM_CopyData.Source_Y), a
     ld a, (RAM_Copy_SecondPoint.y)
     sub $17
     sub d
-    ld ($C160), a
+    ld (RAM_CopyData.Dimensions_Y), a
     ld a, (RAM_Copy_FirstPoint.x)
     sub $27
-    ld ($C15F), a
+    ld (RAM_CopyData.Source_X), a
     ld e, a
     ld a, (RAM_Copy_SecondPoint.x)
     sub $28
     sub e
-    ld ($C161), a
+    ld (RAM_CopyData.Dimensions_X), a
     ld hl, $D000
     ld ($C171), hl
     bit 0, (ix+0)
@@ -5429,14 +5438,14 @@ MagnifyBoxData:
 .asc "(        $"
 .asc "(        $"
 .asc "(        $"
-.ends
+;.ends
 
 ; TBC
 .db $18 $57 $28 $67 $CB $38 
 .dw $2DFE 
 .db $00 $00 $68 $A7 $28 $67 $4B $3B $59 $2E $00 $09 $18 $57 $98 $D7 $E7 $38 $B4 $2E $0D $00 $68 $A7 $98 $D7 $67 $3B $0F $2F $0D $09
 
-.section "Graphic board/sprite update handlers dispatcher" force
+;.section "Graphic board/sprite update handlers dispatcher" force
 CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen position and buttons
     ld hl, RAM_ButtonsNewlyPressed ; used in functions later
     ld a, (RAM_Pen_Smoothed.y)
@@ -5461,7 +5470,7 @@ CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen positio
     xor a ; Zero if it carried
 +:  ld b, a
     ld a, $A8
-    ld ($C241), a ; Write only?
+    ld (RAM_SpriteTable1.xn+0*2+1), a ; Sprite 0 n
 
     ld a, (RAM_CurrentMode)
     and %00111111
@@ -5496,7 +5505,7 @@ ModeGraphicBoardHandlerJumpTable:
 .dw SubmenuGraphicBoardHandler
 .dw SubmenuGraphicBoardHandler
 .dw SubmenuGraphicBoardHandler
-.ends
+;.ends
 
 ; 1st entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode0_DrawingGraphicBoardHandler:
@@ -6010,7 +6019,7 @@ Mode9_CopyGraphicBoardHandler:
     ld a, $A9 ; Second cursor tile index
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
-    ld ($C15D), a ; ???
+    ld (RAM_CopyData.Flags), a
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
 
@@ -6254,7 +6263,7 @@ _LABEL_3469_:
     ld a, $A9
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
-    ld ($C15D), a
+    ld (RAM_CopyData.Flags), a
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
 
@@ -6421,7 +6430,7 @@ Mode11_MagnifyGraphicBoardHandler:
     ld a, $A9
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
-    ld ($C15D), a
+    ld (RAM_CopyData.Flags), a
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     call SetCursorIndex
     ld c, $00
@@ -6442,10 +6451,10 @@ Mode11_MagnifyGraphicBoardHandler:
     ld hl, Magnify_WindowLocations
     add hl, bc
     ld a, (hl)
-    ld ($C162), a
+    ld (RAM_CopyData.Destination_Y), a
     inc hl
     ld a, (hl)
-    ld (RAM_TitleScreenAndEndTimeout), a
+    ld (RAM_CopyData.Destination_X), a
     ret
 
 _LABEL_363C_:
@@ -6545,16 +6554,16 @@ NotLocal_LABEL_36A5_:
 
 +++:ld a, 1
     ld (RAM_Beep), a
-    ld a, ($C062)
-    xor $01
-    ld ($C062), a
+    ld a, (RAM_DrawingData.DotsOrLines)
+    xor %00000001 ; flip bit
+    ld (RAM_DrawingData.DotsOrLines), a
     jp ++
 
 +:  bit 2, (hl)
     jp z, ++
     ld (RAM_DrawingData.CurrentlySelectedPaletteIndex), a
     ld a, b
-    ld ($C242), a
+    ld (RAM_SpriteTable1.xn+1*2), a ; Sprite 1 x
     ld a, 1
     ld (RAM_Beep), a
     ld a, (RAM_PenStyle)
@@ -6563,7 +6572,7 @@ NotLocal_LABEL_36A5_:
     xor a ; PenStyle_Thin
     ld (RAM_PenStyle), a
 ++: ld a, $A8
-    ld ($C241), a
+    ld (RAM_SpriteTable1.xn+0*2+1), a ; Sprite 0 n
     ld a, CursorIndex_PaletteSelect
     call SetCursorIndex
     jp CheckMenuButton ; and ret
@@ -6830,8 +6839,8 @@ DrawEraserOff:
     jp FillTiles2bpp ; and ret
 
 PenModeNotChanged:
-    ; Check something else...
-    ld a, ($C062) ; desired new dot mode?
+    ; Check the dot/line mode
+    ld a, (RAM_DrawingData.DotsOrLines)
     cp (ix+PenMode.Dots)
     ret z
 
@@ -6925,8 +6934,8 @@ NotLocal_LABEL_3932_:
     call _LABEL_3A35_
 _LABEL_39C0_:
     di
-      ld ix, $C210
-      ld iy, $C260
+      ld ix, RAM_SpriteTable1.y+16 ; Sprite 16 y $C210
+      ld iy, RAM_SpriteTable1.xn+2*16 ; Sprite 16 x $C260
       ld a, ($C0BF)
       add a, a
       ld b, a
@@ -7110,15 +7119,15 @@ NotLocal_LABEL_3ACE_:
     ld a, (RAM_SubmenuSelectionIndex)
     rrca
     jp nc, +
-    ld a, (RAM_SpriteTable1.y)
-    add a, $07
+    ld a, (RAM_SpriteTable1.y+0) ; Sprite 0 y
+    add a, 7
     ld ($C16F), a
     ld c, a
-    ld a, (RAM_SpriteTable1.xn)
-    add a, $04
+    ld a, (RAM_SpriteTable1.xn+0*2) ; Sprite 0 x
+    add a, 4
     ld ($C170), a
-    ld ix, $C248
-    ld de, $C204
+    ld ix, RAM_SpriteTable1.xn+4*2 ; Sprite 4 x
+    ld de, RAM_SpriteTable1.y+4 ; Sprite 4 y
     ld hl, $3B21
     jp _LABEL_3A5A_
 
@@ -7129,9 +7138,9 @@ NotLocal_LABEL_3ACE_:
     ld a, (RAM_SpriteTable1.y)
     add a, $03
     ld ($C16F), a
-    ld ix, $C248
-    ld de, $C204
-    ld hl, $3B21
+    ld ix, RAM_SpriteTable1.xn+4*2  ; Sprite 4 xn $C248
+    ld de, RAM_SpriteTable1.y+4     ; Sprite 4 y  $C204
+    ld hl, MultiplesOf8Table
     jp _LABEL_3AA5_
 
 EnableOnlyThreeSprites:
@@ -7144,7 +7153,8 @@ EnableOnlyThreeSprites:
     ret
 
 ; Data from 3B21 to 3B2D (13 bytes)
-.db $00 $08 $10 $18 $20 $28 $30 $38 $40 $48 $50 $58 $60
+MultiplesOf8Table:
+.db 0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96
 
 UpdateStatusBarText:
     ; Called in VBlank
@@ -7228,8 +7238,7 @@ ControlTiles: ; $4552
 ; Header
 .smstag ; TMR SEGA, checksum, region, size
 .orga $7ff8
-.db "WK"
+.db "WK" ; Initials in unused space
 .orga $7ffc
 .dw $4009 ; product code - not valid?
 .db $02 ; version 2
-

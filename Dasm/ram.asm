@@ -17,7 +17,7 @@
 .endst
 
 .struct DrawingData
-  c062                          db ; $c062 0 for lines, 1 for dots?
+  DotsOrLines                   db ; $c062 0 for lines, 1 for dots
   PixelXPlus0                   db ; $c063 Used during drawing of the pen
   PixelXToDraw                  db ; $c064
   PixelXPlus1                   db ; $c065
@@ -36,6 +36,33 @@
   SquareCorner2_y               db
   SquareCorner2_x               db
   SquareHeight                  db ; $c072 Height of square in pixels
+.endst
+
+.struct TitleScreen
+  VBlankControl                 db ; $c15d +0 Bits for VBlank operations
+                                   ;          Bit 7 is set when somehting has happened - the VBlank does nothing while it's zero
+                                   ;          Bit 1 is set after animation completes
+                                   ;          Bit 0 is unset during phase 1 (blinds scroll in) set during phase 2 (roll)
+  Flags                         db ; $c15e +1 Tracks title screen animation phases
+  BlindsOffset                  db ; $c15f +2 Offset of rows, 32 = done
+  BlindsCounter                 db ; $c160 +3 Counts down as theh previous one counts up, to siganl done when it carries
+  RollPixelCount                db ; $c161 +4 Number of pixels that have "rolled" into view
+  unused                        db ; $c162 +5
+  Timeout                       dw ; $x163 +6 2b Counter for title screen (loops itself every 8.5s)
+.endst
+
+.struct CopyData
+  Flags                         db ; $c15d +0
+  Source                        dsb 0
+  Source_Y                      db ; $c15e +1
+  Source_X                      db ; $c15f +2
+  Dimensions                    dsb 0
+  Dimensions_Y                  db ; $c160 +3
+  Dimensions_X                  db ; $c161 +4
+  Destination                   dsb 0
+  Destination_Y                 db ; $c162 +5
+  EndTimeout                    dsb 0 ; Recycled byte for "end" mode...
+  Destination_X                 db ; $c163 +6
 .endst
 
 .enum $c000 asc export
@@ -119,13 +146,7 @@ RAM_Copy_FirstPoint                         instanceof XY ; $c0c4 First point cl
 RAM_Copy_SecondPoint                        instanceof XY ; $c0c6 Second point clicked in copy mode
 RAM_Copy_Destination                        instanceof XY ; $c0c8 Third+ point clicked in copy mode
 RAM_unusedC0CA dsb 147 ; Is used... a buffer of some sort?
-RAM_c15d db ; $c15d
-RAM_c15e db ; $c15e
-RAM_c15f db ; $c15f
-RAM_c160 db ; $c160
-RAM_c161 db ; $c161
-RAM_c162 db ; $c162
-RAM_TitleScreenAndEndTimeout             dw ; $C163 ; 2b Counter for title screen (loops itself every 8.5s) and when you choose "end" (2.1s, first byte only)
+RAM_TitleScreen                             instanceof TitleScreen ; $c15d
 RAM_unusedC165 dsb 1
 RAM_c166 db ; $c166
 RAM_unusedC167 dsb 8
@@ -133,13 +154,18 @@ RAM_c16f db ; $c16f
 RAM_c170 db ; $c170
 RAM_c171 dw ; $c171
 RAM_unusedc173 dsb 15
-RAM_UnknownWriteOnlyC182                  db ; $C182
-RAM_UnknownWriteOnlyC183                  dw ; $C183
+RAM_UnknownWriteOnlyC182                    db ; $C182
+RAM_UnknownWriteOnlyC183                    dw ; $C183
 RAM_unusedc185 dsb 2
-RAM_UnknownWriteOnlyC187                  dw ; $C187
+RAM_UnknownWriteOnlyC187                    dw ; $C187
 RAM_unusedc188 dsb 119
-RAM_SpriteTable1                          instanceof SpriteTable ; $C200 write here
-RAM_SpriteTable2                          instanceof SpriteTable ; $C2C0 copy here for staging to VRAM
+RAM_SpriteTable1                            instanceof SpriteTable ; $C200 write here
+RAM_SpriteTable2                            instanceof SpriteTable ; $C2C0 copy here for staging to VRAM
 RAM_unusedC380 dsb 128
-RAM_GraphicsDataBuffer                    dsb 5376 ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???. Biggest size used seems to be the main menu at 12x14 tiles.
+RAM_GraphicsDataBuffer                      dsb 5376 ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???. Biggest size used seems to be the main menu at 12x14 tiles.
+.ende
+
+; Title screen RAM reuse
+.enum RAM_TitleScreen export
+RAM_CopyData instanceof CopyData ; $c15d
 .ende
