@@ -128,7 +128,7 @@
 0000:c15f RAM_TitleScreen.BlindsOffset
 0000:c160 RAM_TitleScreen.BlindsCounter
 0000:c161 RAM_TitleScreen.RollPixelCount
-0000:c162 RAM_TitleScreen.c162
+0000:c162 RAM_TitleScreen.unused
 0000:c163 RAM_TitleScreen.Timeout
 0000:c165 RAM_unusedC165
 0000:c166 RAM_c166
@@ -362,7 +362,7 @@
 0000:363c _LABEL_363C_
 0000:365e Magnify_WindowLocations
 0000:3666 SubmenuGraphicBoardHandler
-0000:36a5 NotLocal_LABEL_36A5_
+0000:36a5 HandlePenInPalette
 0000:371e UpdateCursorColourCycling
 0000:3742 CursorColourCycle
 0000:3748 CursorColourCycleEnd

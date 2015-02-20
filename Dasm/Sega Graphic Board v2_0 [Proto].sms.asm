@@ -5463,11 +5463,11 @@ CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen positio
 +:  ; Function 0-8 or 14+ only
     ld a, b ; Pen Y
     cp 47
-    jp c, NotLocal_LABEL_36A5_ ; Less than 47 = near top of screen
+    jp c, HandlePenInPalette ; Less than 47 = near top of screen
 ++: ld a, b
-    sub 40
+    sub 40 ; Subtract 40 and truncate if it passes zero
     jp nc, +
-    xor a ; Zero if it carried
+    xor a 
 +:  ld b, a
     ld a, $A8
     ld (RAM_SpriteTable1.xn+0*2+1), a ; Sprite 0 n
@@ -6521,57 +6521,73 @@ SubmenuGraphicBoardHandler:
     ld (RAM_CurrentMode), a
     ret
 
-NotLocal_LABEL_36A5_:
-    ld a, $0F
+HandlePenInPalette:
+    ; Snap cursor to y=15
+    ld a, 15
     ld (RAM_SpriteTable1.y), a
+    ; Snap x position to multiple of 8
     ld a, (RAM_Pen_Smoothed.x)
     and $F8
-    ld b, $28
+    ; ...and min/max
+    ld b, 40
     cp b
     jp c, +
-    ld b, $D0
+    ld b, 208
     cp b
     jp nc, +
     ld b, a
 +:  ld a, b
     ld (RAM_SpriteTable1.xn), a
-    sub $28
+    ; Next convert x to an index
+    sub 40
     rrca
     rrca
     rrca
-    cp $10
-    jp c, +
-    sub $11
-    jp m, ++
-    bit 2, (hl)
+    cp 16
+    jp c, + ; Palette
+    sub 17
+    jp m, ++ ; Blank space
+    ; Require pen press
+    bit GraphicBoardButtonBit_Pen, (hl)
     jp z, ++
-    cp $04
-    jp z, +++
+    cp 4
+    jp z, +++ ; D button
+    ; Set pen thickness/erase
     ld (RAM_PenStyle), a
+    ; Short beep
     ld a, 1
     ld (RAM_Beep), a
     jp ++
 
-+++:ld a, 1
++++:; D button
+    ld a, 1
     ld (RAM_Beep), a
     ld a, (RAM_DrawingData.DotsOrLines)
     xor %00000001 ; flip bit
     ld (RAM_DrawingData.DotsOrLines), a
+    ; No beep
     jp ++
 
-+:  bit 2, (hl)
++:  ; Palette
+    ; Require pen press
+    bit GraphicBoardButtonBit_Pen, (hl)
     jp z, ++
+    ; Update state
     ld (RAM_DrawingData.CurrentlySelectedPaletteIndex), a
+    ; Update indicator cursor X
     ld a, b
     ld (RAM_SpriteTable1.xn+1*2), a ; Sprite 1 x
+    ; Short beep
     ld a, 1
     ld (RAM_Beep), a
+    ; If we're set to erase, chage to the thin pen (else the new colour does nothing)
     ld a, (RAM_PenStyle)
     cp PenStyle_Erase
     jp nz, ++
     xor a ; PenStyle_Thin
     ld (RAM_PenStyle), a
-++: ld a, $A8
+++: ; Update the cursor
+    ld a, $A8
     ld (RAM_SpriteTable1.xn+0*2+1), a ; Sprite 0 n
     ld a, CursorIndex_PaletteSelect
     call SetCursorIndex
