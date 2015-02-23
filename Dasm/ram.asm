@@ -52,7 +52,7 @@
 .endst
 
 .struct CopyData
-  Flags                         db ; $c15d +0
+  Flags                         db ; $c15d +0 : bit 0 set after source data has been read to RAM
   Source                        dsb 0
   Source_Y                      db ; $c15e +1
   Source_X                      db ; $c15f +2
@@ -145,16 +145,15 @@ RAM_Copy_ColumnOffset                       db ; $c0c3 Offset within first tile 
 RAM_Copy_FirstPoint                         instanceof XY ; $c0c4 First point clicked in copy mode
 RAM_Copy_SecondPoint                        instanceof XY ; $c0c6 Second point clicked in copy mode
 RAM_Copy_Destination                        instanceof XY ; $c0c8 Third+ point clicked in copy mode
-RAM_c0ca dsb 48 ; $c0ca
-RAM_c0fa dsb 48 ; $c0fa
-RAM_c12a dsb 51 ; $c12a
+RAM_BoxSprites_Y                            dsb 48   ; $c0ca ; Reduced-size potential sprite table for drawing bounding box/reflection axis
+RAM_BoxSprites_XN                           dsb 48*2 ; $c0fa ; See above
+RAM_unusedc15a dsb 3
 RAM_TitleScreen                             instanceof TitleScreen ; $c15d
 RAM_unusedC165 dsb 1
 RAM_c166 db ; $c166
 RAM_unusedC167 dsb 8
-RAM_c16f db ; $c16f
-RAM_c170 db ; $c170
-RAM_c171 dw ; $c171
+RAM_MirrorAxis                              instanceof XY ; $c16f
+RAM_Copy_BufferAddress                      dw ; $c171 Address of buffer to use
 RAM_unusedc173 dsb 15
 RAM_UnknownWriteOnlyC182                    db ; $C182
 RAM_UnknownWriteOnlyC183                    dw ; $C183
@@ -165,6 +164,7 @@ RAM_SpriteTable1                            instanceof SpriteTable ; $C200 write
 RAM_SpriteTable2                            instanceof SpriteTable ; $C2C0 copy here for staging to VRAM
 RAM_unusedC380 dsb 128
 RAM_GraphicsDataBuffer                      dsb 5376 ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???. Biggest size used seems to be the main menu at 12x14 tiles.
+; Also seem to use a buffer at $d000.
 .ende
 
 ; Title screen RAM reuse

@@ -4530,7 +4530,8 @@ NonVBlankMode9_CopyFunction:
     ; Wait for the signal that there is work to be done
     ld a, (RAM_ActionStateFlags)
     bit 3, a
-    jp z, NotLocal_LABEL_3932_ ; If not, ???
+    jp z, UpdateBoundingBoxSprites ; If not, update sprites for bounding box (as the pen may still be moving around)
+    
     ; Wait for the beep to end
     ld a, (RAM_Beep)
     or a
@@ -4557,25 +4558,34 @@ NonVBlankMode9_CopyFunction:
     inc a
     ld (RAM_CopyData.Dimensions_X), a ; Width in pixels
 
+    ; Set buffer pointer
     ld hl, RAM_GraphicsDataBuffer
-    ld ($C171), hl ; Buffer pointer
+    ld (RAM_Copy_BufferAddress), hl
+    
+    ; Convert destination point from screen to canvas corrdinates
     ld a, (RAM_Copy_Destination.y)
     sub 23
-    ld (RAM_CopyData.Destination_Y), a ; Destination y
+    ld (RAM_CopyData.Destination_Y), a
     ld a, (RAM_Copy_Destination.x)
     sub 40
     ld (RAM_CopyData.Destination_X), a
+    
     di
+      ; Read source data if necessary
       bit 0, (ix+CopyData.Flags)
-      call z, NotLoca_LABEL_2BD8_
+      call z, ReadTileDataToBuffer
+
+      ; bc = dimensions
       ld b, (ix+CopyData.Dimensions_Y)
       ld c, (ix+CopyData.Dimensions_X)
+      ; de = source pixel offset
       ld a, (ix+CopyData.Source_Y)
       and 7
       ld d, a
       ld a, (ix+CopyData.Source_X)
       and 7
       ld e, a
+      ; hl = destination location
       ld h, (ix+CopyData.Destination_Y)
       ld l, (ix+CopyData.Destination_X)
 --:   push bc
@@ -4625,11 +4635,11 @@ NonVBlankMode10_MirrorFunction:
     xor a
     ld a, (RAM_ActionStateFlags)
     rra
-    jp nc, NotLocal_LABEL_3ACE_
+    jp nc, UpdateMirrorAxisSprites
     rra
     ret nc
     rra
-    jp nc, NotLocal_LABEL_3932_
+    jp nc, UpdateBoundingBoxSprites
     ld a, (RAM_Beep)
     or a
     ret nz
@@ -4660,7 +4670,7 @@ NonVBlankMode10_MirrorFunction:
     inc a
     ld (RAM_CopyData.Dimensions_X), a
     ld hl, RAM_GraphicsDataBuffer
-    ld ($C171), hl
+    ld (RAM_Copy_BufferAddress), hl
     ld a, (RAM_SubmenuSelectionIndex)
     or a
     jp nz, _LABEL_2A0B_
@@ -4703,8 +4713,8 @@ _LABEL_29A1_:
 
 _LABEL_29B3_:
     di
-      bit 0, (ix+0)
-      call z, NotLoca_LABEL_2BD8_
+      bit 0, (ix+CopyData.Flags)
+      call z, ReadTileDataToBuffer
       ld b, (ix+3)
       ld c, (ix+4)
       ld a, (ix+1)
@@ -4789,8 +4799,8 @@ pop hl
 
 _LABEL_2A52_:
     di
-      bit 0, (ix+0)
-      call z, NotLoca_LABEL_2BD8_
+      bit 0, (ix+CopyData.Flags)
+      call z, ReadTileDataToBuffer
       ld b, (ix+3)
       ld c, (ix+4)
       ld a, (ix+1)
@@ -4886,7 +4896,7 @@ NotLocal_LABEL_2ADC_:
       ld a, e
       ex af, af'
       ex de, hl
-      call _LABEL_2B74_
+      call PixelXYToVRAMAddress
       ld hl, $C16B
       VDP_ADDRESS_TO_DE
       push af
@@ -4989,12 +4999,18 @@ NotLocal_LABEL_2ADC_:
     pop hl
     ret
 
-_LABEL_2B74_:
+PixelXYToVRAMAddress:
+    ; Inputs:
+    ; de = X,Y location of source
+    ; Outputs:
+    ; de = VRAM address of data for the row containing the pixel
     push hl
     push bc
+      ; Round Y down to multiple of 8
       ld a, d
       and $F8
       LD_HL_A
+      ; Multiply by 88 to get the offset of the row
       add hl, hl
       add hl, hl
       add hl, hl
@@ -5007,21 +5023,26 @@ _LABEL_2B74_:
         add hl, bc
       pop bc
       add hl, bc
+      ; Round x down to a multiple of 8
       push hl
         ld a, e
         and $F8
         LD_HL_A
+        ; Multiply by 4 to get the  offset of the tile in the row
         add hl, hl
         add hl, hl
       pop bc
+      ; Add them together
       add hl, bc
+      ; Get the row within the tile
       ld a, d
       and $07
       add a, a
       add a, a
-      ld b, $00
+      ld b, 0
       ld c, a
       add hl, bc
+      ; Put the result in de
       ex de, hl
     pop bc
     pop hl
@@ -5059,7 +5080,7 @@ _LABEL_2BA0_:
       ld c, a
       ld b, $00
       add hl, bc
-      ld bc, ($C171)
+      ld bc, (RAM_Copy_BufferAddress)
       add hl, bc
       ex de, hl
     pop hl
@@ -5077,9 +5098,9 @@ _LABEL_2BD0_:
 .db %00000010
 .db %00000001
 
-NotLoca_LABEL_2BD8_:
+ReadTileDataToBuffer:
     ; Set the flag to say this function has been called
-    set 0, (ix+0)
+    set 0, (ix+CopyData.Flags)
     push hl
     push de
     push bc
@@ -5119,14 +5140,16 @@ NotLoca_LABEL_2BD8_:
       and $07
       jp z, +
       inc c
-+:    ld a, (ix+1) ; Source Y
++:    ; Get the VRAM address for the source
+      ld a, (ix+CopyData.Source_Y)
       and $F8
       ld d, a
-      ld e, (ix+2) ; Source X
-      call _LABEL_2B74_
-      ld hl, ($C171)
+      ld e, (ix+CopyData.Source_X)
+      call PixelXYToVRAMAddress
+      ld hl, (RAM_Copy_BufferAddress)
 --:   VDP_ADDRESS_TO_DE
       push bc
+        ; bc = width in tiles * 32 = number of bytes to copy per row
         ld b, 0
         sla c
         rl b
@@ -5139,23 +5162,25 @@ NotLoca_LABEL_2BD8_:
         sla c
         rl b
         push hl
--:        in a, (Port_VDPData)
+-:        in a, (Port_VDPData) ; Read a byte to the buffer
           ld (hl), a
           inc hl
-          push af
+          push af   ; delay
           pop af
-          dec bc
+          dec bc    ; Repeat bc times
           ld a, b
           or c
           jp nz, -
-          ld hl, $02C0
+          ; Move initial VRAM address down by one row
+          ld hl, DRAWING_AREA_WIDTH_TILES * SizeOfTile ; $02C0
           add hl, de
           ex de, hl
         pop hl
-        ld bc, $01A0
+        ; Move write address along by 13 tiles' worth. This corresponds to the maximum 96px width, plus 8px for the extra tile parts we are reading.
+        ld bc, 13 * SizeOfTile
         add hl, bc
       pop bc
-      djnz --
+      djnz -- ; Loop b time s= number of rows of tiles
     pop bc
     pop de
     pop hl
@@ -5168,7 +5193,7 @@ NonVBlankMode11_MagnifyFunction:
     exx
     bit 7, (hl)
     jp z, _LABEL_2D05_
-    call NotLocal_LABEL_3932_
+    call UpdateBoundingBoxSprites
     ld ix, RAM_CopyData
     ld a, (RAM_ActionStateFlags)
     bit 2, a
@@ -5327,9 +5352,9 @@ _LABEL_2D0D_:
     sub e
     ld (RAM_CopyData.Dimensions_X), a
     ld hl, $D000
-    ld ($C171), hl
-    bit 0, (ix+0)
-    call z, NotLoca_LABEL_2BD8_
+    ld (RAM_Copy_BufferAddress), hl
+    bit 0, (ix+CopyData.Flags)
+    call z, ReadTileDataToBuffer
     ld b, (ix+3)
     ld c, (ix+4)
     ld a, (ix+1)
@@ -6876,12 +6901,13 @@ PenModeNotChanged:
     LD_HL_PEN_TILE_GRAPHICS PenTile_DotMode_Off
     jp FillTiles2bpp ; and ret
 
-NotLocal_LABEL_3932_:
+UpdateBoundingBoxSprites:
     ld a, (RAM_ActionStateFlags)
     and %00000111
-    ret z
+    ret z ; Do nothing while no bits set
     cp %00000111
-    jp nc, _LABEL_39C0_
+    jp nc, _SkipCalculatingSpriteCoordinates ; If all bits are set, we don't recalculate the sprite corrdinates - but we do update the sprite table
+    ; Not all bits set
     ; Process Y coordinates
     ld a, (RAM_Copy_FirstPoint.y)
     ld b, a
@@ -6923,38 +6949,46 @@ NotLocal_LABEL_3932_:
     and $07
     ld (RAM_Copy_ColumnOffset), a ; dx%8
     ; Set buffer pointers TODO: name them
-    ld ix, $C0FA
-    ld de, $C0CA
+    ld ix, RAM_BoxSprites_XN
+    ld de, RAM_BoxSprites_Y
+    ; Draw top line
     ld a, (RAM_Copy_FirstPoint.x)
     ld c, a
     ld a, (RAM_Copy_WidthInTiles)
     ld b, a
     ld a, (RAM_Copy_FirstPoint.y)
-    call _LABEL_3A83_
+    call _AddSprites_Horizontal
+    ; ...and bottom line
     exx
       ld a, (RAM_Copy_FirstPoint.y)
       ld b, a
       ld a, (RAM_Copy_HeightInPixels)
       add a, b
     exx
-    call _LABEL_3A83_
+    call _AddSprites_Horizontal
+    ; ...then left line
     ld a, (RAM_Copy_FirstPoint.y)
     ld c, a
     ld a, (RAM_Copy_HeightInTiles)
     ld b, a
     ld a, (RAM_Copy_FirstPoint.x)
-    call _LABEL_3A35_
+    call _AddSprites_Vertical
+    ; ... then right line
     exx
       ld a, (RAM_Copy_FirstPoint.x)
       ld b, a
       ld a, (RAM_Copy_WidthInPixels)
       add a, b
     exx
-    call _LABEL_3A35_
-_LABEL_39C0_:
+    call _AddSprites_Vertical
+    ; Fall through
+_SkipCalculatingSpriteCoordinates:
     di
+      ; Point at the sprite table from index 16
       ld ix, RAM_SpriteTable1.y+16 ; Sprite 16 y $C210
       ld iy, RAM_SpriteTable1.xn+2*16 ; Sprite 16 x $C260
+      ; We need to copy data for (width+height)*2 sprites
+      ; We calculate that in a weird way...
       ld a, (RAM_Copy_HeightInTiles)
       add a, a
       ld b, a
@@ -6962,39 +6996,41 @@ _LABEL_39C0_:
       add a, a
       add a, b
       ld b, a
-      ld a, $30
+      ld a, 48 ; Maximum count
       sub b
-      ld c, a
-      ld de, $C0FA
-      ld hl, $C0CA
--:    ld a, (hl)
-      ld (ix+0), a
+      ld c, a  ; Remainder
+      ; Point at the sources
+      ld de, RAM_BoxSprites_XN
+      ld hl, RAM_BoxSprites_Y
+-:    ld a, (hl)    ; Read Y
+      ld (ix+0), a  ; Write Y
       inc ix
       inc hl
-      ld a, (de)
-      ld (iy+0), a
+      ld a, (de)    ; Read X
+      ld (iy+0), a  ; Write X  
       inc iy
       inc de
-      ld a, (de)
-      ld (iy+0), a
+      ld a, (de)    ; Read N
+      ld (iy+0), a  ; Write N
       inc iy
       inc de
       djnz -
+      ; Surely we could have used ldir here!?!
       jp +
 
-; Skipped-over code?
+; Skipped-over code. Looks a bit like it's trying to do a reverse-order copy for flicker control. That's solved elsewhere now.
       push bc
         ld a, b
         dec a
         ld c, a
         ld b, 0
-        ld hl, $c0ca
+        ld hl, RAM_BoxSprites_Y
         add hl, bc
         ex de, hl
         push bc
         pop hl
         add hl, hl
-        ld bc, $c0fa
+        ld bc, RAM_BoxSprites_XN
         add hl, bc
         inc hl
         ex de, hl
@@ -7012,27 +7048,32 @@ _LABEL_39C0_:
       inc iy
       dec de
       djnz -
+; Skipped-over code end
 
-+:    ld a, c
++:    ld a, c ; Check if the remainder was non-zero
       or a
       jp z, +
--:    ld (ix+0), $E0
+-:    ld (ix+0), SpriteTableYTerminator ; If so, write Y terminators into the rest of the sprite table
       inc ix
       dec a
       jp nz, -
 +:  ei
     ret
 
-_LABEL_3A35_:
+_AddSprites_Vertical:
     ; Inputs:
-    ; bc = ?
-    ; de = buffer 2
-    ; ix = buffer 1
+    ; b = height in tiles
+    ; c = Y coordinate
+    ; a = X coordinate
+    ; de = Y sprite table buffer
+    ; ix = XN sprite table buffer
+    ; hl = multiples of 8 table start
+    ; See comments for horizontal version below.
     ld hl, MultiplesOf8Table
     push bc
       dec b
-      jp z, _LABEL_3A6F_
-      call _LABEL_3A5A_
+      jp z, _AddSprites_Vertical_SingleColumn
+      call _AddSprites_Vertical8px
       ex af, af'
         dec de
         ld a, (de)
@@ -7046,12 +7087,12 @@ _LABEL_3A35_:
       ex af, af'
       ld (ix+0), a
       inc ix
-      ld (ix+0), $A5
+      ld (ix+0), $A5 ; Tile index: vertical flashing line
       inc ix
     pop bc
     ret
 
-_LABEL_3A5A_:
+_AddSprites_Vertical8px:
 -:  ex af, af'
       ld a, (hl)
       add a, c
@@ -7061,7 +7102,7 @@ _LABEL_3A5A_:
     ex af, af'
     ld (ix+0), a
     inc ix
-    ld (ix+0), $A5
+    ld (ix+0), $A5 ; Tile index: vertical flashing line
     inc ix
     djnz -
     ret
@@ -7070,7 +7111,7 @@ _LABEL_3A5A_:
 push bc
 .asm
 
-_LABEL_3A6F_:
+_AddSprites_Vertical_SingleColumn:
       ex af, af'
         ld a, (hl)
         add a, c
@@ -7080,38 +7121,46 @@ _LABEL_3A6F_:
       ex af, af'
       ld (ix+0), a
       inc ix
-      ld (ix+0), $A5
+      ld (ix+0), $A5 ; Tile index: vertical flashing line
       inc ix
     pop bc
     ret
 
-_LABEL_3A83_:
+_AddSprites_Horizontal:
     ; Inputs:
     ; b = width in tiles
     ; c = X coordinate
     ; a = Y coordinate
-    ; de = buffer 1
-    ; ix = buffer 2
+    ; de = Y sprite table buffer
+    ; ix = XN sprite table buffer
     ; hl = multiples of 8 table start
+    ; This looks a bit of a mess. The logic is trying to be:
+    ; - Add a sprite for each whole 8px column we have, not overlapping
+    ; - Then add one shifted left (so it overlaps its predecessor) for the last bit
+    ; But it instead special-cases 8px width (possibly because it used to support <8px)
+    ; and does things rather redundantly. Also, the "multiples of 8 table" does no more than add a,8 could do...
     push bc
       ld hl, MultiplesOf8Table
       dec b
-      jp z, _LABEL_3ABA_ ; Last column
-      call _AddSprite_Horizontal8px
-      ld (de), a
+      jp z, _AddSprites_Horizontal_SingleColumn ; Last column: need to position fractionally
+      call _AddSprites_Horizontal8px ; Add sprites up to the last column
+      ; Final column
+      ld (de), a ; Set y coordinate
       inc de
+      ; The final sprite X is:
+      ; (previous sprite X) + (pixel count remaining) + 0 + 1
       ld a, (RAM_Copy_ColumnOffset)
       add a, (ix-2)
-      add a, b
+      add a, b ; Always 0?
       inc a
-      ld (ix+0), a
+      ld (ix+0), a ; Set x coordinate
       inc ix
-      ld (ix+0), $A6
+      ld (ix+0), $A6 ; Tile index: horizontal flashing line
       inc ix
     pop bc
     ret
 
-_AddSprite_Horizontal8px:
+_AddSprites_Horizontal8px:
 -:  ld (de), a ; Set y coordinate
     ex af, af' ; preserve a
       inc de ; Move y pointer on
@@ -7129,49 +7178,52 @@ _AddSprite_Horizontal8px:
 .endasm ; Unmatched push matching
 push bc
 .asm
-_LABEL_3ABA_:
-      ld (de), a
-      ex af, af'
-      inc de
-      ld a, (hl)
-      add a, c
-      ld (ix+0), a
-      inc hl
-      inc ix
-      ld (ix+0), $A6
-      inc ix
+_AddSprites_Horizontal_SingleColumn:
+      ld (de), a      ; Set y coordinate
+      ex af, af'      ; preserve a (unnecessary?)
+        inc de        ; Move Y pointer on
+        ld a, (hl)    ; Read multiple of 8 - always 0!
+        add a, c      ; Add to X
+        ld (ix+0), a  ; Set x coordinate
+        inc hl        ; Unnecessary?
+        inc ix
+        ld (ix+0), $A6 ; Tile index: horizontal flashing line
+        inc ix
       ex af, af'
     pop bc
     ret
 
-NotLocal_LABEL_3ACE_:
-    ld b, $0C
+UpdateMirrorAxisSprites:
+    ld b, 12 ; Sprite count
+    ; Check if horizontal or vertical
     ld a, (RAM_SubmenuSelectionIndex)
     rrca
     jp nc, +
+    ; Vertical
     ld a, (RAM_SpriteTable1.y+0) ; Sprite 0 y
     add a, 7
-    ld ($C16F), a
+    ld (RAM_MirrorAxis.y), a
     ld c, a
     ld a, (RAM_SpriteTable1.xn+0*2) ; Sprite 0 x
     add a, 4
-    ld ($C170), a
+    ld (RAM_MirrorAxis.x), a
     ld ix, RAM_SpriteTable1.xn+4*2 ; Sprite 4 x
     ld de, RAM_SpriteTable1.y+4 ; Sprite 4 y
     ld hl, MultiplesOf8Table
-    jp _LABEL_3A5A_
+    jp _AddSprites_Vertical8px ; and ret
 
-+:  ld a, (RAM_SpriteTable1.xn)
-    add a, $08
-    ld ($C170), a
++:  ; Horizontal
+    ld a, (RAM_SpriteTable1.xn)
+    add a, 8
+    ld (RAM_MirrorAxis.x), a
     ld c, a
     ld a, (RAM_SpriteTable1.y)
-    add a, $03
-    ld ($C16F), a
+    add a, 3
+    ld (RAM_MirrorAxis.y), a
     ld ix, RAM_SpriteTable1.xn+4*2  ; Sprite 4 xn $C248
     ld de, RAM_SpriteTable1.y+4     ; Sprite 4 y  $C204
     ld hl, MultiplesOf8Table
-    jp _AddSprite_Horizontal8px
+    jp _AddSprites_Horizontal8px ; and ret
 
 EnableOnlyThreeSprites:
     ; Could only set the terminator once?
