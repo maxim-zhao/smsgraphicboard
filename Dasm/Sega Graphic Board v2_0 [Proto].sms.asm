@@ -6878,73 +6878,76 @@ PenModeNotChanged:
 
 NotLocal_LABEL_3932_:
     ld a, (RAM_ActionStateFlags)
-    and $07
+    and %00000111
     ret z
-    cp $07
+    cp %00000111
     jp nc, _LABEL_39C0_
+    ; Process Y coordinates
     ld a, (RAM_Copy_FirstPoint.y)
     ld b, a
     ld a, (RAM_Copy_SecondPoint.y)
     sub b
-    ret c
-    ld ($C0BE), a
+    ret c ; reject negative dy
+    ld (RAM_Copy_HeightInPixels), a ; dy
     ld b, a
-    and $F8
+    and $F8 ; Divide by 8 and add 1
     rrca
     rrca
     rrca
     inc a
-    cp $0D
+    cp 13 ; Limit to 12
     jp c, +
-    ld a, $0C
-+:  ld ($C0BF), a
+    ld a, 12
++:  ld (RAM_Copy_HeightInTiles), a ; dy/8+1
     ld a, b
     and $07
-    ld ($C0C0), a
+    ld (RAM_Copy_RowOffset), a ; dy%8
+    ; Process X coordinates
     ld a, (RAM_Copy_FirstPoint.x)
     ld b, a
     ld a, (RAM_Copy_SecondPoint.x)
     sub b
-    ret c
-    ld ($C0C1), a
+    ret c ; reject negative dx
+    ld (RAM_Copy_WidthInPixels), a ; dx
     ld c, a
-    and $F8
+    and $F8 ; Divide by 8 and add 1
     rrca
     rrca
     rrca
     inc a
-    cp $0D
+    cp 13 ; Limit to 12
     jp c, +
-    ld a, $0C
-+:  ld ($C0C2), a
+    ld a, 12
++:  ld (RAM_Copy_WidthInTiles), a ; dx/8+1
     ld a, c
     and $07
-    ld ($C0C3), a
+    ld (RAM_Copy_ColumnOffset), a ; dx%8
+    ; Set buffer pointers TODO: name them
     ld ix, $C0FA
     ld de, $C0CA
     ld a, (RAM_Copy_FirstPoint.x)
     ld c, a
-    ld a, ($C0C2)
+    ld a, (RAM_Copy_WidthInTiles)
     ld b, a
     ld a, (RAM_Copy_FirstPoint.y)
     call _LABEL_3A83_
     exx
       ld a, (RAM_Copy_FirstPoint.y)
       ld b, a
-      ld a, ($C0BE)
+      ld a, (RAM_Copy_HeightInPixels)
       add a, b
     exx
     call _LABEL_3A83_
     ld a, (RAM_Copy_FirstPoint.y)
     ld c, a
-    ld a, ($C0BF)
+    ld a, (RAM_Copy_HeightInTiles)
     ld b, a
     ld a, (RAM_Copy_FirstPoint.x)
     call _LABEL_3A35_
     exx
       ld a, (RAM_Copy_FirstPoint.x)
       ld b, a
-      ld a, ($C0C1)
+      ld a, (RAM_Copy_WidthInPixels)
       add a, b
     exx
     call _LABEL_3A35_
@@ -6952,10 +6955,10 @@ _LABEL_39C0_:
     di
       ld ix, RAM_SpriteTable1.y+16 ; Sprite 16 y $C210
       ld iy, RAM_SpriteTable1.xn+2*16 ; Sprite 16 x $C260
-      ld a, ($C0BF)
+      ld a, (RAM_Copy_HeightInTiles)
       add a, a
       ld b, a
-      ld a, ($C0C2)
+      ld a, (RAM_Copy_WidthInTiles)
       add a, a
       add a, b
       ld b, a
@@ -7021,21 +7024,25 @@ _LABEL_39C0_:
     ret
 
 _LABEL_3A35_:
-    ld hl, $3B21
+    ; Inputs:
+    ; bc = ?
+    ; de = buffer 2
+    ; ix = buffer 1
+    ld hl, MultiplesOf8Table
     push bc
       dec b
       jp z, _LABEL_3A6F_
       call _LABEL_3A5A_
       ex af, af'
-      dec de
-      ld a, (de)
-      inc de
-      ld b, a
-      ld a, ($C0C0)
-      add a, b
-      inc a
-      ld (de), a
-      inc de
+        dec de
+        ld a, (de)
+        inc de
+        ld b, a
+        ld a, (RAM_Copy_RowOffset)
+        add a, b
+        inc a
+        ld (de), a
+        inc de
       ex af, af'
       ld (ix+0), a
       inc ix
@@ -7046,11 +7053,11 @@ _LABEL_3A35_:
 
 _LABEL_3A5A_:
 -:  ex af, af'
-    ld a, (hl)
-    add a, c
-    ld (de), a
-    inc de
-    inc hl
+      ld a, (hl)
+      add a, c
+      ld (de), a
+      inc de
+      inc hl
     ex af, af'
     ld (ix+0), a
     inc ix
@@ -7065,11 +7072,11 @@ push bc
 
 _LABEL_3A6F_:
       ex af, af'
-      ld a, (hl)
-      add a, c
-      ld (de), a
-      inc de
-      inc hl
+        ld a, (hl)
+        add a, c
+        ld (de), a
+        inc de
+        inc hl
       ex af, af'
       ld (ix+0), a
       inc ix
@@ -7079,15 +7086,22 @@ _LABEL_3A6F_:
     ret
 
 _LABEL_3A83_:
+    ; Inputs:
+    ; b = width in tiles
+    ; c = X coordinate
+    ; a = Y coordinate
+    ; de = buffer 1
+    ; ix = buffer 2
+    ; hl = multiples of 8 table start
     push bc
-      ld hl, $3B21
+      ld hl, MultiplesOf8Table
       dec b
-      jp z, _LABEL_3ABA_
-      call _LABEL_3AA5_
+      jp z, _LABEL_3ABA_ ; Last column
+      call _AddSprite_Horizontal8px
       ld (de), a
       inc de
-      ld a, ($C0C3)
-      add a, (ix+-2)
+      ld a, (RAM_Copy_ColumnOffset)
+      add a, (ix-2)
       add a, b
       inc a
       ld (ix+0), a
@@ -7097,17 +7111,17 @@ _LABEL_3A83_:
     pop bc
     ret
 
-_LABEL_3AA5_:
--:  ld (de), a
-    ex af, af'
-    inc de
-    ld a, (hl)
-    add a, c
-    ld (ix+0), a
-    inc hl
-    inc ix
-    ld (ix+0), $A6
-    inc ix
+_AddSprite_Horizontal8px:
+-:  ld (de), a ; Set y coordinate
+    ex af, af' ; preserve a
+      inc de ; Move y pointer on
+      ld a, (hl) ; x + 8*n
+      add a, c
+      ld (ix+0), a ; Set x coordinate
+      inc hl ; Next n
+      inc ix
+      ld (ix+0), $A6 ; Tile index: horizontal flashing line
+      inc ix
     ex af, af'
     djnz -
     ret
@@ -7144,7 +7158,7 @@ NotLocal_LABEL_3ACE_:
     ld ($C170), a
     ld ix, RAM_SpriteTable1.xn+4*2 ; Sprite 4 x
     ld de, RAM_SpriteTable1.y+4 ; Sprite 4 y
-    ld hl, $3B21
+    ld hl, MultiplesOf8Table
     jp _LABEL_3A5A_
 
 +:  ld a, (RAM_SpriteTable1.xn)
@@ -7157,7 +7171,7 @@ NotLocal_LABEL_3ACE_:
     ld ix, RAM_SpriteTable1.xn+4*2  ; Sprite 4 xn $C248
     ld de, RAM_SpriteTable1.y+4     ; Sprite 4 y  $C204
     ld hl, MultiplesOf8Table
-    jp _LABEL_3AA5_
+    jp _AddSprite_Horizontal8px
 
 EnableOnlyThreeSprites:
     ; Could only set the terminator once?

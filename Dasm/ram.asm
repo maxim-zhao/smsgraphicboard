@@ -136,16 +136,18 @@ RAM_unusedC0b3 dsb 7
 RAM_SubmenuSelectionIndex                   db ; $c0ba Index of item last selected in a submenu
 RAM_BytesPerRow                             dw ; $c0bb Used during RAM<->VRAM tile copies
 RAM_unusedc0bd dsb 1
-RAM_c0be db ; $c0be
-RAM_c0bf db ; $c0bf
-RAM_c0c0 db ; $c0c0
-RAM_c0c1 db ; $c0c1
-RAM_c0c2 db ; $c0c2
-RAM_c0c3 db ; $c0c3
+RAM_Copy_HeightInPixels                     db ; $c0be Selected area height
+RAM_Copy_HeightInTiles                      db ; $c0bf Number of tiles impacted vertically
+RAM_Copy_RowOffset                          db ; $c0c0 Offset within first tile to start drawing
+RAM_Copy_WidthInPixels                      db ; $c0c1 Selected area width
+RAM_Copy_WidthInTiles                       db ; $c0c2 Number of tiles impacted horizontally
+RAM_Copy_ColumnOffset                       db ; $c0c3 Offset within first tile to start drawing
 RAM_Copy_FirstPoint                         instanceof XY ; $c0c4 First point clicked in copy mode
 RAM_Copy_SecondPoint                        instanceof XY ; $c0c6 Second point clicked in copy mode
 RAM_Copy_Destination                        instanceof XY ; $c0c8 Third+ point clicked in copy mode
-RAM_unusedC0CA dsb 147 ; Is used... a buffer of some sort?
+RAM_c0ca dsb 48 ; $c0ca
+RAM_c0fa dsb 48 ; $c0fa
+RAM_c12a dsb 51 ; $c12a
 RAM_TitleScreen                             instanceof TitleScreen ; $c15d
 RAM_unusedC165 dsb 1
 RAM_c166 db ; $c166
