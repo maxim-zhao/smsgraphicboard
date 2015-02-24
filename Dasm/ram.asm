@@ -63,6 +63,13 @@
   Destination_Y                 db ; $c162 +5
   EndTimeout                    dsb 0 ; Recycled byte for "end" mode...
   Destination_X                 db ; $c163 +6
+  UnusedC164                    dw ; $c164 +7
+  PixelOffset                   db ; $c166 +9 Number of pixels to rotate the source row to line up with the destination within the tile
+  SourcePixelBuffer             dsb 4 ; $c167 Bytes for a single pixel, masked to the pixel in question
+  DestinationRowBuffer          dsb 4 ; $c16b Bytes for the destination row
+  MirrorAxis_Y                  db ; $c16f
+  MirrorAxis_X                  db ; $c170
+  BufferAddress                 dw ; $c171 Address of buffer to use
 .endst
 
 .enum $c000 asc export
@@ -148,12 +155,7 @@ RAM_Copy_Destination                        instanceof XY ; $c0c8 Third+ point c
 RAM_BoxSprites_Y                            dsb 48   ; $c0ca ; Reduced-size potential sprite table for drawing bounding box/reflection axis
 RAM_BoxSprites_XN                           dsb 48*2 ; $c0fa ; See above
 RAM_unusedc15a dsb 3
-RAM_TitleScreen                             instanceof TitleScreen ; $c15d
-RAM_unusedC165 dsb 1
-RAM_c166 db ; $c166
-RAM_unusedC167 dsb 8
-RAM_MirrorAxis                              instanceof XY ; $c16f
-RAM_Copy_BufferAddress                      dw ; $c171 Address of buffer to use
+RAM_CopyData                                instanceof CopyData ; $c15d
 RAM_unusedc173 dsb 15
 RAM_UnknownWriteOnlyC182                    db ; $C182
 RAM_UnknownWriteOnlyC183                    dw ; $C183
@@ -163,11 +165,13 @@ RAM_unusedc188 dsb 119
 RAM_SpriteTable1                            instanceof SpriteTable ; $C200 write here
 RAM_SpriteTable2                            instanceof SpriteTable ; $C2C0 copy here for staging to VRAM
 RAM_unusedC380 dsb 128
-RAM_GraphicsDataBuffer                      dsb 5376 ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???. Biggest size used seems to be the main menu at 12x14 tiles.
-; Also seem to use a buffer at $d000.
+RAM_GraphicsDataBuffer                      dsb 5408 ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???.
+                                                     ;       Biggest menu (main menu) is     12x14 tiles = 5376 bytes (up to $d8ff)
+                                                     ;       Copy/etc max underlying data is 13x13 tiles = 5408 bytes (up to $d91f)
+; Also seem to use a buffer at $d000 sometimes for ???
 .ende
 
 ; Title screen RAM reuse
-.enum RAM_TitleScreen export
-RAM_CopyData instanceof CopyData ; $c15d
+.enum RAM_CopyData export
+RAM_TitleScreen                             instanceof TitleScreen ; $c15d
 .ende

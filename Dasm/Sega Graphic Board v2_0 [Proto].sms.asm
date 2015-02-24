@@ -4560,7 +4560,7 @@ NonVBlankMode9_CopyFunction:
 
     ; Set buffer pointer
     ld hl, RAM_GraphicsDataBuffer
-    ld (RAM_Copy_BufferAddress), hl
+    ld (RAM_CopyData.BufferAddress), hl
     
     ; Convert destination point from screen to canvas corrdinates
     ld a, (RAM_Copy_Destination.y)
@@ -4578,7 +4578,7 @@ NonVBlankMode9_CopyFunction:
       ; bc = dimensions
       ld b, (ix+CopyData.Dimensions_Y)
       ld c, (ix+CopyData.Dimensions_X)
-      ; de = source pixel offset
+      ; de = source pixel offset within first tile
       ld a, (ix+CopyData.Source_Y)
       and 7
       ld d, a
@@ -4591,35 +4591,39 @@ NonVBlankMode9_CopyFunction:
 --:   push bc
       push de
       push hl
-        ld b, c
--:      ld a, e
+        ld b, c ; width in pixels
+-:      ld a, e ; pixel offset in first tile of source
         and 7
         ld c, a
-        ld a, l
+        ld a, l ; pixel offset in first tile of destination
         and 7
-        sub c
+        sub c   ; difference between the two = amount to rotate bitplanes by to make them line up
         jp nc, +
-        add a, 8
-+:      ld ($C166), a
+        add a, 8  ; add 8 if negative
++:      ld (RAM_CopyData.PixelOffset), a ; Save it
         push bc
-          call NotLocal_LABEL_2AB1_
-          call NotLocal_LABEL_2ADC_
+          call ReadPixelAtDEIntoBuffer
+          call WritePixelAtHLFromBuffer
         pop bc
+        ; Move right
         inc e
         inc l
+        ; Stop at right edge
         ld a, l
-        cp $B0
+        cp DRAWING_AREA_WIDTH_PIXELS
         jp nc, +
-        djnz -
+        djnz - ; Loop over width
 +:    pop hl
       pop de
       pop bc
+      ; Move down
       inc d
       inc h
+      ; Stop at bottom edge
       ld a, h
-      cp $90
+      cp DRAWING_AREA_HEIGHT_PIXELS
       jp nc, +
-      djnz --
+      djnz -- ; Loop over height
 +:  ei
     ; Go back to "pick a destination" mode
     ld a, (RAM_ActionStateFlags)
@@ -4670,7 +4674,7 @@ NonVBlankMode10_MirrorFunction:
     inc a
     ld (RAM_CopyData.Dimensions_X), a
     ld hl, RAM_GraphicsDataBuffer
-    ld (RAM_Copy_BufferAddress), hl
+    ld (RAM_CopyData.BufferAddress), hl
     ld a, (RAM_SubmenuSelectionIndex)
     or a
     jp nz, _LABEL_2A0B_
@@ -4742,10 +4746,10 @@ _LABEL_29B3_:
         sub c
         jp nc, +
         add a, 8
-+:      ld ($c166), a
++:      ld (RAM_CopyData.PixelOffset), a
         push bc
-          call NotLocal_LABEL_2AB1_
-          call NotLocal_LABEL_2ADC_
+          call ReadPixelAtDEIntoBuffer
+          call WritePixelAtHLFromBuffer
         pop bc
         inc e
         inc l
@@ -4825,13 +4829,13 @@ _LABEL_2A52_:
         sub c
         jp nc, +
         add a, $08
-+:      ld ($c166), a
++:      ld (RAM_CopyData.PixelOffset), a
         ld a, l
         cp $b0
         jp nc, +
         push bc
-          call NotLocal_LABEL_2AB1_
-          call NotLocal_LABEL_2ADC_
+          call ReadPixelAtDEIntoBuffer
+          call WritePixelAtHLFromBuffer
         pop bc
 +:      dec e
         inc l
@@ -4851,27 +4855,32 @@ _LABEL_2AA9_:
     ld ($c089), a
     jp EnableOnlyThreeSprites ; and ret
 
-NotLocal_LABEL_2AB1_:
+ReadPixelAtDEIntoBuffer:
+    ; Inputs:
+    ; de = source pixel offset within buffer pointed to by RAM_CopyData.BufferAddress
+    ; Outputs:
+    ; RAM_CopyData.SourcePixelBuffer is set to the pixel in question; other bits are zero
     push hl
     push de
       push bc
-        ld a, e
+        ; Get bitmask for pixel within tile
+        ld a, e ; x % 8
         and $07
         ld c, a
-        ld b, $00
-        ld hl, _LABEL_2BD0_
+        ld b, 0
+        ld hl, Table_PixelBitWithinTile
         add hl, bc
         ld a, (hl)
       pop bc
-      ld hl, $C167
-      ld c, a
-      call _LABEL_2BA0_
-      ld a, (de)
-      and c
-      ld (hl), a
+      ld hl, RAM_CopyData.SourcePixelBuffer ; Destination
+      ld c, a       ; Bitmask
+      call PixelXYToBufferAddress
+      ld a, (de)    ; Read a byte
+      and c         ; Mask it out
+      ld (hl), a    ; Write
       inc hl
       inc de
-      ld a, (de)
+      ld a, (de)    ; Repeat for 4 bytes
       and c
       ld (hl), a
       inc hl
@@ -4888,53 +4897,63 @@ NotLocal_LABEL_2AB1_:
     pop hl
     ret
 
-NotLocal_LABEL_2ADC_:
+WritePixelAtHLFromBuffer:
+    ; Inputs:
+    ; de = source pixel location within buffer pointed to by RAM_CopyData.BufferAddress
+    ; hl = destination pixel location in canvas
+    ; ix = ? TODO
+    ; Reads data from VRAM, masks out the pixel in question, merges the data from the buffer (destructively) and writes it back
     call CheckForReset
     push hl
     push de
     push bc
-      ld a, e
-      ex af, af'
-      ex de, hl
-      call PixelXYToVRAMAddress
-      ld hl, $C16B
-      VDP_ADDRESS_TO_DE
-      push af
-      pop af
-      push de
+      ld a, e ; x
+      ex af, af' ; preserve a
+        ; Get VRAM address for pixel
+        ex de, hl
+        call PixelXYToVRAMAddress
+        ld hl, RAM_CopyData.DestinationRowBuffer
+        VDP_ADDRESS_TO_DE
+        push af ; delay
+        pop af
+        ; read in four bytes from VRAM
+        push de
+          in a, (Port_VDPData)
+          ld (hl), a
+          inc hl
+        pop de
         in a, (Port_VDPData)
         ld (hl), a
         inc hl
-      pop de
-      in a, (Port_VDPData)
-      ld (hl), a
-      inc hl
-      push de
+        push de
+          in a, (Port_VDPData)
+          ld (hl), a
+          inc hl
+        pop de
         in a, (Port_VDPData)
         ld (hl), a
-        inc hl
-      pop de
-      in a, (Port_VDPData)
-      ld (hl), a
-      dec hl
-      dec hl
-      dec hl
+        ; Then move hl back to where it started
+        dec hl
+        dec hl
+        dec hl
       ex af, af'
       push hl
       push de
       push bc
-        add a, (ix+9)
+        ; Get the mask for this pixel
+        add a, (ix+CopyData.PixelOffset)
         and $07
         ld c, a
-        ld b, $00
-        ld hl, _LABEL_2BD0_
+        ld b, 0
+        ld hl, Table_PixelBitWithinTile
         add hl, bc
         ld a, (hl)
         cpl
       pop bc
       pop de
       pop hl
-      ld c, a
+      ld c, a ; Mask
+      ; Mask read bytes x4
       ld a, (hl)
       and c
       ld (hl), a
@@ -4950,13 +4969,15 @@ NotLocal_LABEL_2ADC_:
       ld a, (hl)
       and c
       ld (hl), a
+      ; Move hl back again
       dec hl
       dec hl
       dec hl
       push hl
         push bc
-          ld hl, $C167
-          ld a, (ix+9)
+          ld hl, RAM_CopyData.SourcePixelBuffer
+          ; Rotate the source data to line up the right pixel with the hole in the destination
+          ld a, (ix+CopyData.PixelOffset)
           or a
           jp z, +
           ld b, a
@@ -4971,14 +4992,17 @@ NotLocal_LABEL_2ADC_:
           pop hl
           djnz -
 +:      pop bc
+        ; ld iy, hl
         push hl
         pop iy
       pop hl
+      ; Set the VRAM write address
       ld a, e
       out (Port_VDPAddress), a
       ld a, d
       or >VDPAddressMask_Write
       out (Port_VDPAddress), a
+      ; OR bytes together and write to VRAM
       ld a, (hl)
       or (iy+0)
       out (Port_VDPData), a
@@ -5048,11 +5072,18 @@ PixelXYToVRAMAddress:
     pop hl
     ret
 
-_LABEL_2BA0_:
+PixelXYToBufferAddress:
+    ; Inputs:
+    ; de = pixel location
+    ; RAM_CopyData.BufferAddress = base address of buffer
+    ; Outputs:
+    ; de = address of data for row containing pixel in buffer
     push bc
     push hl
+      ; y coordinate rounded down to tile start
       ld a, d
       and $F8
+      ; Multiply by 52
       LD_HL_A
       add hl, hl
       add hl, hl
@@ -5066,21 +5097,29 @@ _LABEL_2BA0_:
       pop bc
       add hl, bc
       push hl
+        ; x coordinate rounded down to tile start
         ld a, e
         and $F8
+        ; Multiply by 4
         LD_HL_A
         add hl, hl
         add hl, hl
       pop bc
+      ; Add it on
       add hl, bc
+      ; Now we have the VRAM address of the tile...
+      ; y coordinate % 8
       ld a, d
       and $07
+      ; Multiply by 4
       add a, a
       add a, a
+      ; Ad dit on
       ld c, a
-      ld b, $00
+      ld b, 0
       add hl, bc
-      ld bc, (RAM_Copy_BufferAddress)
+      ; Now we have the VRAM address of the row
+      ld bc, (RAM_CopyData.BufferAddress)
       add hl, bc
       ex de, hl
     pop hl
@@ -5088,7 +5127,7 @@ _LABEL_2BA0_:
     ret
 
 ; Data from 2BD0 to 2BD7 (8 bytes)
-_LABEL_2BD0_:
+Table_PixelBitWithinTile:
 .db %10000000
 .db %01000000
 .db %00100000
@@ -5146,7 +5185,7 @@ ReadTileDataToBuffer:
       ld d, a
       ld e, (ix+CopyData.Source_X)
       call PixelXYToVRAMAddress
-      ld hl, (RAM_Copy_BufferAddress)
+      ld hl, (RAM_CopyData.BufferAddress)
 --:   VDP_ADDRESS_TO_DE
       push bc
         ; bc = width in tiles * 32 = number of bytes to copy per row
@@ -5352,7 +5391,7 @@ _LABEL_2D0D_:
     sub e
     ld (RAM_CopyData.Dimensions_X), a
     ld hl, $D000
-    ld (RAM_Copy_BufferAddress), hl
+    ld (RAM_CopyData.BufferAddress), hl
     bit 0, (ix+CopyData.Flags)
     call z, ReadTileDataToBuffer
     ld b, (ix+3)
@@ -5372,21 +5411,21 @@ _LABEL_2D0D_:
 -:    push bc
       push hl
         call _LABEL_2DED_
-        call NotLocal_LABEL_2AB1_
-        call NotLocal_LABEL_2ADC_
+        call ReadPixelAtDEIntoBuffer
+        call WritePixelAtHLFromBuffer
         inc l
         call _LABEL_2DED_
-        call NotLocal_LABEL_2AB1_
-        call NotLocal_LABEL_2ADC_
+        call ReadPixelAtDEIntoBuffer
+        call WritePixelAtHLFromBuffer
         dec l
         inc h
         call _LABEL_2DED_
-        call NotLocal_LABEL_2AB1_
-        call NotLocal_LABEL_2ADC_
+        call ReadPixelAtDEIntoBuffer
+        call WritePixelAtHLFromBuffer
         inc l
         call _LABEL_2DED_
-        call NotLocal_LABEL_2AB1_
-        call NotLocal_LABEL_2ADC_
+        call ReadPixelAtDEIntoBuffer
+        call WritePixelAtHLFromBuffer
       pop hl
       pop bc
       inc e
@@ -5418,7 +5457,7 @@ _LABEL_2DED_:
     sub c
     jp nc, +
     add a, $08
-+:  ld ($C166), a
++:  ld (RAM_CopyData.PixelOffset), a
     ret
 
 ; Data from 2DFE to 2F91 (404 bytes)
@@ -7202,11 +7241,11 @@ UpdateMirrorAxisSprites:
     ; Vertical
     ld a, (RAM_SpriteTable1.y+0) ; Sprite 0 y
     add a, 7
-    ld (RAM_MirrorAxis.y), a
+    ld (RAM_CopyData.MirrorAxis_Y), a
     ld c, a
     ld a, (RAM_SpriteTable1.xn+0*2) ; Sprite 0 x
     add a, 4
-    ld (RAM_MirrorAxis.x), a
+    ld (RAM_CopyData.MirrorAxis_X), a
     ld ix, RAM_SpriteTable1.xn+4*2 ; Sprite 4 x
     ld de, RAM_SpriteTable1.y+4 ; Sprite 4 y
     ld hl, MultiplesOf8Table
@@ -7215,11 +7254,11 @@ UpdateMirrorAxisSprites:
 +:  ; Horizontal
     ld a, (RAM_SpriteTable1.xn)
     add a, 8
-    ld (RAM_MirrorAxis.x), a
+    ld (RAM_CopyData.MirrorAxis_X), a
     ld c, a
     ld a, (RAM_SpriteTable1.y)
     add a, 3
-    ld (RAM_MirrorAxis.y), a
+    ld (RAM_CopyData.MirrorAxis_Y), a
     ld ix, RAM_SpriteTable1.xn+4*2  ; Sprite 4 xn $C248
     ld de, RAM_SpriteTable1.y+4     ; Sprite 4 y  $C204
     ld hl, MultiplesOf8Table
