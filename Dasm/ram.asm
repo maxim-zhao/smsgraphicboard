@@ -65,11 +65,11 @@
   Destination_X                 db ; $c163 +6
   UnusedC164                    dw ; $c164 +7
   PixelOffset                   db ; $c166 +9 Number of pixels to rotate the source row to line up with the destination within the tile
-  SourcePixelBuffer             dsb 4 ; $c167 Bytes for a single pixel, masked to the pixel in question
-  DestinationRowBuffer          dsb 4 ; $c16b Bytes for the destination row
-  MirrorAxis_Y                  db ; $c16f
-  MirrorAxis_X                  db ; $c170
-  BufferAddress                 dw ; $c171 Address of buffer to use
+  SourcePixelBuffer             dsb 4 ; $c167 +10 Bytes for a single pixel, masked to the pixel in question
+  DestinationRowBuffer          dsb 4 ; $c16b +14 Bytes for the destination row
+  MirrorAxis_Y                  db ; $c16f +18
+  MirrorAxis_X                  db ; $c170 +19
+  BufferAddress                 dw ; $c171 +20 Address of buffer to use
 .endst
 
 .enum $c000 asc export

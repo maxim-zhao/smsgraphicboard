@@ -314,12 +314,11 @@
 0000:2850 FloodFill_DrawPixel
 0000:2862 NonVBlankMode9_CopyFunction
 0000:290d NonVBlankMode10_MirrorFunction
-0000:2994 _LABEL_2994_
-0000:29a1 _LABEL_29A1_
-0000:29b3 _LABEL_29B3_
-0000:2a0b _LABEL_2A0B_
-0000:2a52 _LABEL_2A52_
-0000:2aa9 _LABEL_2AA9_
+0000:296c _MirrorHorizontally
+0000:29b3 _MirrorHorizontally_Impl
+0000:2a0b _MirrorVertically
+0000:2a52 _MirrorVertically_Impl
+0000:2aa9 _Mirror_Done
 0000:2ab1 ReadPixelAtDEIntoBuffer
 0000:2adc WritePixelAtHLFromBuffer
 0000:2b74 PixelXYToVRAMAddress

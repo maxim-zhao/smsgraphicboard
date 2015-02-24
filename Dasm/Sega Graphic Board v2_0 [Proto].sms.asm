@@ -4636,111 +4636,138 @@ NonVBlankMode9_CopyFunction:
 ; 11th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode10_MirrorFunction:
     exx
+    ; Check state flags...
     xor a
     ld a, (RAM_ActionStateFlags)
+    ; Bit 0 zero -> axis selection
     rra
     jp nc, UpdateMirrorAxisSprites
     rra
+    ; Bit 1 zero -> do nothing
     ret nc
     rra
+    ; Bit 2 zero -> box selection
     jp nc, UpdateBoundingBoxSprites
+    ; None zero -> do it!
+    ; Wait for beep to finish
     ld a, (RAM_Beep)
     or a
     ret nz
+    ; Clear "have data" flag
     ld ix, RAM_CopyData
-    ld (ix+0), 0
-    ld a, (ix+18)
-    sub $17
-    ld (ix+18), a
-    ld a, (ix+19)
-    sub $28
-    ld (ix+19), a
+    ld (ix+CopyData.Flags), 0
+    ; Adjust axis location to canvas coordinates
+    ld a, (ix+CopyData.MirrorAxis_Y)
+    sub 23
+    ld (ix+CopyData.MirrorAxis_Y), a
+    ld a, (ix+CopyData.MirrorAxis_X)
+    sub 40
+    ld (ix+CopyData.MirrorAxis_X), a
+    ; Construct copy params from selected points
     ld a, (RAM_Copy_FirstPoint.y)
-    sub $17
+    sub 23
     ld d, a
     ld (RAM_CopyData.Source_Y), a
     ld a, (RAM_Copy_SecondPoint.y)
-    sub $17
+    sub 23
     sub d
     inc a
     ld (RAM_CopyData.Dimensions_Y), a
     ld a, (RAM_Copy_FirstPoint.x)
-    sub $28
+    sub 40
     ld (RAM_CopyData.Source_X), a
     ld e, a
     ld a, (RAM_Copy_SecondPoint.x)
-    sub $28
+    sub 40
     sub e
     inc a
     ld (RAM_CopyData.Dimensions_X), a
+    ; Set the buffer to use
     ld hl, RAM_GraphicsDataBuffer
     ld (RAM_CopyData.BufferAddress), hl
+    ; Check the mirror axis
     ld a, (RAM_SubmenuSelectionIndex)
     or a
-    jp nz, _LABEL_2A0B_
-    ld hl, _LABEL_29B3_ ; will ret to here
+    jp nz, _MirrorVertically
+    
+_MirrorHorizontally: ; Horizontal mirror, that is
+    ; We need to calculate the destination and adjust the dimensions depending 
+    ; on where the source is compared to the mirror. Note that the destination
+    ; is the top-left of the rect, not reflected.
+    ld hl, _MirrorHorizontally_Impl ; will ret to here. Could just jp in the right places..? Doesn't save time or space.
     push hl
       ld a, (RAM_CopyData.Source_Y)
-      cp (ix+18)
-      jp nc, _LABEL_29A1_
-      add a, (ix+3)
-      cp (ix+18)
-      jp nc, _LABEL_2994_
+      cp (ix+CopyData.MirrorAxis_Y)
+      jp nc, ++ ; Source starts below mirror
+      add a, (ix+CopyData.Dimensions_Y)
+      cp (ix+CopyData.MirrorAxis_Y)
+      jp nc, + ; Source crosses mirror
+      
+      ; Source above mirror
+      ; destination Y = mirror Y + (mirror Y - source Y - source height)
       ld a, (RAM_CopyData.Source_Y)
-      add a, (ix+3)
-      sub (ix+18)
+      add a, (ix+CopyData.Dimensions_Y)
+      sub (ix+CopyData.MirrorAxis_Y)
       neg
-      add a, (ix+18)
+      add a, (ix+CopyData.MirrorAxis_Y)
       ld (RAM_CopyData.Destination_Y), a
-      ret
+      ret ; to _MirrorHorizontally_Impl
 
++:    ; Source crosses mirror
+      ; destination Y = mirror Y, but also truncate the height
+      ld a, (RAM_CopyData.MirrorAxis_Y)
+      ld (RAM_CopyData.Destination_Y), a
+      sub (ix+CopyData.Source_Y)
+      ld (RAM_CopyData.Dimensions_Y), a
+      ret ; to _MirrorHorizontally_Impl
+
+++:   ; Source below mirror
+      ; destination Y = mirror Y - (source Y - mirror Y + source height)
+      ld a, (RAM_CopyData.Source_Y)
+      add a, (ix+CopyData.Dimensions_Y)
+      sub (ix+CopyData.MirrorAxis_Y)
+      ld b, a
+      ld a, (RAM_CopyData.MirrorAxis_Y)
+      sub b
+      ld (RAM_CopyData.Destination_Y), a
+      ret ; to _MirrorHorizontally_Impl - could fall through
 .endasm ; Unmatched push matching
 pop hl
 .asm
 
-_LABEL_2994_:
-      ld a, ($C16F)
-      ld (RAM_CopyData.Destination_Y), a
-      sub (ix+1)
-      ld (RAM_CopyData.Dimensions_Y), a
-      ret
-
-_LABEL_29A1_:
-      ld a, (RAM_CopyData.Source_Y)
-      add a, (ix+3)
-      sub (ix+18)
-      ld b, a
-      ld a, ($C16F)
-      sub b
-      ld (RAM_CopyData.Destination_Y), a
-      ret
-
-_LABEL_29B3_:
+_MirrorHorizontally_Impl:
+    ; Do the mirroring
     di
+      ; Read data if not read yet
       bit 0, (ix+CopyData.Flags)
       call z, ReadTileDataToBuffer
-      ld b, (ix+3)
-      ld c, (ix+4)
-      ld a, (ix+1)
+      ; bc = dimensions
+      ld b, (ix+CopyData.Dimensions_Y)
+      ld c, (ix+CopyData.Dimensions_X)
+      ; de = offset in buffer to copy from = bottom left
+      ld a, (ix+CopyData.Source_Y)
       and $07
       add a, b
       dec a
       ld d, a
-      ld a, (ix+2)
+      ld a, (ix+CopyData.Source_X)
       and $07
       ld e, a
-      ld h, (ix+5)
-      ld l, (ix+2)
+      ; hl = destination pixel = top left
+      ld h, (ix+CopyData.Destination_Y)
+      ld l, (ix+CopyData.Source_X)
 --:   push bc
       push de
       push hl
+        ; Check for bottom edge
         ld a, h
-        cp $90
+        cp DRAWING_AREA_HEIGHT_PIXELS
         jp nc, ++
-        ld b, c
+        ld b, c ; Loop over width
 -:      ld a, e
         and $07
         ld c, a
+        ; Calculate pixel offset - unnecessary?
         ld a, l
         and $07
         sub c
@@ -4751,48 +4778,58 @@ _LABEL_29B3_:
           call ReadPixelAtDEIntoBuffer
           call WritePixelAtHLFromBuffer
         pop bc
+        ; Move both X to the right
         inc e
         inc l
+        ; Check for right edge
         ld a, l
-        cp $b0
+        cp DRAWING_AREA_WIDTH_PIXELS
         jp nc, ++
-        djnz   -
+        djnz - ; Loop over width
 ++:   pop hl
       pop de
       pop bc
+      ; Move the source row up and the destination down
       dec d
       inc h
       djnz --
-    jp _LABEL_2AA9_
+    jp _Mirror_Done
 
-_LABEL_2A0B_:
-    ld hl, _LABEL_2A52_ ; will ret to here
+_MirrorVertically: ; Mirror is vertical
+    ld hl, _MirrorVertically_Impl ; will ret to here
     push hl
       ld a, (RAM_CopyData.Source_X)
-      cp (ix+19)
-      jp nc, ++
-      add a, (ix+4)
-      cp (ix+19)
-      jp nc, +
+      cp (ix+CopyData.MirrorAxis_X)
+      jp nc, ++ ; Source starts to right of mirror
+      add a, (ix+CopyData.Dimensions_X)
+      cp (ix+CopyData.MirrorAxis_X)
+      jp nc, + ; Source crosses mirror
+      
+      ; Source to left of mirror
+      ; Destination = mirror X + (mirror X - source X - source width)
       ld a, (RAM_CopyData.Source_X)
-      add a, (ix+4)
-      sub (ix+19)
+      add a, (ix+CopyData.Dimensions_X)
+      sub (ix+CopyData.MirrorAxis_X)
       neg
-      add a, (ix+19)
+      add a, (ix+CopyData.MirrorAxis_X)
       ld (RAM_CopyData.Destination_X), a
       ret
 
-+:    ld a, ($C170)
++:    ; Source crosses mirror
+      ; Destination = mirror X, but width is truncated accordingly
+      ld a, (RAM_CopyData.MirrorAxis_X)
       ld (RAM_CopyData.Destination_X), a
-      sub (ix+2)
+      sub (ix+CopyData.Source_X)
       ld (RAM_CopyData.Dimensions_X), a
       ret
 
-++:   ld a, (RAM_CopyData.Source_X)
-      add a, (ix+4)
-      sub (ix+19)
+++:   ; Source to right of mirror
+      ; Destination = mirror X - (source X + source width - mirror X)
+      ld a, (RAM_CopyData.Source_X)
+      add a, (ix+CopyData.Dimensions_X)
+      sub (ix+CopyData.MirrorAxis_X)
       ld b, a
-      ld a, ($C170)
+      ld a, (RAM_CopyData.MirrorAxis_X)
       sub b
       ld (RAM_CopyData.Destination_X), a
       ret
@@ -4801,58 +4838,69 @@ _LABEL_2A0B_:
 pop hl
 .asm
 
-_LABEL_2A52_:
+_MirrorVertically_Impl:
+    ; Analagous to horizontally above...
     di
+      ; Read data if needed
       bit 0, (ix+CopyData.Flags)
       call z, ReadTileDataToBuffer
-      ld b, (ix+3)
-      ld c, (ix+4)
-      ld a, (ix+1)
+      ; bc = dimensions
+      ld b, (ix+CopyData.Dimensions_Y)
+      ld c, (ix+CopyData.Dimensions_X)
+      ; de = point in source = top right
+      ld a, (ix+CopyData.Source_Y)
       and $07
       ld d, a
-      ld a, (ix+2)
+      ld a, (ix+CopyData.Source_X)
       and $07
-      add a, (ix+4)
+      add a, (ix+CopyData.Dimensions_X)
       dec a
       ld e, a
-      ld h, (ix+1)
-      ld l, (ix+6)
+      ; hl = destination = top left
+      ld h, (ix+CopyData.Source_Y)
+      ld l, (ix+CopyData.Destination_X)
 --:   push bc
       push de
       push hl
         ld b, c
--:      ld a, e
+-:      ; Calculate pixel offset
+        ld a, e
         and $07
         ld c, a
         ld a, l
         and $07
         sub c
         jp nc, +
-        add a, $08
+        add a, 8
 +:      ld (RAM_CopyData.PixelOffset), a
+        ; Check for right edge
         ld a, l
-        cp $b0
+        cp DRAWING_AREA_WIDTH_PIXELS
         jp nc, +
         push bc
           call ReadPixelAtDEIntoBuffer
           call WritePixelAtHLFromBuffer
         pop bc
-+:      dec e
++:      ; Move left in source, right in dest
+        dec e
         inc l
         djnz -
       pop hl
       pop de
       pop bc
+      ; Move down in both
       inc d
       inc h
+      ; Check for bottom edge
       ld a, h
-      cp $90
+      cp DRAWING_AREA_HEIGHT_PIXELS
       jp nc, ++
       djnz --
-_LABEL_2AA9_:
+_Mirror_Done:
 ++: ei
+    ; Clear state flags
     xor a
-    ld ($c089), a
+    ld (RAM_ActionStateFlags), a
     jp EnableOnlyThreeSprites ; and ret
 
 ReadPixelAtDEIntoBuffer:
@@ -6333,7 +6381,7 @@ _LABEL_3469_:
 
 _LABEL_34E0_:
     ld c, a
-    ld a, ($C16F)
+    ld a, (RAM_CopyData.MirrorAxis_Y)
     add a, $60
     cp c
     jp nc, +
@@ -6343,7 +6391,7 @@ _LABEL_34E0_:
 
 _LABEL_34ED_:
     ld c, a
-    ld a, ($C16F)
+    ld a, (RAM_CopyData.MirrorAxis_Y)
     sub $07
     cp c
     jp c, +
@@ -6358,7 +6406,7 @@ _LABEL_34FF_:
 
 _LABEL_3501_:
     ld c, a
-    ld a, ($C170)
+    ld a, (RAM_CopyData.MirrorAxis_X)
     cp c
     jp c, _LABEL_350A_
     ld c, a
@@ -6373,7 +6421,7 @@ _LABEL_3511_:
 
 _LABEL_3513_:
     ld c, a
-    ld a, ($C170)
+    ld a, (RAM_CopyData.MirrorAxis_X)
     sub $07
     cp c
     jp c, _LABEL_351E_
@@ -6426,11 +6474,11 @@ _LABEL_3527_:
     ld (RAM_Beep), a
     ld a, (RAM_SpriteTable1.y)
     add a, (hl)
-    ld ($C16F), a
+    ld (RAM_CopyData.MirrorAxis_Y), a
     inc hl
     ld a, (RAM_SpriteTable1.xn)
     add a, (hl)
-    ld ($C170), a
+    ld (RAM_CopyData.MirrorAxis_X), a
     ld a, (RAM_ActionStateFlags)
     or $01
     ld (RAM_ActionStateFlags), a
