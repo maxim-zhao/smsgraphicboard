@@ -69,7 +69,9 @@
   DestinationRowBuffer          dsb 4 ; $c16b +14 Bytes for the destination row
   MirrorAxis_Y                  db ; $c16f +18
   MirrorAxis_X                  db ; $c170 +19
-  BufferAddress                 dw ; $c171 +20 Address of buffer to use
+  BufferAddress                 dsb 0 ; $c171 +20 Address of buffer to use - should be .dw
+  Unused                        db ; Only unused when the next one is!
+  MagnifyCorner                 db ; $c172
 .endst
 
 .enum $c000 asc export
@@ -119,7 +121,33 @@ RAM_CurrentCursorDataAddress                dw ; $C084 Pointer to cursor tile da
 RAM_CursorColourCycle_Delay                 db ; $C086 Counter for frame between colour changes
 RAM_CursorColourCycle_Index                 db ; $C087 Current colour index, must be following previous
 RAM_ButtonStateShownOnScreen                db ; $C088 Holds the button bits as last drawn to the screen
-RAM_ActionStateFlags                        db ; $c089 Bits indicate the phase of drawing. Bit 0 unset = step 1, set = step 2. Bit 1 set = doing it.
+RAM_ActionStateFlags                        db ; $c089 Bits indicate the phase of certain actions:
+; Square mode:
+; %-------0 Defining the first corner
+; %------01 Defining the second corner
+; %------11 Drawing/filling the square
+; Circle/ellipse mode:
+; %-------0 Defining the centre
+; %------01 Defining the edge
+; %------11 Drawing/filling the circle/ellipse
+; Paint mode:
+; %00000000 Choosing a point
+; %11111111 Flood filling
+; Copy mode:
+; %----0000 Choosing first point
+; %----0010 Choosing second point
+; %----0110 Choosing destination
+; %----1110 Copying
+; Mirror mode:
+; %-------0 Choose axis location
+; %------01 Choosing first point
+; %-----011 Choosing second point
+; %-----111 Mirroring
+; Magnify mode:
+; %-----0-- Selecting area
+; %-----1-- Area selected
+; %1----1-- Area selected, user painted a pixel
+
 RAM_PenStyle                                db ; $c08a 0-2 = thin, medium, wide; 3 = erase
 RAM_unusedC08B dsb 2
 RAM_Pen_Smoothed_Backup                     instanceof XY ; $c08d Backup of value for switching modes. When the pen can go off the screen, this is used to remember where it was while manipulating menus, allowing you go go back to where you were (to some extent).

@@ -5290,7 +5290,7 @@ NonVBlankMode11_MagnifyFunction:
     bit 2, a ; Nothing to do if bit 2 is zero
     ret z
     bit 6, a ; Bit 6 zero -> ???
-    ld iy, $C172 ; WTF?
+    ld iy, RAM_CopyData.MagnifyCorner ; WTF?
     jp z, _LABEL_2D0D_
     bit 7, a ; Bit 7 zero -> ???
     jp nz, _LABEL_2CF6_
@@ -5384,7 +5384,7 @@ _LABEL_2D0D_:
     or $40
     ld (RAM_ActionStateFlags), a
     di
-    ld a, ($C172)
+    ld a, (RAM_CopyData.MagnifyCorner)
     add a, a
     ld c, a
     add a, a
@@ -5665,7 +5665,7 @@ Mode1_MenuGraphicBoardHandler:
     cp Mode2_MenuItemSelected
     ld b, a
     jp z, +
-    ld ($C03D), a ; For everything except mode 2, set this with what was selected and then go to mode 2
+    ld (RAM_SelectedNextMode), a ; For everything except mode 2, set this with what was selected and then go to mode 2
     ld a, Mode2_MenuItemSelected
 +:  ld (RAM_CurrentMode), a ; Change mode based on pen location when DO is pressed
     ld a, b
@@ -6265,75 +6265,83 @@ Mode10_MirrorGraphicBoardHandler:
     rrca
     jp nc, _UpdateAxisPosition ; Bit 0 zero -> selecting axis position
     ld iy, RAM_SubmenuSelectionIndex
-    rrca ; Bit 1 zero -> ???
-    jp nc, _LABEL_3469_
+    rrca ; Bit 1 zero -> setting corner 1
+    jp nc, _SettingCorner1
     rrca
     ret c ; Bit 2 set -> nothing to do
-    ; Else ???
+    ; Else setting corner 2
+_SettingCorner2:
+    ; Limit to corner 1 + (7,7 .. 88,88) subject to screen size
     ld a, (RAM_Copy_FirstPoint.y)
-    add a, $07
+    add a, 7
     ld c, a
     cp b
     jp c, +
-    ld b, c
+    ld b, c ; Clamp minimum Y
 +:  ld a, c
-    add a, $58
+    add a, 88
     jp nc, +
-    ld a, $FF
+    ld a, 255
 +:  ld c, a
     cp b
     jp nc, +
-    ld b, c
+    ld b, c ; Handle overflow when adding 88
 +:  ld a, b
-    ld c, $A6
+    ld c, 166 ; Maximum Y
     cp c
     jp c, +
-    ld a, c
-+:  bit 0, (iy+0)
-    call nz, _LABEL_34E0_
+    ld a, c ; Clamp maximum Y
++:  bit 0, (iy+0) ; If vertical...
+    call nz, _CheckCorner2YAgainstMirrorY
     ld (RAM_SpriteTable1.y), a
     ld (RAM_Copy_SecondPoint.y), a
+    ; Now for X...
     ld a, (RAM_Pen_Smoothed.x)
     ld b, a
     ld a, (RAM_Copy_FirstPoint.x)
-    add a, $07
+    add a, 7
     ld c, a
     cp b
     jp c, +
     ld b, c
 +:  ld a, c
-    add a, $58
+    add a, 88
     jp nc, +
-    ld a, $FF
+    ld a, 255
 +:  ld c, a
     cp b
     jp nc, +
     ld b, c
 +:  ld a, b
-    ld c, $D7
+    ld c, 215
     cp c
     jp c, +
     ld a, c
-+:  bit 0, (iy+0)
-    call z, _LABEL_3501_
++:  bit 0, (iy+0) ; If vertical...
+    call z, _CheckCorner2XAgainstMirrorX
     ld (RAM_SpriteTable1.xn), a
     ld (RAM_Copy_SecondPoint.x), a
+    ; Cursor
     ld a, CursorIndex_ArrowTopLeft
     call SetCursorIndex
-    bit 1, (hl)
+    ; Wait for DO
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    ; Set flag
     ld a, (RAM_ActionStateFlags)
     set 2, a
     ld (RAM_ActionStateFlags), a
+    ; Save cursor position
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_Copy_SecondPoint.y), a
     ld a, (RAM_SpriteTable1.xn)
     ld (RAM_Copy_SecondPoint.x), a
     ret
 
-_LABEL_3469_:
+_SettingCorner1:
     ld c, 16 ; Minimum Y
     ld a, b
     cp c
@@ -6343,103 +6351,108 @@ _LABEL_3469_:
     cp c
     jp c, +
     ld a, c
-+:  bit 0, (iy+0)
-    call nz, _LABEL_34ED_
++:  bit 0, (iy+0) ; If vertical...
+    call nz, _CheckCorner1YAgainstMirrorY
     ld (RAM_SpriteTable1.y), a
+    ; Repeat for X
     ld a, (RAM_Pen_Smoothed.x)
-    ld c, $21
+    ld c, 33 ; Minimum X
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $C9
++:  ld c, 201 ; Maximum X
     cp c
     jp c, +
     ld a, c
-+:  bit 0, (iy+0)
-    call z, _LABEL_3513_
++:  bit 0, (iy+0) ; If horizontal...
+    call z, _CheckCorner1XAgainstMirrorX
     ld (RAM_SpriteTable1.xn), a
     ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
-    bit 1, (hl)
+    ; Wait for DO
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    ; Set flag
     ld a, (RAM_ActionStateFlags)
     set 1, a
     ld (RAM_ActionStateFlags), a
+    ; Save cursor position
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_SpriteTable1.y + 3), a
-    add a, $07
+    add a, 7 ; Sprite height
     ld (RAM_Copy_FirstPoint.y), a
-    add a, $08
+    add a, 8 ; Move cursor for next point
     ld (RAM_SpriteTable1.y), a
+    ; Same for X
     ld a, (RAM_SpriteTable1.xn)
     ld (RAM_SpriteTable1.xn + 3*2), a
-    add a, $07
+    add a, 7
     ld (RAM_Copy_FirstPoint.x), a
-    add a, $08
+    add a, 8
     ld (RAM_SpriteTable1.xn), a
-    ld a, $A9
+    ld a, $A9 ; Down-right arrow sprite
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
     ld (RAM_CopyData.Flags), a
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
 
-_LABEL_34E0_:
+_CheckCorner2YAgainstMirrorY:
+    ; Clamps a to the range (mirror y)..(mirror y + 96)
     ld c, a
     ld a, (RAM_CopyData.MirrorAxis_Y)
-    add a, $60
+    add a, 96
     cp c
     jp nc, +
     ld c, a
 +:  ld a, c
     ret
 
-_LABEL_34ED_:
+_CheckCorner1YAgainstMirrorY:
+    ; Clamps a to the range (mirror y - 7)..(mirror y + 81)
     ld c, a
     ld a, (RAM_CopyData.MirrorAxis_Y)
-    sub $07
+    sub 7
     cp c
     jp c, +
     ld c, a
-+:  add a, $58
++:  add a, 88
     cp c
-    jp nc, _LABEL_34FF_
+    jp nc, +
     ld c, a
-_LABEL_34FF_:
-    ld a, c
++:  ld a, c
     ret
 
-_LABEL_3501_:
+_CheckCorner2XAgainstMirrorX:
+    ; Clamps a to the range (mirror x)..(mirror x + 96)
     ld c, a
     ld a, (RAM_CopyData.MirrorAxis_X)
     cp c
-    jp c, _LABEL_350A_
+    jp c, +
     ld c, a
-_LABEL_350A_:
-    add a, $60
++:  add a, 96
     cp c
-    jp nc, _LABEL_3511_
+    jp nc, +
     ld c, a
-_LABEL_3511_:
-    ld a, c
++:  ld a, c
     ret
 
-_LABEL_3513_:
+_CheckCorner1XAgainstMirrorX:
+    ; Clamps a to the range (mirror x - 7)..(mirror x + 81)
     ld c, a
     ld a, (RAM_CopyData.MirrorAxis_X)
-    sub $07
+    sub 7 ; Width of sprite
     cp c
-    jp c, _LABEL_351E_
+    jp c, +
     ld c, a
-_LABEL_351E_:
-    add a, $58
++:  add a, 88
     cp c
-    jp nc, _LABEL_3525_
+    jp nc, +
     ld c, a
-_LABEL_3525_:
-    ld a, c
++:  ld a, c
     ret
 
 _UpdateAxisPosition:
@@ -6519,6 +6532,7 @@ Mode11_MagnifyGraphicBoardHandler:
     ld a, (RAM_ActionStateFlags)
     bit 2, a
     jp nz, _LABEL_363C_
+
     ld c, $0F
     ld a, b
     cp c
@@ -6554,15 +6568,15 @@ Mode11_MagnifyGraphicBoardHandler:
     ld a, 1
     ld (RAM_Beep), a
     ld a, (RAM_ActionStateFlags)
-    or $04
+    or %00000100
     ld (RAM_ActionStateFlags), a
     ld a, (RAM_SpriteTable1.y)
     ld (RAM_SpriteTable1.y + 3), a
-    add a, $08
+    add a, 8
     ld (RAM_SpriteTable1.y), a
     ld a, (RAM_SpriteTable1.xn)
     ld (RAM_SpriteTable1.xn + 3*2), a
-    add a, $08
+    add a, 8
     ld (RAM_SpriteTable1.xn), a
     ld a, $A9
     ld (RAM_SpriteTable1.xn + 3*2+1), a
@@ -6570,23 +6584,26 @@ Mode11_MagnifyGraphicBoardHandler:
     ld (RAM_CopyData.Flags), a
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     call SetCursorIndex
-    ld c, $00
+    ; Calculate which quadrant of the canvas the cursor is in
+    ld c, 0
     ld a, (RAM_SpriteTable1.y)
-    sub $17
-    cp $40
+    sub 23
+    cp 64
     jp nc, +
     set 0, c
 +:  ld a, (RAM_SpriteTable1.xn)
-    sub $20
-    cp $50
+    sub 32
+    cp 80
     jp nc, +
     set 1, c
 +:  ld a, c
-    ld ($C172), a
+    ld (RAM_CopyData.MagnifyCorner), a
+    ; Multiply by 2 to look up data to copy
     rlc c
     ld b, 0
     ld hl, Magnify_WindowLocations
     add hl, bc
+    ; Save the pointer...
     ld a, (hl)
     ld (RAM_CopyData.Destination_Y), a
     inc hl
@@ -6595,10 +6612,11 @@ Mode11_MagnifyGraphicBoardHandler:
     ret
 
 _LABEL_363C_:
-    bit 1, (hl)
+    bit GraphicBoardButtonBit_Do, (hl)
     jp nz, +
+    ; Update the cursor to the pixel selection
     ld a, (RAM_Pen_Smoothed.x)
-    and $FE
+    and $FE ; Modulo 2
     dec a
     ld (RAM_SpriteTable1.xn), a
     ld a, b
@@ -6608,7 +6626,7 @@ _LABEL_363C_:
     jp SetCursorIndex ; and ret
 
 +:  ld a, (RAM_ActionStateFlags)
-    or $80 ; Set high bit
+    or %10000000 ; Set high bit
     ld (RAM_ActionStateFlags), a
     ret
 
