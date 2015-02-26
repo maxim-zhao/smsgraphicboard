@@ -358,8 +358,9 @@
 0000:3513 _LABEL_3513_
 0000:351e _LABEL_351E_
 0000:3525 _LABEL_3525_
-0000:3527 _LABEL_3527_
-0000:357f Data_357F
+0000:3527 _UpdateAxisPosition
+0000:357f _MirrorAxisCursorParameters_Vertical
+0000:3586 _MirrorAxisCursorParameters_Horizontal
 0000:358d Mode11_MagnifyGraphicBoardHandler
 0000:363c _LABEL_363C_
 0000:365e Magnify_WindowLocations

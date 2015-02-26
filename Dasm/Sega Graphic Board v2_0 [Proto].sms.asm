@@ -2821,6 +2821,7 @@ Table_BitInPixelRowFromX: ; Table_BitInPixelRowFromX
 ; 4th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode3_ColourFunction:
     exx
+    ; Do nothing if already shown
     bit 7, (hl)
     jp z, + ; could ret nz
     ret
@@ -4639,7 +4640,7 @@ NonVBlankMode10_MirrorFunction:
     ; Check state flags...
     xor a
     ld a, (RAM_ActionStateFlags)
-    ; Bit 0 zero -> axis selection
+    ; Bit 0 zero -> axis position selection
     rra
     jp nc, UpdateMirrorAxisSprites
     rra
@@ -5278,18 +5279,22 @@ ReadTileDataToBuffer:
 ; 12th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode11_MagnifyFunction:
     exx
+    ; Check if we've already selected the magnified area
     bit 7, (hl)
-    jp z, _LABEL_2D05_
+    jp z, _Magnify_SelectingArea
+    
+    ; Area already selected...
     call UpdateBoundingBoxSprites
     ld ix, RAM_CopyData
     ld a, (RAM_ActionStateFlags)
-    bit 2, a
+    bit 2, a ; Nothing to do if bit 2 is zero
     ret z
-    bit 6, a
-    ld iy, $C172
+    bit 6, a ; Bit 6 zero -> ???
+    ld iy, $C172 ; WTF?
     jp z, _LABEL_2D0D_
-    bit 7, a
+    bit 7, a ; Bit 7 zero -> ???
     jp nz, _LABEL_2CF6_
+
     ld a, (RAM_SpriteTable1.y)
     add a, $04
     cp (iy+1)
@@ -5364,7 +5369,7 @@ _LABEL_2CF6_:
     ei
     ld a, 1
     ld (RAM_Beep), a
-_LABEL_2D05_:
+_Magnify_SelectingArea:
     set 7, (hl)
     ld a, $02
     ld (RAM_ActionStateFlags), a
@@ -5458,6 +5463,7 @@ _LABEL_2D0D_:
       ld b, c
 -:    push bc
       push hl
+        ; Draw pixel four times? Seems silly
         call _LABEL_2DED_
         call ReadPixelAtDEIntoBuffer
         call WritePixelAtHLFromBuffer
@@ -6257,12 +6263,13 @@ Mode10_MirrorGraphicBoardHandler:
     ld a, (RAM_ActionStateFlags)
     ld d, a
     rrca
-    jp nc, _LABEL_3527_
+    jp nc, _UpdateAxisPosition ; Bit 0 zero -> selecting axis position
     ld iy, RAM_SubmenuSelectionIndex
-    rrca
+    rrca ; Bit 1 zero -> ???
     jp nc, _LABEL_3469_
     rrca
-    ret c
+    ret c ; Bit 2 set -> nothing to do
+    ; Else ???
     ld a, (RAM_Copy_FirstPoint.y)
     add a, $07
     ld c, a
@@ -6327,12 +6334,12 @@ Mode10_MirrorGraphicBoardHandler:
     ret
 
 _LABEL_3469_:
-    ld c, $10
+    ld c, 16 ; Minimum Y
     ld a, b
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $98
++:  ld c, 152 ; Maximum Y
     cp c
     jp c, +
     ld a, c
@@ -6435,14 +6442,15 @@ _LABEL_3525_:
     ld a, c
     ret
 
-_LABEL_3527_:
+_UpdateAxisPosition:
     push hl
-      ld hl, $3586
+      ld hl, _MirrorAxisCursorParameters_Horizontal ; Vertical
       ld a, (RAM_SubmenuSelectionIndex)
       dec a
       jp nz, +
-      ld hl, Data_357F
-+:    ld a, b
+      ld hl, _MirrorAxisCursorParameters_Vertical ; Horizontal
++:    ; Y position limits
+      ld a, b 
       cp (hl)
       jp nc, +
       ld a, (hl)
@@ -6450,8 +6458,10 @@ _LABEL_3527_:
       cp (hl)
       jp c, +
       ld a, (hl)
-+:    ld (RAM_SpriteTable1.y), a
++:    ; Set Y
+      ld (RAM_SpriteTable1.y+0), a
       inc hl
+      ; X position limits
       ld a, (RAM_Pen_Smoothed.x)
       cp (hl)
       jp nc, +
@@ -6460,18 +6470,24 @@ _LABEL_3527_:
       cp (hl)
       jp c, +
       ld a, (hl)
-+:    ld (RAM_SpriteTable1.xn), a
++:    ; Set X
+      ld (RAM_SpriteTable1.xn+0*2), a
       inc hl
+      ; Cursor index
       ld a, (hl)
       inc hl
       call SetCursorIndex
-      ex de, hl
+      ex de, hl ; Save position in data to de
     pop hl
-    bit 1, (hl)
+    ; Wait for DO button
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    ; Restore position in data
     ex de, hl
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    ; Add offsets to X, Y to account for sprite sizes
     ld a, (RAM_SpriteTable1.y)
     add a, (hl)
     ld (RAM_CopyData.MirrorAxis_Y), a
@@ -6479,13 +6495,22 @@ _LABEL_3527_:
     ld a, (RAM_SpriteTable1.xn)
     add a, (hl)
     ld (RAM_CopyData.MirrorAxis_X), a
+    ; Set bit 0
     ld a, (RAM_ActionStateFlags)
-    or $01
+    or %00000001
     ld (RAM_ActionStateFlags), a
     ret
 
-Data_357F: ; $357F
-.db $10 $40 $2B $CC $06 $07 $04 $1B $9C $20 $70 $07 $03 $08
+_MirrorAxisCursorParameters_Vertical: ; $357F
+.db 16 ; Minimum Y
+.db 64 ; Maximum Y
+.db 43 ; Minimum X
+.db 204 ; Maximum X
+.db CursorIndex_ArrowDown ; Cursor index
+.db 7 ; Y offset of cursor point from top-left
+.db 4 ; X offset of cursor point from top-left 
+_MirrorAxisCursorParameters_Horizontal: ; See comments above
+.db 27 156 32 112 CursorIndex_ArrowRight 3 8
 
 ; 12th entry of Jump Table from 2FD0 (indexed by RAM_CurrentMode)
 Mode11_MagnifyGraphicBoardHandler:
