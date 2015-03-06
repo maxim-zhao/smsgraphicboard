@@ -72,6 +72,10 @@
   BufferAddress                 dsb 0 ; $c171 +20 Address of buffer to use - should be .dw
   Unused                        db ; Only unused when the next one is!
   MagnifyCorner                 db ; $c172
+  MagnifyMinimumY               db ; $c173
+  MagnifyMaximumY               db ; $c174
+  MagnifyMinimumX               db ; $c175
+  MagnifyMaximumX               db ; $c176
 .endst
 
 .enum $c000 asc export
@@ -144,9 +148,10 @@ RAM_ActionStateFlags                        db ; $c089 Bits indicate the phase o
 ; %-----011 Choosing second point
 ; %-----111 Mirroring
 ; Magnify mode:
-; %-----0-- Selecting area
-; %-----1-- Area selected
-; %1----1-- Area selected, user painted a pixel
+; %------0- Selecting area
+; %-0----1- Area selected, not in RAM yet
+; %-1----1- Area selected and copied to RAM
+; %11----1- Location just selected?
 
 RAM_PenStyle                                db ; $c08a 0-2 = thin, medium, wide; 3 = erase
 RAM_unusedC08B dsb 2
@@ -184,7 +189,7 @@ RAM_BoxSprites_Y                            dsb 48   ; $c0ca ; Reduced-size pote
 RAM_BoxSprites_XN                           dsb 48*2 ; $c0fa ; See above
 RAM_unusedc15a dsb 3
 RAM_CopyData                                instanceof CopyData ; $c15d
-RAM_unusedc173 dsb 15
+RAM_unusedc177 dsb 11
 RAM_UnknownWriteOnlyC182                    db ; $C182
 RAM_UnknownWriteOnlyC183                    dw ; $C183
 RAM_unusedc185 dsb 2
@@ -193,10 +198,10 @@ RAM_unusedc188 dsb 119
 RAM_SpriteTable1                            instanceof SpriteTable ; $C200 write here
 RAM_SpriteTable2                            instanceof SpriteTable ; $C2C0 copy here for staging to VRAM
 RAM_unusedC380 dsb 128
-RAM_GraphicsDataBuffer                      dsb 5408 ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???.
+RAM_GraphicsDataBuffer                      dsb 13*13*SizeOfTile ; $c400 backup of graphics data when showing menus, or doing copy/mirror/???.
                                                      ;       Biggest menu (main menu) is     12x14 tiles = 5376 bytes (up to $d8ff)
                                                      ;       Copy/etc max underlying data is 13x13 tiles = 5408 bytes (up to $d91f)
-; Also seem to use a buffer at $d000 sometimes for ???
+                                                     ; Magnify mode also uses data from $d400 inside this for 5x5 tiles = 800 bytes (up to $d320)
 .ende
 
 ; Title screen RAM reuse

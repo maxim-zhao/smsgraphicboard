@@ -5279,24 +5279,28 @@ ReadTileDataToBuffer:
 ; 12th entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode11_MagnifyFunction:
     exx
-    ; Check if we've already selected the magnified area
+    ; Check if we have work to do
     bit 7, (hl)
-    jp z, _Magnify_SelectingArea
+    jp z, _Magnify_Done
     
-    ; Area already selected...
+    ; Update the sprites to highlight the selected box
     call UpdateBoundingBoxSprites
+    
+    ; Copy the data to RAM, if needed
     ld ix, RAM_CopyData
     ld a, (RAM_ActionStateFlags)
     bit 2, a ; Nothing to do if bit 2 is zero
     ret z
-    bit 6, a ; Bit 6 zero -> ???
-    ld iy, RAM_CopyData.MagnifyCorner ; WTF?
-    jp z, _LABEL_2D0D_
-    bit 7, a ; Bit 7 zero -> ???
-    jp nz, _LABEL_2CF6_
+    bit 6, a ; Bit 6 zero -> need to draw magnified area
+    ld iy, RAM_CopyData.MagnifyCorner ; Annoying base to use here...
+    jp z, _Magnify_DrawMagnifiedArea
+    bit 7, a ; Bit 7 set -> drawing, zero -> done
+    jp nz, _Magnify_HideMagnifiedArea
 
+    ; Regular drawing mode
+    ; Check if the cursor is in the 
     ld a, (RAM_SpriteTable1.y)
-    add a, $04
+    add a, 4
     cp (iy+1)
     ret c
     cp (iy+2)
@@ -5333,14 +5337,14 @@ NonVBlankMode11_MagnifyFunction:
     sub (ix+5)
     and $FE
     rrca
-    add a, (ix+1)
+    add a, (ix+CopyData.Source_Y)
     add a, $3C
     ld l, a
     ld a, h
     sub (ix+6)
     and $FE
     rrca
-    add a, (ix+2)
+    add a, (ix+CopyData.Source_X)
     add a, $24
     ld h, a
     xor a
@@ -5360,7 +5364,7 @@ NonVBlankMode11_MagnifyFunction:
     ei
     ret
 
-_LABEL_2CF6_:
+_Magnify_HideMagnifiedArea:
     di
       push hl
         call EnableOnlyThreeSprites
@@ -5369,140 +5373,154 @@ _LABEL_2CF6_:
     ei
     ld a, 1
     ld (RAM_Beep), a
-_Magnify_SelectingArea:
+_Magnify_Done:
     set 7, (hl)
     ld a, $02
     ld (RAM_ActionStateFlags), a
     ret
 
-_LABEL_2D0D_:
+_Magnify_DrawMagnifiedArea:
     ex af, af'
+      ; Wait for beep to end, save a
       ld a, (RAM_Beep)
       or a
       ret nz
     ex af, af'
-    or $40
+    or %01000000 ; Set bit 6
     ld (RAM_ActionStateFlags), a
     di
-    ld a, (RAM_CopyData.MagnifyCorner)
-    add a, a
-    ld c, a
-    add a, a
-    add a, a
-    add a, c
-    ld c, a
-    ld b, $00
-    ld hl, $2F6A
-    add hl, bc
-    ld a, (hl)
-    ld (iy+1), a
-    inc hl
-    ld a, (hl)
-    ld (iy+2), a
-    inc hl
-    ld a, (hl)
-    ld (iy+3), a
-    inc hl
-    ld a, (hl)
-    ld (iy+4), a
-    inc hl
-    ld e, (hl)
-    inc hl
-    ld d, (hl)
-    inc hl
-    push de
-      ; Pointer to text
-      ld e, (hl)
+      ; Look up data for corner
+      ld a, (RAM_CopyData.MagnifyCorner)
+      ; Multiply by 10
+      add a, a
+      ld c, a
+      add a, a
+      add a, a
+      add a, c
+      ld c, a
+      ld b, 0
+      ; Look up in table
+      ld hl, MagnifyBoxData
+      add hl, bc
+      ; Read it in
+      ld a, (hl)
+      ld (iy+CopyData.MagnifyMinimumY-CopyData.MagnifyCorner), a ; TODO: this is ugly
+      inc hl
+      ld a, (hl)
+      ld (iy+CopyData.MagnifyMaximumY-CopyData.MagnifyCorner), a
+      inc hl
+      ld a, (hl)
+      ld (iy+CopyData.MagnifyMinimumX-CopyData.MagnifyCorner), a
+      inc hl
+      ld a, (hl)
+      ld (iy+CopyData.MagnifyMaximumX-CopyData.MagnifyCorner), a
+      inc hl
+      ld e, (hl) ; VRAM address
       inc hl
       ld d, (hl)
       inc hl
-      ; Location to draw it
-      ld a, (hl)
-      inc hl
-      ld h, (hl)
-      ld l, a
-      LD_BC_AREA 9, 9
-      call DrawTextToTilesWithBackup
-    pop de
-    ld h, TileAttribute_None
-    LD_BC_AREA 8, 8
-    call SetAreaTileAttributes
-    ld a, (RAM_Copy_FirstPoint.y)
-    sub $16
-    ld d, a
-    ld (RAM_CopyData.Source_Y), a
-    ld a, (RAM_Copy_SecondPoint.y)
-    sub $17
-    sub d
-    ld (RAM_CopyData.Dimensions_Y), a
-    ld a, (RAM_Copy_FirstPoint.x)
-    sub $27
-    ld (RAM_CopyData.Source_X), a
-    ld e, a
-    ld a, (RAM_Copy_SecondPoint.x)
-    sub $28
-    sub e
-    ld (RAM_CopyData.Dimensions_X), a
-    ld hl, $D000
-    ld (RAM_CopyData.BufferAddress), hl
-    bit 0, (ix+CopyData.Flags)
-    call z, ReadTileDataToBuffer
-    ld b, (ix+3)
-    ld c, (ix+4)
-    ld a, (ix+1)
-    and $07
-    ld d, a
-    ld a, (ix+2)
-    and $07
-    ld e, a
-    ld h, (ix+5)
-    ld l, (ix+6)
---: push bc
-    push de
-    push hl
-      ld b, c
--:    push bc
+      push de
+        ; Pointer to data for box
+        ld e, (hl)
+        inc hl
+        ld d, (hl)
+        inc hl
+        ; Location to draw it
+        ld a, (hl)
+        inc hl
+        ld h, (hl)
+        ld l, a
+        LD_BC_AREA 9, 9
+        call DrawTextToTilesWithBackup
+      pop de
+      ld h, TileAttribute_None
+      LD_BC_AREA 8, 8
+      call SetAreaTileAttributes ; at the given VRAM address
+      ; Convert from the copy screen location to the canvas location
+      ld a, (RAM_Copy_FirstPoint.y)
+      sub 22
+      ld d, a
+      ld (RAM_CopyData.Source_Y), a
+      ld a, (RAM_Copy_SecondPoint.y)
+      sub 23
+      sub d
+      ld (RAM_CopyData.Dimensions_Y), a
+      ld a, (RAM_Copy_FirstPoint.x)
+      sub 39
+      ld (RAM_CopyData.Source_X), a
+      ld e, a
+      ld a, (RAM_Copy_SecondPoint.x)
+      sub 40
+      sub e
+      ld (RAM_CopyData.Dimensions_X), a
+      ; Read into RAM if not already done
+      ld hl, RAM_GraphicsDataBuffer + 96 * SizeOfTile ; Unnecessary?
+      ld (RAM_CopyData.BufferAddress), hl
+      bit 0, (ix+CopyData.Flags)
+      call z, ReadTileDataToBuffer
+
+      ; bc = counters for area
+      ld b, (ix+CopyData.Dimensions_Y)
+      ld c, (ix+CopyData.Dimensions_X)
+      ; de = offset within buffer
+      ld a, (ix+CopyData.Source_Y)
+      and $07
+      ld d, a
+      ld a, (ix+CopyData.Source_X)
+      and $07
+      ld e, a
+      ; hl = destination in magnified area
+      ld h, (ix+CopyData.Destination_Y)
+      ld l, (ix+CopyData.Destination_X)
+--:   push bc ; Loop over rows
+      push de
       push hl
-        ; Draw pixel four times? Seems silly
-        call _LABEL_2DED_
-        call ReadPixelAtDEIntoBuffer
-        call WritePixelAtHLFromBuffer
+        ld b, c ; Loop over columns
+-:      push bc
+        push hl
+          ; Draw each pixel four times
+          call _Magnify_CalculatePixelOffset
+          call ReadPixelAtDEIntoBuffer
+          call WritePixelAtHLFromBuffer
+          inc l
+          call _Magnify_CalculatePixelOffset
+          call ReadPixelAtDEIntoBuffer
+          call WritePixelAtHLFromBuffer
+          dec l
+          inc h
+          call _Magnify_CalculatePixelOffset
+          call ReadPixelAtDEIntoBuffer
+          call WritePixelAtHLFromBuffer
+          inc l
+          call _Magnify_CalculatePixelOffset
+          call ReadPixelAtDEIntoBuffer
+          call WritePixelAtHLFromBuffer
+        pop hl
+        pop bc
+        inc e ; source X += 1
+        inc l ; dest X += 2
         inc l
-        call _LABEL_2DED_
-        call ReadPixelAtDEIntoBuffer
-        call WritePixelAtHLFromBuffer
-        dec l
-        inc h
-        call _LABEL_2DED_
-        call ReadPixelAtDEIntoBuffer
-        call WritePixelAtHLFromBuffer
-        inc l
-        call _LABEL_2DED_
-        call ReadPixelAtDEIntoBuffer
-        call WritePixelAtHLFromBuffer
-      pop hl
+        ld a, l
+        cp DRAWING_AREA_WIDTH_PIXELS ; Unnecessary?
+        jp nc, +
+        djnz - ; Loop over X
++:    pop hl
+      pop de
       pop bc
-      inc e
-      inc l
-      inc l
-      ld a, l
-      cp $B0
+      inc d ; source Y += 1
+      inc h ; dest Y += 2
+      inc h
+      ld a, h
+      cp DRAWING_AREA_HEIGHT_PIXELS
       jp nc, +
-      djnz -
-+:  pop hl
-    pop de
-    pop bc
-    inc d
-    inc h
-    inc h
-    ld a, h
-    cp $90
-    jp nc, +
-    djnz --
+      djnz -- ; Loop over Y
 +:  ei
     ret
 
-_LABEL_2DED_:
+_Magnify_CalculatePixelOffset:
+    ; e = source X
+    ; l = dest Y
+    ; Sets RAM_CopyData.PixelOffset to the delta between the two
     ld a, e
     and $07
     ld c, a
@@ -5510,12 +5528,11 @@ _LABEL_2DED_:
     and $07
     sub c
     jp nc, +
-    add a, $08
+    add a, 8
 +:  ld (RAM_CopyData.PixelOffset), a
     ret
 
-; Data from 2DFE to 2F91 (404 bytes)
-MagnifyBoxData:
+_MagnifyBoxData_TopLeft:
 .db 10*9
 .asc "        )$"
 .asc "        )$"
@@ -5526,6 +5543,7 @@ MagnifyBoxData:
 .asc "        )$"
 .asc "        )$"
 .asc "########@$"
+_MagnifyBoxData_BottomLeft:
 .db 10*9
 .asc "********;$"
 .asc "        )$"
@@ -5536,6 +5554,7 @@ MagnifyBoxData:
 .asc "        )$"
 .asc "        )$"
 .asc "        )$"
+_MagnifyBoxData_TopRight:
 .db 10*9
 .asc "(        $"
 .asc "(        $"
@@ -5546,6 +5565,7 @@ MagnifyBoxData:
 .asc "(        $"
 .asc "(        $"
 .asc "%########$"
+_MagnifyBoxData_BottomRight:
 .db 10*9
 .asc "~********$"
 .asc "(        $"
@@ -5556,12 +5576,19 @@ MagnifyBoxData:
 .asc "(        $"
 .asc "(        $"
 .asc "(        $"
-;.ends
 
-; TBC
-.db $18 $57 $28 $67 $CB $38 
-.dw $2DFE 
-.db $00 $00 $68 $A7 $28 $67 $4B $3B $59 $2E $00 $09 $18 $57 $98 $D7 $E7 $38 $B4 $2E $0D $00 $68 $A7 $98 $D7 $67 $3B $0F $2F $0D $09
+.macro MagnifyBoxDataStruct args YMin, YMax, XMin, XMax, VRAMAddress, DataPointer, X, Y
+.db \1 \2 \3 \4
+.dw \5 \6
+.db \7 \8
+.endm
+
+MagnifyBoxData:
+ MagnifyBoxDataStruct  24  87  40 103 $38CB _MagnifyBoxData_TopLeft      0 0
+ MagnifyBoxDataStruct 104 167  40 103 $3B4B _MagnifyBoxData_BottomLeft   0 9
+ MagnifyBoxDataStruct  24  87 152 215 $38E7 _MagnifyBoxData_TopRight    13 0
+ MagnifyBoxDataStruct 104 167 152 215 $3B67 _MagnifyBoxData_BottomRight 13 9
+;.ends
 
 ;.section "Graphic board/sprite update handlers dispatcher" force
 CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen position and buttons
@@ -6531,60 +6558,71 @@ Mode11_MagnifyGraphicBoardHandler:
     exx
     ld a, (RAM_ActionStateFlags)
     bit 2, a
-    jp nz, _LABEL_363C_
+    jp nz, _AreaAlreadySelected
 
-    ld c, $0F
+    ; Selecting an area
+    ld c, 15 ; Minimum Y
     ld a, b
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $7F
++:  ld c, 127 ; Maximum Y
     cp c
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1.y), a
-    add a, $07
+    add a, 7 ; Sprite height
     ld (RAM_Copy_FirstPoint.y), a
-    add a, $21
+    add a, MAGNIFY_SIZE_PIXELS + 1 ; Magnified area width + 1
     ld (RAM_Copy_SecondPoint.y), a
+    ; Same for X
     ld a, (RAM_Pen_Smoothed.x)
-    ld c, $20
+    ld c, 32
     cp c
     jp nc, +
     ld a, c
-+:  ld c, $B0
++:  ld c, 176
     cp c
     jp c, +
     ld a, c
 +:  ld (RAM_SpriteTable1.xn), a
-    add a, $07
+    add a, 7 ; Sprite width
     ld (RAM_Copy_FirstPoint.x), a
-    add a, $21
+    add a, MAGNIFY_SIZE_PIXELS + 1
     ld (RAM_Copy_SecondPoint.x), a
+    ; Set cursor
     ld a, CursorIndex_ArrowBottomRight
     call SetCursorIndex
-    bit 1, (hl)
+
+    ; Wait for DO
+    bit GraphicBoardButtonBit_Do, (hl)
     ret z
+    ; Beep
     ld a, 1
     ld (RAM_Beep), a
+    ; Set the "area selected" flag
     ld a, (RAM_ActionStateFlags)
     or %00000100
     ld (RAM_ActionStateFlags), a
-    ld a, (RAM_SpriteTable1.y)
+    ; Copy the sprite from slot 0 to slot 3 and move it over a bit
+    ld a, (RAM_SpriteTable1.y + 0)
     ld (RAM_SpriteTable1.y + 3), a
     add a, 8
-    ld (RAM_SpriteTable1.y), a
+    ld (RAM_SpriteTable1.y + 0), a
     ld a, (RAM_SpriteTable1.xn)
     ld (RAM_SpriteTable1.xn + 3*2), a
     add a, 8
-    ld (RAM_SpriteTable1.xn), a
-    ld a, $A9
+    ld (RAM_SpriteTable1.xn + 3*0), a
+    ld a, $A9 ; Second cursor
     ld (RAM_SpriteTable1.xn + 3*2+1), a
+    ; Clear the copy flags
     xor a
     ld (RAM_CopyData.Flags), a
+    ; Set the second cursor
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     call SetCursorIndex
     ; Calculate which quadrant of the canvas the cursor is in
+    ; Bit 0 = in top, bit 1 = in left, so we end up with 0-3 for the quadrant
     ld c, 0
     ld a, (RAM_SpriteTable1.y)
     sub 23
@@ -6598,7 +6636,7 @@ Mode11_MagnifyGraphicBoardHandler:
     set 1, c
 +:  ld a, c
     ld (RAM_CopyData.MagnifyCorner), a
-    ; Multiply by 2 to look up data to copy
+    ; Multiply by 2 to look up the window location
     rlc c
     ld b, 0
     ld hl, Magnify_WindowLocations
@@ -6611,10 +6649,12 @@ Mode11_MagnifyGraphicBoardHandler:
     ld (RAM_CopyData.Destination_X), a
     ret
 
-_LABEL_363C_:
+_AreaAlreadySelected:
+    ; If DO is pressed, we exit magnified mode
     bit GraphicBoardButtonBit_Do, (hl)
     jp nz, +
-    ; Update the cursor to the pixel selection
+    
+    ; Else we set the cursor to a 2x2 pixel bounding box
     ld a, (RAM_Pen_Smoothed.x)
     and $FE ; Modulo 2
     dec a
