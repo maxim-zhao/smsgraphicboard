@@ -52,7 +52,7 @@ ReadGraphicBoard:
 
     ; ============================================================= Read 1 (TH = 1)
 
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $20 = all output, all zero except P1 TH = 1
+    ld a, IO_TR1_Out0 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0 ; $20 = all output, all zero except P1 TH = 1
     out (Port_IOPortControl), a
 
     ld b,16
@@ -76,7 +76,7 @@ ReadGraphicBoard:
 
     ; ============================================================= Read 2 (TH = 0, 1)
     
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; all output, all zero
+    ld a, IO_TR1_Out0 | IO_TH1_Out0 | IO_TR2_Out0 | IO_TH2_Out0 ; all output, all zero
     out (Port_IOPortControl), a
 
     ld b, 40
@@ -93,7 +93,7 @@ ReadGraphicBoard:
     
     ; no delay: 45 cycles = 13us from in to out
 
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out0 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
 
     ld b, 40
@@ -111,7 +111,7 @@ ReadGraphicBoard:
 
     ; ============================================================= Read 3 (TH = 0, 1)
 
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out0 | IO_TH1_Out0 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
 
     ld b, 40
@@ -127,7 +127,7 @@ ReadGraphicBoard:
     
     ; no delay: 45 cycles = 13us from in to out
     
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out0 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
 
     ld b, 40
@@ -144,7 +144,7 @@ ReadGraphicBoard:
 
     ; ============================================================= Read 4 (TH = 0, 1)
 
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_0 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out0 | IO_TH1_Out0 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
 
     ld b, 40
@@ -160,7 +160,7 @@ ReadGraphicBoard:
     
     ; no delay: 45 cycles = 13us from in to out
      
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out0 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
 
     ld b, 40
@@ -175,7 +175,7 @@ ReadGraphicBoard:
 
     ; no delay: 42 cycles = 12us from in to out
      
-    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0 ; $30
+    ld a, IO_TR1_Out1 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0 ; $30
     out (Port_IOPortControl), a
 
     ld a, (RAM_PenX)
@@ -218,7 +218,7 @@ ReadGraphicBoard:
     ret
 
 PressureTooLow:
-    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out1 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
     ret
 
@@ -229,7 +229,7 @@ NoBoardData:
     ; no delay: 36 cycles = 10us from in to out
 
     ; Set TH
-    ld a, IO_TR1_OUT_0 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out0 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
 
     ld b, 16
@@ -248,6 +248,6 @@ NoBoardData:
 
     ; no delay: 60 cycles = 17us from in to out
 
-    ld a, IO_TR1_OUT_1 | IO_TH1_OUT_1 | IO_TR2_OUT_0 | IO_TH2_OUT_0
+    ld a, IO_TR1_Out1 | IO_TH1_Out1 | IO_TR2_Out0 | IO_TH2_Out0
     out (Port_IOPortControl), a
     ret

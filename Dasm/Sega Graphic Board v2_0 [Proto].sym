@@ -332,9 +332,9 @@
 0000:2bd0 Table_PixelBitWithinTile
 0000:2bd8 ReadTileDataToBuffer
 0000:2c5a NonVBlankMode11_MagnifyFunction
-0000:2cf6 _LABEL_2CF6_
+0000:2cf6 _Magnify_HideMagnifiedArea
 0000:2d05 _Magnify_Done
-0000:2d0d _LABEL_2D0D_
+0000:2d0d _Magnify_DrawMagnifiedArea
 0000:2ded _Magnify_CalculatePixelOffset
 0000:2dfe _MagnifyBoxData_TopLeft
 0000:2e59 _MagnifyBoxData_BottomLeft

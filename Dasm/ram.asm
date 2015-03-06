@@ -63,7 +63,7 @@
   Destination_Y                 db ; $c162 +5
   EndTimeout                    dsb 0 ; Recycled byte for "end" mode...
   Destination_X                 db ; $c163 +6
-  UnusedC164                    dw ; $c164 +7
+  UnusedC164                    dw ; $c164 +7 Does get used in title screen move (which overlays this struct)
   PixelOffset                   db ; $c166 +9 Number of pixels to rotate the source row to line up with the destination within the tile
   SourcePixelBuffer             dsb 4 ; $c167 +10 Bytes for a single pixel, masked to the pixel in question
   DestinationRowBuffer          dsb 4 ; $c16b +14 Bytes for the destination row
@@ -78,8 +78,8 @@
   MagnifyMaximumX               db ; $c176
 .endst
 
-.enum $c000 asc export
-RAM_ResetButton1                            db ; $c000 Currently pressed value
+.enum RAM_Start asc export
+RAM_ResetButton1                            db ; $c000 Currently pressed value. Note that we 
 RAM_ResetButton2                            db ; $c001 Positive edge signal
 RAM_unusedC002                              dsb 1
 RAM_VDPReg1Value                            db ; $c003
