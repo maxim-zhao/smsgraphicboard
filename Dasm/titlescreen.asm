@@ -1,4 +1,5 @@
 .define LogoHeightPixels 35
+.define LogoWidthTiles 27
 
 .enum 0 ; Flags by bit number
   Flag_BlindsDone db ; 0 when drawing blinds effect, 1 when done
@@ -28,6 +29,7 @@ TitleScreen: ; $865
     LD_DE_TILE 0
     call DecompressGraphics
 
+    ; Blank out the logo effect tiles
     ld h, 0
     LD_DE_TILE 256
     ld bc, 192 * 32 ; $1800 ; 192 tiles (up to name table)
@@ -270,7 +272,7 @@ UpdateTilemap_RightToLeftRow:
     push hl
       ; de += 31 - n
       ld c, a
-      ld a, $1F
+      ld a, 31
       sub c
       add a, a
       ld l, a
@@ -309,27 +311,33 @@ UpdateSplashScreenAnimationTilesLine:
     ; b = pixel row to draw into
     ; c = logo row to draw there
 
+    ; Calculate the VDP address to write to
+    ; This is (b / 8) * LogoWidthTiles * 32 bytes per tile
+    ;       + (b % 8) * 4 byes per line
+    ;       + address of first tile
+    ;       = (b / 8) * 108 + (b % 8) * 4 + address of first tile
+.macro CALC_VRAM_ADDRESS_FOR_PIXEL_B    
     ; get b
     ld a, b
     ; get high 5 bits
     and %11111000
     ; multiply by 108 = width in tiles * 4
     LD_HL_A
-    add hl, hl  ; x2
-    add hl, hl  ; x4
+    add hl, hl
+    add hl, hl
     push hl
-      add hl, hl  ; x8
+      add hl, hl
       push hl
-        add hl, hl  ; x16
-        add hl, hl  ; x32
+        add hl, hl
+        add hl, hl
         push hl
-          add hl, hl  ; x64
+          add hl, hl
         pop de
-        add hl, de  ; x64 + x32
+        add hl, de
       pop de
-      add hl, de  ; x64 + x32 + x8
+      add hl, de
     pop de
-    add hl, de  ; x64 + x32 + x8 + x4 = x108
+    add hl, de
 
     ; re-get b
     ld a, b
@@ -338,39 +346,44 @@ UpdateSplashScreenAnimationTilesLine:
     add a, a ; x2
     add a, a ; x4
     LD_DE_A
-    add hl, de ; x8
-    ld de, $6020 ; magic? Tile 257
     add hl, de
+    
+    LD_DE_TILE 257 ; Address of first tile
+    add hl, de
+.endm
+    ; Invoke it here...
+    CALC_VRAM_ADDRESS_FOR_PIXEL_B
+
     push hl
       ld a, c ; high 5 bits of c
       and $F8
       ; Multiply by 54
       LD_HL_A
-      add hl, hl ; x2
+      add hl, hl
       push hl
-        add hl, hl  ; x4
+        add hl, hl
         push hl
-          add hl, hl  ; x8
-          add hl, hl  ; x16
+          add hl, hl
+          add hl, hl
           push hl
-            add hl, hl  ; x32
+            add hl, hl
           pop de
-          add hl, de  ; x32 + x16
+          add hl, de
         pop de
-        add hl, de  ; x32 + x16 + x4
+        add hl, de
       pop de
-      add hl, de  ; x32 + x16 + x4 + x2 = x54
+      add hl, de
 
       ld a, c ; low 3 bits of c
       and $07
       add a, a ; x2
       LD_DE_A
-      add hl, de ; x4
+      add hl, de
       ld de, Tiles_Logo ; $0C32
       add hl, de
     pop de
 
-    ld b, 27 ; counter: number of tiles per row
+    ld b, LogoWidthTiles ; counter: number of tiles per row
     ld c, Port_VDPData
 -:  push bc
     push de
@@ -396,52 +409,30 @@ UpdateSplashScreenAnimationTilesLine:
         ex de, hl
     pop hl
     pop bc
-    djnz - ; repeat for 27x2 bytes
+    djnz - ; repeat for LogoWidthTilesx2 bytes
     ret
 
 UpdateSplashScreenAnimationTilesBlankLine:
     ; Draws a blank line (palette entry 0) into the tiles at row b
-    ld a, b
-    and $F8
-    LD_HL_A
-    add hl, hl ; x2
-    add hl, hl ; x4
-    push hl
-      add hl, hl ; x8
-      push hl
-        add hl, hl ; x16
-        add hl, hl ; x32
-        push hl
-          add hl, hl ; x64
-        pop de
-        add hl, de ; x96
-      pop de
-      add hl, de ; x104
-    pop de
-    add hl, de ; x108
-    ld a, b
-    and $07
-    add a, a
-    add a, a
-    LD_DE_A
-    add hl, de
-    ld de, $6020
-    add hl, de
-    ld de, $0020
-    ld b, $1B
+    ; Calculate the address as above
+    CALC_VRAM_ADDRESS_FOR_PIXEL_B
+
+    ld de, 32
+    ld b, LogoWidthTiles ; Number of tiles per row
     ld c, Port_VDPData
 -:  push bc
       ld a, l
       out (Port_VDPAddress), a
       ld a, h
       out (Port_VDPAddress), a
-      xor a ; We write zeroes...
+      xor a ; We write two zeroes, as the other two bitplanes are empty...
       push de
       pop de
       out (Port_VDPData), a
       push de
       pop de
       out (Port_VDPData), a
+      ; ...then skip on by 32 bytes to the next tile
       add hl, de
     pop bc
     djnz -
