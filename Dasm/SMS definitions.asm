@@ -1,5 +1,4 @@
 ; Port numbers
-
 .define Port_IOPortControl $3f
 .define Port_PSG           $7f
 .define Port_VDPData       $be
@@ -102,13 +101,12 @@
 .define VDPAddressMask_Register %10 << 14
 .define VDPAddressMask_Palette  %11 << 14
 
-; VRAM addresses
+; VRAM addresses (standard values, not always used)
 .define TileMapAddress $3800
 .define SpriteTableAddress $3f00
 .define SpriteSet 1
 
 .define SpriteTableYTerminator 224
-
 
 ; Sound stuff
 .define PSG_Latch    %10000000
@@ -119,8 +117,6 @@
 .define PSG_Channel3 3<<5
 .define PSG_Tone     %00000000
 .define PSG_Volume   %00010000
-
-
 
 ; RAM
 .define RAM_Start $c000
