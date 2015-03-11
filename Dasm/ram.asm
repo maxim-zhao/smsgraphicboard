@@ -109,7 +109,7 @@ RAM_Pen_Smoothed_Previous                   instanceof XY ; $c031 A backup? Not 
 RAM_PenY                                    db ; $C033
 RAM_Pressure                                db ; $C034 - never used
 RAM_unusedC035                              dsb 7
-RAM_CurrentMode                             db ; $C03C Current "mode". High bit set when just changed? Low 6 bits are mode number.
+RAM_CurrentMode                             db ; $C03C Current "mode". Low 6 bits are mode number. Some modes use the high two bits as state flags.
 RAM_SelectedNextMode                        db ; $C03D
 RAM_Pen_InMenus                             instanceof XY ; $C03E The pen position while in menus
 RAM_unusedC040                              dsb 2

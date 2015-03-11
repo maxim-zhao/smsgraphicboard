@@ -52,6 +52,34 @@
   ld d,0
 .endm
 
-.macro COLOUR args red,green,blue
-.db (red & %11) | ((green & %11) << 2) | ((blue & %11) << 4)
+; This is a bit flexible...
+; 1 arg = HTML-style short colour code, e.g. $fff. We take the high two bits of each nibble.
+; 2 args = repeating version of above
+; 3 args = R, G, B in the range 0-3
+; 4 args = repeating version of above
+.macro COLOUR
+.if NARGS == 1
+.db ((\1 >> 10) & %000011) | ((\1 >> 4) & %001100) | ((\1 << 2) & %110000)
+.else
+.if NARGS == 2
+.rept \1
+ COLOUR \2 ; Recurse!
+.endr
+.else
+.if NARGS == 3
+.db (\1 & %11) | ((\2 & %11) << 2) | ((\3 & %11) << 4)
+.else
+.if NARGS == 4
+.rept \1
+ COLOUR \2 \3 \4 ; Recurse!
+.endr
+.else
+.endif
+.endif
+.endif
+.endif
+.endm
+
+.macro TILEMAPENTRY args tileIndex, flags
+.dw tileIndex | (flags << 8)
 .endm

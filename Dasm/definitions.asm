@@ -85,3 +85,43 @@ VBlankFunctionControl_bit5 db
 VBlankFunctionControl_bit6 db
 VBlankFunctionControl_TitleScreen db
 .ende
+
+; Tile indices (in drawing mode)
+.enum 0
+TileIndex_DrawingArea dsb DRAWING_AREA_TOTAL_TILES
+wtf db
+TileIndex_ControlTilesStart .db ; $18d
+TileIndex_Palette0  db ; $18d..$19c
+TileIndex_Palette1  db ; <-- Used with second palette for blanks during colour selection
+TileIndex_Palette2  db
+TileIndex_Palette3  db
+TileIndex_Palette4  db ; <-- Next 8 used with second palette for options during colour selection
+TileIndex_Palette5  db
+TileIndex_Palette6  db
+TileIndex_Palette7  db
+TileIndex_Palette8  db
+TileIndex_Palette9  db
+TileIndex_Palette10 db
+TileIndex_Palette11 db
+TileIndex_Palette12 db
+TileIndex_Palette13 db
+TileIndex_Palette14 db
+TileIndex_Palette15 db
+TileIndex_ThinPen  db ; $19d
+TileIndex_MediumPen db
+TileIndex_ThickPen db
+TileIndex_Erase db
+TileIndex_LinesOrDots db
+TileIndex_TopLeftCorner db ; $1a2
+TileIndex_RightEdge db
+TileIndex_BottomEdge db
+TileIndex_Cursor_VerticalLine db ; $1a5
+TileIndex_Cursor_HorizontalLine db ; $1a6
+TileIndex_Cursor1 db ; $1a7
+TileIndex_Cursor2 db ; $1a8
+TileIndex_Cursor3 db ; $1a9
+TileIndex_Menu dsb 3 ; $1aa..c
+TileIndex_Do   dsb 3 ; $1ad..f
+TileIndex_Pen  dsb 3 ; $1b0..2
+TileIndex_Message dsb 13 ; $1b3..f
+.ende

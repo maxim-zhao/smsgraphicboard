@@ -18,8 +18,6 @@ banks 1
 .include "ram.asm"
 .include "macros.asm"
 
-.define ModeHighBit 1<<7
-
 .bank 0 slot 0
 .org $0000
 .section "Boot" force
@@ -124,7 +122,7 @@ Start_AfterRAMClear:
     call TitleScreen
 
     ; Zero tiles
-    LD_DE_TILE 0
+    LD_DE_TILE TileIndex_DrawingArea
     ld bc, 448*SizeOfTile
     ld h, 0
     call FillVRAMWithH
@@ -132,10 +130,10 @@ Start_AfterRAMClear:
     ; Set up screen
 
     ld hl, ControlTiles ; data: tiles for palette, UI controls
-    LD_DE_TILE $18d
+    LD_DE_TILE TileIndex_ControlTilesStart
     call DecompressGraphics
 
-    LD_DE_TILE $1b3
+    LD_DE_TILE TileIndex_Message
     ld b, 13 ; 13 tiles
     ld hl, Font2bpp ; Will only use the first tile, which is blank
     call FillTiles2bpp
@@ -301,63 +299,108 @@ SilencePSG:
 
 .section "Drawing-time palettes" force
 ; Unused palette: Black with blue and white (Sega logo?)
-.db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
-  COLOUR 0, 0, 3
-  COLOUR 0, 0, 0
-  COLOUR 3, 3, 3
-.db $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00 $00
+  COLOUR 16, $000
+  COLOUR $00f
+  COLOUR $000
+  COLOUR $fff
+  COLOUR 13, $000
 
 ;.org $051d
 DrawingPalette:
-  COLOUR 3, 3, 3 ; White
-  COLOUR 0, 0, 0 ; Black
-  COLOUR 1, 0, 0 ; Reds
-  COLOUR 2, 0, 0
-  COLOUR 3, 0, 0
-  COLOUR 0, 1, 0 ; Greens
-  COLOUR 0, 2, 0
-  COLOUR 0, 3, 0
-  COLOUR 0, 0, 1 ; Blues
-  COLOUR 0, 0, 2
-  COLOUR 0, 0, 3
-  COLOUR 0, 2, 3 ; Sky blue
-  COLOUR 3, 1, 0 ; Orange
-  COLOUR 3, 3, 0 ; Yellows
-  COLOUR 3, 3, 1
-  COLOUR 3, 3, 2
+  COLOUR $fff ; White
+  COLOUR $000 ; Black
+  COLOUR $500 ; Reds
+  COLOUR $a00
+  COLOUR $f00
+  COLOUR $050 ; Greens
+  COLOUR $0a0
+  COLOUR $0f0
+  COLOUR $005 ; Blues
+  COLOUR $00a
+  COLOUR $00f
+  COLOUR $0af ; Sky blue
+  COLOUR $f50 ; Orange
+  COLOUR $ff0 ; Yellows
+  COLOUR $ff5
+  COLOUR $ffa
   ; Sprites
-  COLOUR 0, 0, 0 ; Tranparent/black
-  COLOUR 0, 0, 0 ; Black for sprites
-  COLOUR 3, 3, 3 ; White
-  COLOUR 3, 0, 0 ; Red
-  COLOUR 0, 0, 0 ; These blacks are used for the colour palette selection later.
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 0, 0, 0
-  COLOUR 3, 0, 0 ; Cycling colour
+  COLOUR $000 ; Tranparent/black
+  COLOUR $000 ; Black for sprites
+  COLOUR $fff ; White
+  COLOUR $f00 ; Red
+  COLOUR 11, $000 ; The first eight of these blacks are used for the colour palette selection later.
+  COLOUR $f00 ; Cycling colour
 .ends
 
 .section "Tilemap data for UI" force
 ;.org $053d
 TopBarPaletteTiles: ; 22x1
-.dw $018d, $018e, $018f, $0190, $0191, $0192, $0193, $0194, $0195, $0196, $0197, $0198, $0199, $019a, $019b, $019c ; Palette colours
-.dw TileAttribute_Palette2<<8 | $018D ; Unused
-.dw TileAttribute_Palette2<<8 | $019D, TileAttribute_Palette2<<8 | $019E, TileAttribute_Palette2<<8 | $019F, TileAttribute_Palette2<<8 | $01A0, TileAttribute_Palette2<<8 | $01A1 ; Pen controls using sprite palette
+ TILEMAPENTRY TileIndex_Palette0,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette1,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette2,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette3,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette4,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette5,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette6,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette7,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette8,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette9,    TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette10,   TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette11,   TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette12,   TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette13,   TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette14,   TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette15,   TileAttribute_None
+ TILEMAPENTRY TileIndex_Palette0,    TileAttribute_Palette2 ; Blank, pen controls using sprite palette
+ TILEMAPENTRY TileIndex_ThinPen,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_MediumPen,   TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_ThickPen,    TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Erase,       TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_LinesOrDots, TileAttribute_Palette2
 
 PenControlsBottomLineTilemapData: ; 5x1
-.dw $09A4, $09A4, $09A4, $09A4, $09A4 ; Draw bottom line for buttons
+.rept 5
+ TILEMAPENTRY TileIndex_BottomEdge,  TileAttribute_Palette2 ; Bottom line for buttons
+.endr
 
 BottomStatusBarTiles: ; 24x3
-.dw $09A2, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0DA4, $0BA2 ; .______________________.
-.dw $0BA3, $09AA, $09AB, $09AC, $09AD, $09AE, $09AF, $09B0, $09B1, $09B2, $09B3, $09B4, $09B5, $09B6, $09B7, $09B8, $09B9, $09BA, $09BB, $09BC, $09BD, $09BE, $09BF, $09A3 ; |                      | <-- with stuff in it
-.dw $0DA2, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $09A4, $0FA2 ; '^^^^^^^^^^^^^^^^^^^^^^'
+; Top corners and edges
+ TILEMAPENTRY TileIndex_TopLeftCorner, TileAttribute_Palette2
+.rept 22 
+ TILEMAPENTRY TileIndex_BottomEdge,    TileAttribute_Palette2 | TileAttribute_VFlip
+.endr
+ TILEMAPENTRY TileIndex_TopLeftCorner, TileAttribute_Palette2 | TileAttribute_HFlip
+; Contents
+ TILEMAPENTRY TileIndex_RightEdge,     TileAttribute_Palette2 | TileAttribute_HFlip
+ TILEMAPENTRY TileIndex_Menu+0,        TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Menu+1,        TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Menu+2,        TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Do+0,          TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Do+1,          TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Do+2,          TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Pen+0,         TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Pen+1,         TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Pen+2,         TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+0,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+1,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+2,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+3,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+4,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+5,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+6,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+7,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+8,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+9,     TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+10,    TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+11,    TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Message+12,    TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_RightEdge,     TileAttribute_Palette2
+; Bottom edge
+ TILEMAPENTRY TileIndex_TopLeftCorner, TileAttribute_Palette2 | TileAttribute_VFlip
+.rept 22 
+ TILEMAPENTRY TileIndex_BottomEdge,    TileAttribute_Palette2
+.endr
+ TILEMAPENTRY TileIndex_TopLeftCorner, TileAttribute_Palette2 | TileAttribute_HFlip | TileAttribute_VFlip
 .ends
 
 .section "VBlank handler implementation" force
@@ -390,7 +433,7 @@ InterruptHandlerImpl:
       call UpdateCursorColourCycling
 
       ld a, (RAM_CurrentMode)
-      cp ModeHighBit | Mode3_Colour
+      cp (1<<7) | Mode3_Colour
       jp nz, +
       ld a, (RAM_NeedToUpdatePalette)
       or a
@@ -610,7 +653,7 @@ CallModeDrawingFunction_JumpTable:
 ; 2nd entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode1_MenuFunction:
     exx
-    ; Only do this when the high bit is set
+    ; High bit set means "menu is now shown"
     bit 7, (hl) ; RAM_CurrentMode
     ret nz
     set 7, (hl) ; RAM_CurrentMode
@@ -717,7 +760,7 @@ NonVBlankMode4_EraseFunction:
 
       ; Zero all tile data
       di
-        LD_DE_TILE 0
+        LD_DE_TILE TileIndex_DrawingArea
         ld h, 0
         ld bc, DRAWING_AREA_TOTAL_BYTES ; All tiles
         call FillVRAMWithH
@@ -788,11 +831,11 @@ NonVBlankMode14_LinePaintMenuFunction:
       ret nz
     exx
     ; Bit 7 signals if the menu has been drawn yet
-    bit 7, (hl)
+    bit 7, (hl) ; RAM_CurrentMode
     jp z, +
 
     ; Bit 6 signals if a choice has been chosen yet
-    bit 6, (hl)
+    bit 6, (hl) ; RAM_CurrentMode
     ret z
 
     di
@@ -813,7 +856,7 @@ NonVBlankMode14_LinePaintMenuFunction:
     ei
     ret
 
-+:  set 7, (hl) ; set "menu drawn" flag
++:  set 7, (hl) ; RAM_CurrentMode - set "menu drawn" flag
     di
       ; Draw it
       LD_BC_AREA 10, 4
@@ -840,11 +883,11 @@ NonVBlankMode15_ColourSelectionMenuFunction:
       ret nz
     exx
     ; Bit 7 signals if the menu has been drawn yet
-    bit 7, (hl)
+    bit 7, (hl) ; RAM_CurrentMode
     jp z, +
 
     ; Bit 6 signals if a choice has been chosen yet
-    bit 6, (hl)
+    bit 6, (hl) ; RAM_CurrentMode
     ret z
 
     di
@@ -865,7 +908,7 @@ NonVBlankMode15_ColourSelectionMenuFunction:
     ei
     ret
 
-+:  set 7, (hl)
++:  set 7, (hl) ; RAM_CurrentMode
     di
       ; Draw the menu
       LD_BC_AREA 16, 4
@@ -891,11 +934,11 @@ NonVBlankMode16_MirrorAxisMenuFunction:
       ret nz
     exx
     ; Bit 7 signals if the menu has been drawn yet
-    bit 7, (hl)
+    bit 7, (hl) ; RAM_CurrentMode
     jp z, +
 
     ; Bit 6 signals if a choice has been chosen yet
-    bit 6, (hl)
+    bit 6, (hl); RAM_CurrentMode
     ret z
 
     di
@@ -916,7 +959,7 @@ NonVBlankMode16_MirrorAxisMenuFunction:
     ei
     ret
 
-+:  set 7, (hl)
++:  set 7, (hl) ; RAM_CurrentMode
     di
       ; Draw the menu
       LD_BC_AREA 14, 4
@@ -968,7 +1011,7 @@ NonVBlankMode17_EraseConfirmationMenuFunction:
     ei
     ret
 
-+:  set 7, (hl)
++:  set 7, (hl) ; RAM_CurrentMode
     di
       ; Draw the menu
       LD_BC_AREA 13, 4
@@ -992,7 +1035,7 @@ NonVBlankMode13_EndFunction:
     exx
 
     ; Check if the timeout has started yet
-    bit 7, (hl)
+    bit 7, (hl) ; RAM_CurrentMode
     jp z, +
 
     ; Wait for timeout to expire
@@ -1004,7 +1047,7 @@ NonVBlankMode13_EndFunction:
     call ScreenOff
     jp FullReset
 
-+:  set 7, (hl)
++:  set 7, (hl) ; RAM_CurrentMode
     ; Start waiting (2.14s)
     ld a, 2.14*60
     ld (RAM_CopyData.EndTimeout), a
@@ -1337,9 +1380,26 @@ ColorPageMenuText: ; $1b76
 
 ColourSelectionTilemap: ; $1be7
 ; Tiles showing selectable colours
-.dw $0991 $098E $0992 $098E $0993 $098E $0994
-.dw $098E $098E $098E $098E $098E $098E $098E
-.dw $0995 $098E $0996 $098E $0997 $098E $0998
+; Top row
+ TILEMAPENTRY TileIndex_Palette4, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette1, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette5, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette1, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette6, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette1, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette7, TileAttribute_Palette2
+; Middle row
+.rept 7
+ TILEMAPENTRY TileIndex_Palette1, TileAttribute_Palette2
+.endr
+; Bottom row
+ TILEMAPENTRY TileIndex_Palette8, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette1, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette9, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette1, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette10, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette1, TileAttribute_Palette2
+ TILEMAPENTRY TileIndex_Palette11, TileAttribute_Palette2
 
 EraseMenuText: ; $1c11
 .db 14*4
@@ -1353,36 +1413,50 @@ EraseMenuText: ; $1c11
 ; 1st entry of Jump Table from 165C (indexed by RAM_CurrentMode)
 NonVBlankMode0_DrawingFunction:
     exx
+    ; Check for Menu or Do buttons - they stop us drawing for a single frame - seems not very useful
     ld a, (RAM_ButtonsNewlyPressed)
-    and $03
+    and (1<<GraphicBoardButtonBit_Menu) | (1<<GraphicBoardButtonBit_Do)
     ret nz
     di
-    ld a, (RAM_DrawingData.DotsOrLines)
-    or a
-    jp nz, +
-    ld a, (RAM_ButtonsPressed)
-    ld (RAM_DrawingData.ButtonsPressed_virtual), a ; use the real buttons
-    bit GraphicBoardButtonBit_Pen, a
-    ld a, (RAM_PenStyle)
-    ld (RAM_DrawingData.PenStyleForCurrentShape), a
-    ld hl, (RAM_Pen_Smoothed_Previous)
-    ld de, (RAM_Pen_Smoothed)
-    call nz, DrawLine
-    ld a, (RAM_Pen_Smoothed.x)
-    ld (RAM_Pen_Smoothed_Previous.x), a
-    ld a, (RAM_Pen_Smoothed.y)
-    ld (RAM_Pen_Smoothed_Previous.y), a
+      ld a, (RAM_DrawingData.DotsOrLines)
+      or a
+      jp nz, +
+
+      ; Lines
+      ; Copy the "real" button state over the virtual one
+      ld a, (RAM_ButtonsPressed)
+      ld (RAM_DrawingData.ButtonsPressed_virtual), a ; use the real buttons
+      ; We check the pen bit for later...
+      bit GraphicBoardButtonBit_Pen, a
+      ; We copy the pen style into the drawing data...
+      ld a, (RAM_PenStyle)
+      ld (RAM_DrawingData.PenStyleForCurrentShape), a
+      ; ...get the start and end of the line...
+      ld hl, (RAM_Pen_Smoothed_Previous)
+      ld de, (RAM_Pen_Smoothed)
+      call nz, DrawLine ; We only draw a line if the pen button was pressed
+      ; Then we copy the position into the "previous" slot
+      ld a, (RAM_Pen_Smoothed.x)
+      ld (RAM_Pen_Smoothed_Previous.x), a
+      ld a, (RAM_Pen_Smoothed.y)
+      ld (RAM_Pen_Smoothed_Previous.y), a
     ei
     ret
 
-+:  di
++:    ; Dots
+      di ; Unnecessary...
+      ; Copy the "real" button state over the virtual one
       ld a, (RAM_ButtonsPressed)
       ld (RAM_DrawingData.ButtonsPressed_virtual), a
+      ; Get the pen location into hl'
       ld hl, (RAM_Pen_Smoothed)
       exx
+      ; We copy the pen style into the drawing data...
       ld a, (RAM_PenStyle)
       ld (RAM_DrawingData.PenStyleForCurrentShape), a
+      ; This will check the pen button and then draw at the position in hl'
       call DrawPenDotIfButtonPressed
+      ; Then we copy the position into the "previous" slot.
       ld a, (RAM_Pen_Smoothed.x)
       ld (RAM_Pen_Smoothed_Previous.x), a
       ld a, (RAM_Pen_Smoothed.y)
@@ -1393,9 +1467,11 @@ NonVBlankMode0_DrawingFunction:
 
 .section "Line drawing" force
 DrawLine:
-    ; params: 
+    ; Params: 
     ; hl = x1,y1
     ; de = x2,y2
+    ; Output: nothing
+    ; Trashes af, bc, bc', de, hl, hl'
     ; Bresenham's line drawing algorithm...
 
     ; First we decide if we are drawing left-to-right or right-to-left...
@@ -5760,12 +5836,12 @@ UpdateCursorColourCycling:
     ret
 
 CursorColourCycle:
-    COLOUR 0, 0, 0 ; Black
-    COLOUR 3, 0, 0 ; Red
-    COLOUR 0, 3, 0 ; Green
-    COLOUR 3, 3, 0 ; Yellow
-    COLOUR 0, 0, 3 ; Blue
-    COLOUR 3, 3, 3 ; White
+    COLOUR $000 ; Black
+    COLOUR $f00 ; Red
+    COLOUR $0f0 ; Green
+    COLOUR $ff0 ; Yellow
+    COLOUR $00f ; Blue
+    COLOUR $fff ; White
 CursorColourCycleEnd:
 
 InitialiseCursorSprites:
@@ -5782,7 +5858,10 @@ InitialiseCursorSprites:
 InitialiseCursorSprites_Y:
 .db 64, 0, SpriteTableYTerminator, SpriteTableYTerminator
 InitialiseCursorSprites_XN:
-.db 64 $A8, 40 $A7, 0 $A7, 0 $A9 ; TODO: enum or something for tile indices
+.db 64, (TileIndex_Cursor2 & $ff)
+.db 40, (TileIndex_Cursor1 & $ff)
+.db  0, (TileIndex_Cursor1 & $ff)
+.db  0, (TileIndex_Cursor3 & $ff)
 
 UpdateCursorGraphics:
     ld hl, RAM_CurrentCursorIndex
@@ -5790,10 +5869,10 @@ UpdateCursorGraphics:
     ret z
     res 7, (hl) ; Clear it
     set 6, (hl) ; Set bit 6 (?)
-    LD_DE_TILE $1a8 ; Bit 5 determines which sprite to write
+    LD_DE_TILE TileIndex_Cursor2 ; Bit 5 determines which sprite to write
     bit 5, (hl)
     jp z, +
-    LD_DE_TILE $1a9
+    LD_DE_TILE TileIndex_Cursor3
 +:  ld hl, (RAM_CurrentCursorDataAddress)
     VDP_ADDRESS_TO_DE
     ld c, Port_VDPData
@@ -5842,7 +5921,7 @@ UpdateButtonGraphics:
     ld c, a
 
     ld b, 3 ; Tile count
-    LD_DE_TILE $1aa
+    LD_DE_TILE TileIndex_Menu
     bit GraphicBoardButtonBit_Menu, c ; Menu button
     jp nz, MenuPressed
     bit GraphicBoardButtonBit_Menu, (hl)
@@ -5855,7 +5934,7 @@ UpdateButtonGraphics:
 MenuNothingToUpdate:
 
     ld b, 3
-    LD_DE_TILE $1ad
+    LD_DE_TILE TileIndex_Do
     bit GraphicBoardButtonBit_Do, c ; Do button
     jp nz, DoPressed
     bit GraphicBoardButtonBit_Do, (hl)
@@ -5868,7 +5947,7 @@ MenuNothingToUpdate:
 DoNothingToUpdate:
 
     ld b, 3
-    LD_DE_TILE $1b0
+    LD_DE_TILE TileIndex_Pen
     bit GraphicBoardButtonBit_Pen, c ; Pen button
     jp nz, PenPressed
     bit GraphicBoardButtonBit_Pen, (hl)
@@ -5932,28 +6011,28 @@ UpdatePenGraphics:
 ; 1st entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawThinPenOn:
     set 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $19d
+    LD_DE_TILE TileIndex_ThinPen
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thin_On
     jp FillTiles2bpp
 
 ; 2nd entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawMediumPenOn:
     set 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $19e
+    LD_DE_TILE TileIndex_MediumPen
     LD_HL_PEN_TILE_GRAPHICS PenTile_Medium_On
     jp FillTiles2bpp
 
 ; 3rd entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawThickPenOn:
     set 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $19f
+    LD_DE_TILE TileIndex_ThickPen
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thick_On
     jp FillTiles2bpp
 
 ; 4th entry of Jump Table from 388C (indexed by RAM_PenStyle)
 DrawEraserOn:
     set 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $1a0
+    LD_DE_TILE TileIndex_Erase
     LD_HL_PEN_TILE_GRAPHICS PenTile_Erase_On
     jp FillTiles2bpp
 
@@ -5971,25 +6050,25 @@ TurnOffCurrentPenIcon:
 
 DrawThinPenOff:
     res 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $19d
+    LD_DE_TILE TileIndex_ThinPen
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thin_Off
     jp FillTiles2bpp ; and ret
 
 DrawMediumPenOff:
     res 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $19e
+    LD_DE_TILE TileIndex_MediumPen
     LD_HL_PEN_TILE_GRAPHICS PenTile_Medium_Off
     jp FillTiles2bpp ; and ret
 
 DrawThickPenOff:
     res 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $19f
+    LD_DE_TILE TileIndex_ThickPen
     LD_HL_PEN_TILE_GRAPHICS PenTile_Thick_Off
     jp FillTiles2bpp ; and ret
 
 DrawEraserOff:
     res 0, (ix+PenMode.IsSet)
-    LD_DE_TILE $1a0
+    LD_DE_TILE TileIndex_Erase
     LD_HL_PEN_TILE_GRAPHICS PenTile_Erase_Off
     jp FillTiles2bpp ; and ret
 
@@ -6006,12 +6085,12 @@ PenModeNotChanged:
     jp z, +
 
     ; Dots mode
-    LD_DE_TILE $1a1
+    LD_DE_TILE TileIndex_LinesOrDots
     LD_HL_PEN_TILE_GRAPHICS PenTile_DotMode_On
     jp FillTiles2bpp ; and ret
 
 +:  ; Line mode
-    LD_DE_TILE $1a1
+    LD_DE_TILE TileIndex_LinesOrDots
     LD_HL_PEN_TILE_GRAPHICS PenTile_DotMode_Off
     jp FillTiles2bpp ; and ret
 
@@ -6374,7 +6453,7 @@ UpdateStatusBarText:
     add hl, bc
     ld bc, StatusBarText ;$3B66
     add hl, bc
-    LD_DE_TILE $1B3
+    LD_DE_TILE TileIndex_Message
     VDP_ADDRESS_TO_DE
     ld b, STATUS_BAR_TEXT_LENGTH ; String lengths
 -:  push bc
