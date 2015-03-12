@@ -4634,7 +4634,7 @@ CallNonVBlankModeGraphicBoardHandler: ; Functions that deal with the pen positio
     jp nc, +
     xor a 
 +:  ld b, a
-    ld a, $A8
+    ld a, $a8
     ld (RAM_SpriteTable1.xn+0*2+1), a ; Sprite 0 n
 
     ld a, (RAM_CurrentMode)
@@ -4875,7 +4875,7 @@ Mode5_SquareGraphicBoardHandler:
     ld (RAM_SpriteTable1.y + 3), a
     ld a, (RAM_SpriteTable1.xn + 0)
     ld (RAM_SpriteTable1.xn + 3*2), a
-    ld a, $A9 ; Second cursor tile index
+    ld a, TileIndex_Cursor3 & $ff ; Second cursor tile index
     ld (RAM_SpriteTable1.xn + 3*2+1), a
 
     ; Offset position by 4, 3
@@ -5040,7 +5040,7 @@ _CircleEllipseGraphicBoardHandler_GetCentre:
     ld (RAM_SpriteTable1.y + 3), a
     ld a, (RAM_SpriteTable1.xn + 0)
     ld (RAM_SpriteTable1.xn + 3*2), a
-    ld a, $A9 ; Second cursor tile index
+    ld a, TileIndex_Cursor3 & $ff ; Second cursor tile index
     ld (RAM_SpriteTable1.xn + 3*2+1), a
 
     ; Store the location
@@ -5181,7 +5181,7 @@ Mode9_CopyGraphicBoardHandler:
     ld (RAM_Copy_FirstPoint.x), a
     add a, 8
     ld (RAM_SpriteTable1.xn + 0), a
-    ld a, $A9 ; Second cursor tile index
+    ld a, TileIndex_Cursor3 & $ff ; Second cursor tile index
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
     ld (RAM_CopyData.Flags), a
@@ -5440,7 +5440,7 @@ _SettingCorner1:
     ld (RAM_Copy_FirstPoint.x), a
     add a, 8
     ld (RAM_SpriteTable1.xn), a
-    ld a, $A9 ; Down-right arrow sprite
+    ld a, TileIndex_Cursor3 & $ff ; Second cursor tile index
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     xor a
     ld (RAM_CopyData.Flags), a
@@ -5633,7 +5633,7 @@ Mode11_MagnifyGraphicBoardHandler:
     ld (RAM_SpriteTable1.xn + 3*2), a
     add a, 8
     ld (RAM_SpriteTable1.xn + 3*0), a
-    ld a, $A9 ; Second cursor
+    ld a, TileIndex_Cursor3 & $ff ; Second cursor
     ld (RAM_SpriteTable1.xn + 3*2+1), a
     ; Clear the copy flags
     xor a
@@ -5802,7 +5802,7 @@ HandlePenInPalette:
     xor a ; PenStyle_Thin
     ld (RAM_PenStyle), a
 ++: ; Update the cursor
-    ld a, $A8
+    ld a, TileIndex_Cursor2 & $ff
     ld (RAM_SpriteTable1.xn+0*2+1), a ; Sprite 0 n
     ld a, CursorIndex_PaletteSelect
     call SetCursorIndex
@@ -6280,7 +6280,7 @@ _AddSprites_Vertical:
       ex af, af'
       ld (ix+0), a
       inc ix
-      ld (ix+0), $A5 ; Tile index: vertical flashing line
+      ld (ix+0), TileIndex_Cursor_VerticalLine & $ff ; Tile index: vertical flashing line
       inc ix
     pop bc
     ret
@@ -6295,7 +6295,7 @@ _AddSprites_Vertical8px:
     ex af, af'
     ld (ix+0), a
     inc ix
-    ld (ix+0), $A5 ; Tile index: vertical flashing line
+    ld (ix+0), TileIndex_Cursor_VerticalLine & $ff ; Tile index: vertical flashing line
     inc ix
     djnz -
     ret
@@ -6314,7 +6314,7 @@ _AddSprites_Vertical_SingleColumn:
       ex af, af'
       ld (ix+0), a
       inc ix
-      ld (ix+0), $A5 ; Tile index: vertical flashing line
+      ld (ix+0), TileIndex_Cursor_VerticalLine & $ff ; Tile index: vertical flashing line
       inc ix
     pop bc
     ret
@@ -6348,7 +6348,7 @@ _AddSprites_Horizontal:
       inc a
       ld (ix+0), a ; Set x coordinate
       inc ix
-      ld (ix+0), $A6 ; Tile index: horizontal flashing line
+      ld (ix+0), TileIndex_Cursor_HorizontalLine & $ff ; Tile index: horizontal flashing line
       inc ix
     pop bc
     ret
@@ -6362,7 +6362,7 @@ _AddSprites_Horizontal8px:
       ld (ix+0), a ; Set x coordinate
       inc hl ; Next n
       inc ix
-      ld (ix+0), $A6 ; Tile index: horizontal flashing line
+      ld (ix+0), TileIndex_Cursor_HorizontalLine & $ff ; Tile index: horizontal flashing line
       inc ix
     ex af, af'
     djnz -
@@ -6380,7 +6380,7 @@ _AddSprites_Horizontal_SingleColumn:
         ld (ix+0), a  ; Set x coordinate
         inc hl        ; Unnecessary?
         inc ix
-        ld (ix+0), $A6 ; Tile index: horizontal flashing line
+        ld (ix+0), TileIndex_Cursor_HorizontalLine & $ff ; Tile index: horizontal flashing line
         inc ix
       ex af, af'
     pop bc
