@@ -516,19 +516,6 @@ VBlank_CheckResetAndExit:
     ei
     ret
 
-.endasm ; Some pushes to match the pops below - ignore!
-push af
-push af
-push af
-push af
-push af
-push af
-push af
-push af
-push af
-push af
-.asm
-
 VBlank_HandleReset:
     pop hl
     pop de
@@ -1299,84 +1286,56 @@ BackupTilesToGraphicsDataBuffer:
 .ends
 
 .section "Menu data" force
-; This is the ASCII mapping for the regular font (outside the title screen).
-.asciitable
-map " " = 0
-map "A" to "Z" = 1
-map "!" = 27
-map "." = 28
-map "?" = 29
-map "-" = 30
-; Menu borders
-map "/" = 31      ; /^^^^^, 
-map "^" = 32      ; [     ]
-map "," = 33      ; `_____'
-map "]" = 34
-map "'" = 35
-map "_" = 36
-map "`" = 37
-map "[" = 38
-; "Magnify" mode borders
-map "~" = 39      ; Same order as above... ran out of sensible characters to use
-map "*" = 40      ; ~*****;
-map ";" = 41      ; (     )
-map ")" = 42      ; %#####@
-map "@" = 43
-map "#" = 44
-map "%" = 45
-map "(" = 46
-; Second space
-map "$" = $ff ; end of line
-.enda
+.stringmaptable menus menus.tbl
 
 MenuText: ; $1a10
 .db 13*14
-.asc "/^^ MENU ^^,$"
-.asc "[  EXIT    ]$"
-.asc "[  COLOR   ]$"
-.asc "[  ERASE   ]$"
-.asc "[  SQUARE  ]$"
-.asc "[  CIRCLE  ]$"
-.asc "[  ELLIPSE ]$"
-.asc "[  PAINT   ]$"
-.asc "[  COPY    ]$"
-.asc "[  MIRROR  ]$"
-.asc "[  MAGNIFY ]$"
-.asc "[  DISPLAY ]$"
-.asc "[  END     ]$"
-.asc "`__________'$"
+.stringmap menus "┌── MENU ──╖[EOS]"
+.stringmap menus "│  EXIT    ║[EOS]"
+.stringmap menus "│  COLOR   ║[EOS]"
+.stringmap menus "│  ERASE   ║[EOS]"
+.stringmap menus "│  SQUARE  ║[EOS]"
+.stringmap menus "│  CIRCLE  ║[EOS]"
+.stringmap menus "│  ELLIPSE ║[EOS]"
+.stringmap menus "│  PAINT   ║[EOS]"
+.stringmap menus "│  COPY    ║[EOS]"
+.stringmap menus "│  MIRROR  ║[EOS]"
+.stringmap menus "│  MAGNIFY ║[EOS]"
+.stringmap menus "│  DISPLAY ║[EOS]"
+.stringmap menus "│  END     ║[EOS]"
+.stringmap menus "╘══════════╝[EOS]"
 
 ModeMenuText: ; $1ac7
 .db 11*4
-.asc "/^ MODE ^,$"
-.asc "[  LINE  ]$"
-.asc "[  PAINT ]$"
-.asc "`________'$"
+.stringmap menus  "┌─ MODE ─╖[EOS]"
+.stringmap menus  "│  LINE  ║[EOS]"
+.stringmap menus  "│  PAINT ║[EOS]"
+.stringmap menus  "╘════════╝[EOS]"
 
 ColorMenuText: ; $1af4
 .db 17*4
-.asc "/^ COLOR MENU ^,$"
-.asc "[  COLOR SET   ]$"
-.asc "[  BACK COLOR  ]$"
-.asc "`______________'$"
+.stringmap menus  "┌─ COLOR MENU ─╖[EOS]"
+.stringmap menus  "│  COLOR SET   ║[EOS]"
+.stringmap menus  "│  BACK COLOR  ║[EOS]"
+.stringmap menus  "╘══════════════╝[EOS]"
 
 MirrorMenuText: ; $1b39
 .db 15*4
-.asc "/^ MODE SET ^,$"
-.asc "[  V-REVERSE ]$"
-.asc "[  H-REVERSE ]$"
-.asc "`____________'$"
+.stringmap menus  "┌─ MODE SET ─╖[EOS]"
+.stringmap menus  "│  V-REVERSE ║[EOS]"
+.stringmap menus  "│  H-REVERSE ║[EOS]"
+.stringmap menus  "╘════════════╝[EOS]"
 
 ColorPageMenuText: ; $1b76
 .db 14*8
-.asc "/^^ COLOR ^^,$"
-.asc "[           ]$"
-.asc "[           ]$"
-.asc "[           ]$"
-.asc "[           ]$"
-.asc "[  PAGE UP  ]$"
-.asc "[  PAGE DOWN]$"
-.asc "`___________'$"
+.stringmap menus  "┌── COLOR ──╖[EOS]"
+.stringmap menus  "│           ║[EOS]"
+.stringmap menus  "│           ║[EOS]"
+.stringmap menus  "│           ║[EOS]"
+.stringmap menus  "│           ║[EOS]"
+.stringmap menus  "│  PAGE UP  ║[EOS]"
+.stringmap menus  "│  PAGE DOWN║[EOS]"
+.stringmap menus  "╘═══════════╝[EOS]"
 
 ColourSelectionTilemap: ; $1be7
 ; Tiles showing selectable colours
@@ -1403,10 +1362,10 @@ ColourSelectionTilemap: ; $1be7
 
 EraseMenuText: ; $1c11
 .db 14*4
-.asc "/^ ERASE ? ^,$"
-.asc "[  NO       ]$"
-.asc "[  YES      ]$"
-.asc "`___________'$"
+.stringmap menus  "┌─ ERASE ? ─╖[EOS]"
+.stringmap menus  "│  NO       ║[EOS]"
+.stringmap menus  "│  YES      ║[EOS]"
+.stringmap menus  "╘═══════════╝[EOS]"
 .ends
 
 .section "Drawing implementation" force
@@ -3031,13 +2990,6 @@ Ellipse_DrawPoint:
     pop bc
     ret
 
-; push/pop matching, ignore
-.endasm
-push af
-push af
-push af
-.asm
-
 +:    ex af, af'
       ; Fill mode: draw a line from the centre to the point
       ld d, l ; de = x1,y1
@@ -3239,9 +3191,6 @@ FloodFill:
       dec a
       ld h, a
       push hl
-.endasm
-      pop hl ; For push/pop matching
-.asm
 
 +:    ; Then check for "forks" below as well
       ld a, (RAM_FloodFill_PreviousPixelBelowMatches)
@@ -3260,9 +3209,7 @@ FloodFill:
       inc a
       ld h, a
       push hl
-.endasm
-      pop hl ; For push/pop matching
-.asm
+
 +:    ld a, (RAM_FloodFillXY.x)
       ld e, a
       ld a, (RAM_FloodFillXY.y)
@@ -3296,9 +3243,6 @@ FloodFill_EndOfRow:
       jr z, FloodFill_Done
       
       ; Else pop one of the locations we pushed earlier (if any) and check if it still needs to be filled
-.endasm
-      push hl ; For push/pop matching
-.asm
       pop hl
       ld a, l
       ld (RAM_FloodFillXY.x), a
@@ -3752,9 +3696,6 @@ _MirrorHorizontally: ; Horizontal mirror, that is
       sub b
       ld (RAM_CopyData.Destination_Y), a
       ret ; to _MirrorHorizontally_Impl - could fall through
-.endasm ; Unmatched push matching
-pop hl
-.asm
 
 _MirrorHorizontally_Impl:
     ; Do the mirroring
@@ -3854,10 +3795,6 @@ _MirrorVertically: ; Mirror is vertical
       sub b
       ld (RAM_CopyData.Destination_X), a
       ret
-
-.endasm ; Unmatched push matching
-pop hl
-.asm
 
 _MirrorVertically_Impl:
     ; Analagous to horizontally above...
@@ -4552,50 +4489,50 @@ _Magnify_CalculatePixelOffset:
 +:  ld (RAM_CopyData.PixelOffset), a
     ret
 
-_MagnifyBoxData_TopLeft:
-.db 10*9
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "########@$"
-_MagnifyBoxData_BottomLeft:
-.db 10*9
-.asc "********;$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-_MagnifyBoxData_TopRight:
-.db 10*9
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "%########$"
 _MagnifyBoxData_BottomRight:
 .db 10*9
-.asc "~********$"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "┅┅┅┅┅┅┅┅┛[EOS]"
+_MagnifyBoxData_TopRight:
+.db 10*9
+.stringmap menus  "━━━━━━━━┓[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+.stringmap menus  "        ┇[EOS]"
+_MagnifyBoxData_BottomLeft:
+.db 10*9
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┗┅┅┅┅┅┅┅┅[EOS]"
+_MagnifyBoxData_TopLeft:
+.db 10*9
+.stringmap menus  "┏━━━━━━━━[EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
+.stringmap menus  "┃        [EOS]"
 
 .macro MagnifyBoxDataStruct args YMin, YMax, XMin, XMax, VRAMAddress, DataPointer, X, Y
 .db \1 \2 \3 \4
@@ -4604,10 +4541,10 @@ _MagnifyBoxData_BottomRight:
 .endm
 
 MagnifyBoxData:
- MagnifyBoxDataStruct  24  87  40 103 $38CB _MagnifyBoxData_TopLeft      0 0
- MagnifyBoxDataStruct 104 167  40 103 $3B4B _MagnifyBoxData_BottomLeft   0 9
- MagnifyBoxDataStruct  24  87 152 215 $38E7 _MagnifyBoxData_TopRight    13 0
- MagnifyBoxDataStruct 104 167 152 215 $3B67 _MagnifyBoxData_BottomRight 13 9
+ MagnifyBoxDataStruct  24  87  40 103 $38CB _MagnifyBoxData_BottomRight      0 0
+ MagnifyBoxDataStruct 104 167  40 103 $3B4B _MagnifyBoxData_TopRight   0 9
+ MagnifyBoxDataStruct  24  87 152 215 $38E7 _MagnifyBoxData_BottomLeft    13 0
+ MagnifyBoxDataStruct 104 167 152 215 $3B67 _MagnifyBoxData_TopLeft 13 9
 .ends
 
 .section "Graphic board/sprite update handlers dispatcher" force
@@ -4897,10 +4834,6 @@ Mode5_SquareGraphicBoardHandler:
     ; Write into the second cursor
     ld a, SetCursorIndex_Second | CursorIndex_ArrowBottomRight
     jp SetCursorIndex ; and ret
-
-.endasm ; Unmatched push matching
-push hl
-.asm
 
 +:    ; Phase 2 (second corner)
       ld a, CursorIndex_ArrowTopLeft
@@ -6300,10 +6233,6 @@ _AddSprites_Vertical8px:
     djnz -
     ret
 
-.endasm ; Unmatched push matching
-push bc
-.asm
-
 _AddSprites_Vertical_SingleColumn:
       ex af, af'
         ld a, (hl)
@@ -6368,9 +6297,6 @@ _AddSprites_Horizontal8px:
     djnz -
     ret
 
-.endasm ; Unmatched push matching
-push bc
-.asm
 _AddSprites_Horizontal_SingleColumn:
       ld (de), a      ; Set y coordinate
       ex af, af'      ; preserve a (unnecessary?)
@@ -6479,18 +6405,18 @@ StatusBarText:
 ; All must be 13 characters long
 .define STATUS_BAR_TEXT_LENGTH 13
 ;     1234567890123
-.asc "             "
-.asc " COLOR MODE  "
-.asc " ERASE MODE  "
-.asc " SQUARE MODE "
-.asc " CIRCLE MODE "
-.asc " ELLIPSE MODE"
-.asc " PAINT MODE  "
-.asc " COPY MODE   "
-.asc " MIRROR MODE "
-.asc " MAGNIFY MODE"
-.asc " DISPLAY MODE"
-.asc "   THE END   "
+.stringmap menus  "             "
+.stringmap menus  " COLOR MODE  "
+.stringmap menus  " ERASE MODE  "
+.stringmap menus  " SQUARE MODE "
+.stringmap menus  " CIRCLE MODE "
+.stringmap menus  " ELLIPSE MODE"
+.stringmap menus  " PAINT MODE  "
+.stringmap menus  " COPY MODE   "
+.stringmap menus  " MIRROR MODE "
+.stringmap menus  " MAGNIFY MODE"
+.stringmap menus  " DISPLAY MODE"
+.stringmap menus  "   THE END   "
 
 TitleScreenFont:
 .incbin "Graphics/Font tiles.pscompr"
@@ -6511,9 +6437,10 @@ ControlTiles: ; $4552
 ; Lots of unused space (14615 bytes)
 
 ; Header
-.smstag ; TMR SEGA, checksum, region, size
-.orga $7ff8
-.db "WK" ; Initials in unused space
-.orga $7ffc
-.dw $4009 ; product code - not valid?
-.db $02 ; version 2
+.smsheader
+    productcode $09, $40, 0 ; Not valid?
+    version 2
+    regioncode 4
+    reservedspace $57, $4B ; "WK" ; Initials in unused space
+    romsize $c ; 32KB
+.endsms
