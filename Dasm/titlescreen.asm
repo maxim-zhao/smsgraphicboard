@@ -52,9 +52,9 @@ TitleScreen: ; $865
     in a, (Port_IOPort1)
     and %11101111 ; $EF ; Ignore TL
     cp  %11100000 ; $E0 ; Expect UDLR lines low, rest high
-    ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_bit3 + 1<<VBlankFunctionControl_ReadGraphicBoard ; $8A
+    ld a, (1<<VBlankFunctionControl_TitleScreen) + (1<<VBlankFunctionControl_bit3) + (1<<VBlankFunctionControl_ReadGraphicBoard) ; $8A
     jp z, +
-    ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_bit3
+    ld a, (1<<VBlankFunctionControl_TitleScreen) + (1<<VBlankFunctionControl_bit3)
 +:  ld (RAM_TitleScreen.VBlankControl), a ; gets either $8a or $88 accordingly
 
     ; Draw into tilemap for splash screen animation
@@ -130,7 +130,7 @@ _CheckForGraphicsBoard:
     ld (RAM_TitleScreenTextLocation), de
     ld bc, 20 | (12<<8)
     ld (RAM_TitleScreenTextLength), bc ; also sets RAM_TitleScreenTextFlashSpeed
-    ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_TitleScreen_UpdateText
+    ld a, (1<<VBlankFunctionControl_TitleScreen) + (1<<VBlankFunctionControl_TitleScreen_UpdateText)
     call SetVBlankFunctionAndWait
 
     ; decrement timeout counter
@@ -149,7 +149,7 @@ GraphicsBoardDetected:
     ld (RAM_TitleScreenTextLocation), de
     ld bc, 12 | (32 << 8)
     ld (RAM_TitleScreenTextLength), bc ; also sets RAM_TitleScreenTextFlashSpeed
--:  ld a, 1<<VBlankFunctionControl_TitleScreen + 1<<VBlankFunctionControl_TitleScreen_UpdateText + 1<<VBlankFunctionControl_ReadGraphicBoard
+-:  ld a, (1<<VBlankFunctionControl_TitleScreen) + (1<<VBlankFunctionControl_TitleScreen_UpdateText) + (1<<VBlankFunctionControl_ReadGraphicBoard)
     call SetVBlankFunctionAndWait
 
     ; check the board again
@@ -515,7 +515,7 @@ TitleScreenVBlank_Roll:
 .section "Title screen data 2" force
 ;.orga $b8a
 Tilemap_Logo:
-.incbin "Graphics/Logo tilemap.bin"
+.incbin "Graphics/logo-tilemap.bin"
 ;.orga $c2a
 Palette_Logo:
  COLOUR 0,0,1 ; Dark blue
@@ -528,11 +528,11 @@ Palette_Logo:
  COLOUR 0,0,0
 ;.orga $c32
 Tiles_Logo:
-.incbin "Graphics/Logo tiles.2bpp"
+.incbin "Graphics/logo-tiles.2bpp"
 ;.orga $14a2
 Tilemap_SegaLogo:
-.incbin "Graphics/Sega logo.lsbtilemap"
+.incbin "Graphics/sega-logo.lsbtilemap"
 ;.orga $14ca
 Tiles_SegaLogo:
-.incbin "Graphics/Sega logo.pscompr"
+.incbin "Graphics/sega-logo.pscompr"
 .ends
