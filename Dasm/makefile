@@ -1,12 +1,13 @@
 WLA-Z80 = wla-z80
 WLALINK = wlalink
 BMP2TILE = bmp2tile
-GENERATED_FILES = *.sms *.o *.makefile Graphics/*.1bpp Graphics/*.4bpp *.sym
+GENERATED_FILES = *.sms *.o *.makefile Graphics\*.1bpp Graphics\*-tiles.bin *.sym
 7Z = 7z
 
 DUMMY: smsgraphicboard.sms
 
 # Graphics conversion
+# We do not make %.pscompr because our compressor does not produce bit-identical output
 Graphics/%.2bpp: Graphics/PNG/%.2bpp.png
 	bmp2tile "$<" -noremoveduplicates -savetiles "$@"
 
