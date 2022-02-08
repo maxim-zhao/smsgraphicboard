@@ -324,7 +324,7 @@ DrawingPalette:
   COLOUR $ff5
   COLOUR $ffa
   ; Sprites
-  COLOUR $000 ; Tranparent/black
+  COLOUR $000 ; Transparent/black
   COLOUR $000 ; Black for sprites
   COLOUR $fff ; White
   COLOUR $f00 ; Red
@@ -1304,52 +1304,58 @@ BackupTilesToGraphicsDataBuffer:
 
 MenuText: ; $1a10
 .db 13*14
-.stringmap menus "┌── MENU ──╖$"
-.stringmap menus "│  EXIT    ║$"
-.stringmap menus "│  COLOR   ║$"
-.stringmap menus "│  ERASE   ║$"
-.stringmap menus "│  SQUARE  ║$"
-.stringmap menus "│  CIRCLE  ║$"
-.stringmap menus "│  ELLIPSE ║$"
-.stringmap menus "│  PAINT   ║$"
-.stringmap menus "│  COPY    ║$"
-.stringmap menus "│  MIRROR  ║$"
-.stringmap menus "│  MAGNIFY ║$"
-.stringmap menus "│  DISPLAY ║$"
-.stringmap menus "│  END     ║$"
-.stringmap menus "╘══════════╝$"
+.stringmap menus \
+  "┌── MENU ──╖$" \
+  "│  EXIT    ║$" \
+  "│  COLOR   ║$" \
+  "│  ERASE   ║$" \
+  "│  SQUARE  ║$" \
+  "│  CIRCLE  ║$" \
+  "│  ELLIPSE ║$" \
+  "│  PAINT   ║$" \
+  "│  COPY    ║$" \
+  "│  MIRROR  ║$" \
+  "│  MAGNIFY ║$" \
+  "│  DISPLAY ║$" \
+  "│  END     ║$" \
+.stringmap menus \ ; Break due to WLA DX string length limit
+  "╘══════════╝$"
 
 ModeMenuText: ; $1ac7
 .db 11*4
-.stringmap menus "┌─ MODE ─╖$"
-.stringmap menus "│  LINE  ║$"
-.stringmap menus "│  PAINT ║$"
-.stringmap menus "╘════════╝$"
+.stringmap menus \
+  "┌─ MODE ─╖$" \
+  "│  LINE  ║$" \
+  "│  PAINT ║$" \
+  "╘════════╝$"
 
 ColorMenuText: ; $1af4
 .db 17*4
-.stringmap menus "┌─ COLOR MENU ─╖$"
-.stringmap menus "│  COLOR SET   ║$"
-.stringmap menus "│  BACK COLOR  ║$"
-.stringmap menus "╘══════════════╝$"
+.stringmap menus \
+  "┌─ COLOR MENU ─╖$" \
+  "│  COLOR SET   ║$" \
+  "│  BACK COLOR  ║$" \
+  "╘══════════════╝$"
 
 MirrorMenuText: ; $1b39
 .db 15*4
-.stringmap menus "┌─ MODE SET ─╖$"
-.stringmap menus "│  V-REVERSE ║$"
-.stringmap menus "│  H-REVERSE ║$"
-.stringmap menus "╘════════════╝$"
+.stringmap menus \
+  "┌─ MODE SET ─╖$" \
+  "│  V-REVERSE ║$" \
+  "│  H-REVERSE ║$" \
+  "╘════════════╝$"
 
 ColorPageMenuText: ; $1b76
 .db 14*8
-.stringmap menus "┌── COLOR ──╖$"
-.stringmap menus "│           ║$"
-.stringmap menus "│           ║$"
-.stringmap menus "│           ║$"
-.stringmap menus "│           ║$"
-.stringmap menus "│  PAGE UP  ║$"
-.stringmap menus "│  PAGE DOWN║$"
-.stringmap menus "╘═══════════╝$"
+.stringmap menus \
+  "┌── COLOR ──╖$" \
+  "│           ║$" \
+  "│           ║$" \
+  "│           ║$" \
+  "│           ║$" \
+  "│  PAGE UP  ║$" \
+  "│  PAGE DOWN║$" \
+  "╘═══════════╝$"
 
 ColourSelectionTilemap: ; $1be7
 ; Tiles showing selectable colours
@@ -1376,10 +1382,11 @@ ColourSelectionTilemap: ; $1be7
 
 EraseMenuText: ; $1c11
 .db 14*4
-.stringmap menus "┌─ ERASE ? ─╖$"
-.stringmap menus "│  NO       ║$"
-.stringmap menus "│  YES      ║$"
-.stringmap menus "╘═══════════╝$"
+.stringmap menus \
+  "┌─ ERASE ? ─╖$" \
+  "│  NO       ║$" \
+  "│  YES      ║$" \
+  "╘═══════════╝$"
 .ends
 
 .section "Drawing implementation" force
@@ -4527,48 +4534,52 @@ _Magnify_CalculatePixelOffset:
 
 _MagnifyBoxData_SE:
 .db 10*9
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "━━━━━━━━┛$"
+.stringmap menus \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "━━━━━━━━┛$"
 _MagnifyBoxData_NE:
 .db 10*9
-.stringmap menus "┄┄┄┄┄┄┄┄┒$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
-.stringmap menus "        ┃$"
+.stringmap menus \
+  "┄┄┄┄┄┄┄┄┒$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$" \
+  "        ┃$"
 _MagnifyBoxData_SW:
 .db 10*9
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┕━━━━━━━━$"
+.stringmap menus \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┕━━━━━━━━$"
 _MagnifyBoxData_NW:
 .db 10*9
-.stringmap menus "╭┄┄┄┄┄┄┄┄$"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
-.stringmap menus "┆        $"
+.stringmap menus \
+  "╭┄┄┄┄┄┄┄┄$" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $" \
+  "┆        $"
 
 MagnifyBoxData:
 ;      YMin, YMax, XMin, XMax, VRAMAddress, DataPointer,         X,    Y
@@ -6447,19 +6458,20 @@ UpdateStatusBarText:
 StatusBarText:
 ; All must be 13 characters long
 .define STATUS_BAR_TEXT_LENGTH 13
-;     1234567890123
-.stringmap menus "             "
-.stringmap menus " COLOR MODE  "
-.stringmap menus " ERASE MODE  "
-.stringmap menus " SQUARE MODE "
-.stringmap menus " CIRCLE MODE "
-.stringmap menus " ELLIPSE MODE"
-.stringmap menus " PAINT MODE  "
-.stringmap menus " COPY MODE   "
-.stringmap menus " MIRROR MODE "
-.stringmap menus " MAGNIFY MODE"
-.stringmap menus " DISPLAY MODE"
-.stringmap menus "   THE END   "
+;  1234567890123
+.stringmap menus \
+  "             " \
+  " COLOR MODE  " \
+  " ERASE MODE  " \
+  " SQUARE MODE " \
+  " CIRCLE MODE " \
+  " ELLIPSE MODE" \
+  " PAINT MODE  " \
+  " COPY MODE   " \
+  " MIRROR MODE " \
+  " MAGNIFY MODE" \
+  " DISPLAY MODE" \
+  "   THE END   "
 
 TitleScreenFont:
 .incbin "Graphics/font-tiles.pscompr"
