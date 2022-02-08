@@ -1,3 +1,6 @@
 *.cmd
 *.sms
 *.tmp
+/Dasm/Graphics/cursor-tiles.bin
+*.o
+*.sym

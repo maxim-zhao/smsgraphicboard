@@ -1300,83 +1300,56 @@ BackupTilesToGraphicsDataBuffer:
 
 .section "Menu data" force
 ; This is the ASCII mapping for the regular font (outside the title screen).
-.asciitable
-map " " = 0
-map "A" to "Z" = 1
-map "!" = 27
-map "." = 28
-map "?" = 29
-map "-" = 30
-; Menu borders
-map "/" = 31      ; /^^^^^, 
-map "^" = 32      ; [     ]
-map "," = 33      ; `_____'
-map "]" = 34
-map "'" = 35
-map "_" = 36
-map "`" = 37
-map "[" = 38
-; "Magnify" mode borders
-map "~" = 39      ; Same order as above... ran out of sensible characters to use
-map "*" = 40      ; ~*****;
-map ";" = 41      ; (     )
-map ")" = 42      ; %#####@
-map "@" = 43
-map "#" = 44
-map "%" = 45
-map "(" = 46
-; Second space
-map "$" = $ff ; end of line
-.enda
+.stringmaptable menus "menus.tbl"
 
 MenuText: ; $1a10
 .db 13*14
-.asc "/^^ MENU ^^,$"
-.asc "[  EXIT    ]$"
-.asc "[  COLOR   ]$"
-.asc "[  ERASE   ]$"
-.asc "[  SQUARE  ]$"
-.asc "[  CIRCLE  ]$"
-.asc "[  ELLIPSE ]$"
-.asc "[  PAINT   ]$"
-.asc "[  COPY    ]$"
-.asc "[  MIRROR  ]$"
-.asc "[  MAGNIFY ]$"
-.asc "[  DISPLAY ]$"
-.asc "[  END     ]$"
-.asc "`__________'$"
+.stringmap menus "┌── MENU ──╖$"
+.stringmap menus "│  EXIT    ║$"
+.stringmap menus "│  COLOR   ║$"
+.stringmap menus "│  ERASE   ║$"
+.stringmap menus "│  SQUARE  ║$"
+.stringmap menus "│  CIRCLE  ║$"
+.stringmap menus "│  ELLIPSE ║$"
+.stringmap menus "│  PAINT   ║$"
+.stringmap menus "│  COPY    ║$"
+.stringmap menus "│  MIRROR  ║$"
+.stringmap menus "│  MAGNIFY ║$"
+.stringmap menus "│  DISPLAY ║$"
+.stringmap menus "│  END     ║$"
+.stringmap menus "╘══════════╝$"
 
 ModeMenuText: ; $1ac7
 .db 11*4
-.asc "/^ MODE ^,$"
-.asc "[  LINE  ]$"
-.asc "[  PAINT ]$"
-.asc "`________'$"
+.stringmap menus "┌─ MODE ─╖$"
+.stringmap menus "│  LINE  ║$"
+.stringmap menus "│  PAINT ║$"
+.stringmap menus "╘════════╝$"
 
 ColorMenuText: ; $1af4
 .db 17*4
-.asc "/^ COLOR MENU ^,$"
-.asc "[  COLOR SET   ]$"
-.asc "[  BACK COLOR  ]$"
-.asc "`______________'$"
+.stringmap menus "┌─ COLOR MENU ─╖$"
+.stringmap menus "│  COLOR SET   ║$"
+.stringmap menus "│  BACK COLOR  ║$"
+.stringmap menus "╘══════════════╝$"
 
 MirrorMenuText: ; $1b39
 .db 15*4
-.asc "/^ MODE SET ^,$"
-.asc "[  V-REVERSE ]$"
-.asc "[  H-REVERSE ]$"
-.asc "`____________'$"
+.stringmap menus "┌─ MODE SET ─╖$"
+.stringmap menus "│  V-REVERSE ║$"
+.stringmap menus "│  H-REVERSE ║$"
+.stringmap menus "╘════════════╝$"
 
 ColorPageMenuText: ; $1b76
 .db 14*8
-.asc "/^^ COLOR ^^,$"
-.asc "[           ]$"
-.asc "[           ]$"
-.asc "[           ]$"
-.asc "[           ]$"
-.asc "[  PAGE UP  ]$"
-.asc "[  PAGE DOWN]$"
-.asc "`___________'$"
+.stringmap menus "┌── COLOR ──╖$"
+.stringmap menus "│           ║$"
+.stringmap menus "│           ║$"
+.stringmap menus "│           ║$"
+.stringmap menus "│           ║$"
+.stringmap menus "│  PAGE UP  ║$"
+.stringmap menus "│  PAGE DOWN║$"
+.stringmap menus "╘═══════════╝$"
 
 ColourSelectionTilemap: ; $1be7
 ; Tiles showing selectable colours
@@ -1403,10 +1376,10 @@ ColourSelectionTilemap: ; $1be7
 
 EraseMenuText: ; $1c11
 .db 14*4
-.asc "/^ ERASE ? ^,$"
-.asc "[  NO       ]$"
-.asc "[  YES      ]$"
-.asc "`___________'$"
+.stringmap menus "┌─ ERASE ? ─╖$"
+.stringmap menus "│  NO       ║$"
+.stringmap menus "│  YES      ║$"
+.stringmap menus "╘═══════════╝$"
 .ends
 
 .section "Drawing implementation" force
@@ -4552,62 +4525,58 @@ _Magnify_CalculatePixelOffset:
 +:  ld (RAM_CopyData.PixelOffset), a
     ret
 
-_MagnifyBoxData_TopLeft:
+_MagnifyBoxData_SE:
 .db 10*9
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "########@$"
-_MagnifyBoxData_BottomLeft:
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "━━━━━━━━┛$"
+_MagnifyBoxData_NE:
 .db 10*9
-.asc "********;$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-.asc "        )$"
-_MagnifyBoxData_TopRight:
+.stringmap menus "┄┄┄┄┄┄┄┄┒$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+.stringmap menus "        ┃$"
+_MagnifyBoxData_SW:
 .db 10*9
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "%########$"
-_MagnifyBoxData_BottomRight:
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┕━━━━━━━━$"
+_MagnifyBoxData_NW:
 .db 10*9
-.asc "~********$"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-.asc "(        $"
-
-.macro MagnifyBoxDataStruct args YMin, YMax, XMin, XMax, VRAMAddress, DataPointer, X, Y
-.db \1 \2 \3 \4
-.dw \5 \6
-.db \7 \8
-.endm
+.stringmap menus "╭┄┄┄┄┄┄┄┄$"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
+.stringmap menus "┆        $"
 
 MagnifyBoxData:
- MagnifyBoxDataStruct  24  87  40 103 $38CB _MagnifyBoxData_TopLeft      0 0
- MagnifyBoxDataStruct 104 167  40 103 $3B4B _MagnifyBoxData_BottomLeft   0 9
- MagnifyBoxDataStruct  24  87 152 215 $38E7 _MagnifyBoxData_TopRight    13 0
- MagnifyBoxDataStruct 104 167 152 215 $3B67 _MagnifyBoxData_BottomRight 13 9
+;      YMin, YMax, XMin, XMax, VRAMAddress, DataPointer,         X,    Y
+.table byte, byte, byte, byte,        word, word,             byte, byte
+.row     24,   87,   40,  103,       $38CB, _MagnifyBoxData_SE,  0,    0
+.row    104,  167,   40,  103,       $3B4B, _MagnifyBoxData_NE,  0,    9
+.row     24,   87,  152,  215,       $38E7, _MagnifyBoxData_SW, 13,    0
+.row    104,  167,  152,  215,       $3B67, _MagnifyBoxData_NW, 13,    9
 .ends
 
 .section "Graphic board/sprite update handlers dispatcher" force
@@ -6479,18 +6448,18 @@ StatusBarText:
 ; All must be 13 characters long
 .define STATUS_BAR_TEXT_LENGTH 13
 ;     1234567890123
-.asc "             "
-.asc " COLOR MODE  "
-.asc " ERASE MODE  "
-.asc " SQUARE MODE "
-.asc " CIRCLE MODE "
-.asc " ELLIPSE MODE"
-.asc " PAINT MODE  "
-.asc " COPY MODE   "
-.asc " MIRROR MODE "
-.asc " MAGNIFY MODE"
-.asc " DISPLAY MODE"
-.asc "   THE END   "
+.stringmap menus "             "
+.stringmap menus " COLOR MODE  "
+.stringmap menus " ERASE MODE  "
+.stringmap menus " SQUARE MODE "
+.stringmap menus " CIRCLE MODE "
+.stringmap menus " ELLIPSE MODE"
+.stringmap menus " PAINT MODE  "
+.stringmap menus " COPY MODE   "
+.stringmap menus " MIRROR MODE "
+.stringmap menus " MAGNIFY MODE"
+.stringmap menus " DISPLAY MODE"
+.stringmap menus "   THE END   "
 
 TitleScreenFont:
 .incbin "Graphics/font-tiles.pscompr"
@@ -6518,3 +6487,4 @@ ControlTiles: ; $4552
   reservedspace $57, $4B ; "WK"
   romsize $c ; 32KB
 .endsms
+
